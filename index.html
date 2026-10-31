@@ -1578,11 +1578,15 @@ function runAvg() { return runStats().avg; }
 function saveRun() {
   const st = runStats();
   if (!store.runs) store.runs = [];
-  const good = [...new Set(st.all.map((r, i) => (r.status === 'pure' || r.status === 'ok') && !G.seq[i].cont ? wordAt(i) : null).filter(Boolean))];
+  const good = strongSyl(st);
   store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo, good });
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true; setTimeout(() => checkLevel(), 1500);
 }
+// 'Do', 'Do and Re', 'Do, Re and Mi'
+function listJoin(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+// The scale degrees sung on pitch, in scale order, e.g. ['Do', 'Re', 'Mi', 'So'].
+function strongSyl(st) { const set = new Set(st.all.filter(r => r.status === 'pure' || r.status === 'ok').map(r => (((r.m - G.shift) % 12) + 12) % 12)); return SOLF.filter((_, i) => set.has(i)); }
 function med(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; }
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 // Works out why points were lost and what to do about it. Returns up to three findings, most important first.
@@ -1643,8 +1647,8 @@ function diagnose(st) {
 function encouragement(st, prev, isBest) {
   if (st.ok === st.n && st.pure === st.n) return 'Wow! Every note on pitch and pure.' + (diagnose(st).length ? ' A little fine-tuning below.' : ' You nailed it!');
   const m = [];
-  const good = [...new Set(st.all.map((r, i) => (r.status === 'pure' || r.status === 'ok') && !G.seq[i].cont ? wordAt(i) : null).filter(Boolean))];
-  if (good.length && good.length < st.n) m.push(`You already sing ${good.slice(0, 6).join(', ')}${good.length > 6 ? '…' : ''} well!`);
+  const good = strongSyl(st);
+  if (good.length && st.ok < st.n) m.push(`Strongest notes: ${listJoin(good)}.`);
   if (!prev || prev.ok == null) m.push(`Great start: ${st.ok} of ${st.n} notes on pitch.`);
   else {
     if (st.ok > prev.ok) m.push(`Better! ${st.ok - prev.ok} more note${st.ok - prev.ok > 1 ? 's' : ''} on pitch than last time.`);
@@ -2117,23 +2121,26 @@ function voiceTypes(low, high, speak) {
     return { ...T, pen };
   }).sort((a, b) => a.pen - b.pen);
 }
+// Voice-type chart with the singer placed inside it: a gold band through every type where their range falls,
+// their range drawn on their own type's bar, and a star at their home note.
 function rangeFigure(p) {
-  const X = m => 100 + (m - 36) / 48 * 590, rows = [];
-  let y = 8;
-  for (const T of TYPES) {
-    const me = p && T.n === p.type;
-    rows.push(`<rect x="${X(T.lo)}" y="${y}" width="${X(T.hi) - X(T.lo)}" height="13" rx="6.5" fill="${me ? 'var(--accent)' : 'var(--line)'}" opacity="${me ? 0.9 : 1}"/>`,
-      `<text x="92" y="${y + 10}" text-anchor="end" style="font:${me ? 700 : 500} 11px var(--body);fill:var(--${me ? 'accent' : 'muted'})">${T.n}</text>`);
-    y += 18;
+  const X = m => 100 + (m - 36) / 48 * 590, rows = [], top = p ? 22 : 8, rowH = 20;
+  const yEnd = top + TYPES.length * rowH;
+  if (p) {
+    rows.push(`<rect x="${X(p.xlo ?? p.low)}" y="${top - 4}" width="${Math.max(4, X(p.xhi ?? p.high) - X(p.xlo ?? p.low))}" height="${yEnd - top + 4}" rx="8" fill="var(--pure)" opacity=".08"/>`,
+      `<rect x="${X(p.low)}" y="${top - 4}" width="${Math.max(4, X(p.high) - X(p.low))}" height="${yEnd - top + 4}" rx="8" fill="var(--pure)" opacity=".2"/>`,
+      `<text x="${(X(p.low) + X(p.high)) / 2}" y="${top - 9}" text-anchor="middle" style="font:700 12px var(--body);fill:var(--pure)">You: ${nameOf(p.low)} – ${nameOf(p.high)}</text>`);
   }
-  y += 4;
-  if (p) rows.push(`<rect x="${X(p.xlo ?? p.low)}" y="${y}" width="${Math.max(4, X(p.xhi ?? p.high) - X(p.xlo ?? p.low))}" height="15" rx="7.5" fill="var(--ink)" opacity=".15"/>`,
-    `<rect x="${X(p.low)}" y="${y}" width="${Math.max(4, X(p.high) - X(p.low))}" height="15" rx="7.5" fill="var(--pure)"/>`,
-    p.natural != null ? `<text x="${X(p.natural)}" y="${y + 12}" text-anchor="middle" style="font:15px serif;fill:var(--accent)">★</text>` : '',
-    `<text x="92" y="${y + 11}" text-anchor="end" style="font:700 11px var(--body);fill:var(--ink)">You</text>`);
-  y += 24;
-  for (let m = 36; m <= 84; m += 12) rows.push(`<line x1="${X(m)}" x2="${X(m)}" y1="4" y2="${y - 6}" stroke="var(--line)" stroke-dasharray="2 3"/>`, `<text x="${X(m)}" y="${y + 4}" text-anchor="middle" style="font:10px var(--mono);fill:var(--muted)">${nameOf(m)}</text>`);
-  return `<svg class="range-fig" viewBox="0 0 700 ${y + 10}" role="img" aria-label="Your range compared with voice types">${rows.join('')}</svg>`;
+  TYPES.forEach((T, i) => {
+    const y = top + i * rowH, me = p && T.n === p.type;
+    rows.push(`<rect x="${X(T.lo)}" y="${y}" width="${X(T.hi) - X(T.lo)}" height="13" rx="6.5" fill="${me ? 'var(--accent)' : 'var(--line)'}" opacity="${me ? 0.35 : 1}"/>`,
+      `<text x="92" y="${y + 10}" text-anchor="end" style="font:${me ? 700 : 500} 11px var(--body);fill:var(--${me ? 'accent' : 'muted'})">${T.n}${me ? ' ← you' : ''}</text>`);
+    if (me) rows.push(`<rect x="${X(p.low)}" y="${y}" width="${Math.max(4, X(p.high) - X(p.low))}" height="13" rx="6.5" fill="var(--pure)"/>`,
+      p.natural != null ? `<text x="${X(p.natural)}" y="${y + 11}" text-anchor="middle" style="font:14px serif;fill:var(--accent)">★</text>` : '');
+  });
+  const y = yEnd + 8;
+  for (let m = 36; m <= 84; m += 12) rows.push(`<line x1="${X(m)}" x2="${X(m)}" y1="${top - 4}" y2="${y - 6}" stroke="var(--line)" stroke-dasharray="2 3"/>`, `<text x="${X(m)}" y="${y + 4}" text-anchor="middle" style="font:10px var(--mono);fill:var(--muted)">${nameOf(m)}</text>`);
+  return `<svg class="range-fig" viewBox="0 0 700 ${y + 10}" role="img" aria-label="Your range placed among the voice types">${rows.join('')}</svg>`;
 }
 
 // Spoken prompts (so the singer can close their eyes), short waits, and a sample siren glide.
@@ -2549,7 +2556,7 @@ const LEVELS = [
     lessons: [
       { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
       { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
-        pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'You already sing ' + g.join(', ') + ' well.' : 'You sang it through.'; } },
+        pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'Strongest notes: ' + listJoin(g) + '.' : 'You sang it through.'; } },
       { title: 'Find your pure notes', kind: 'find', goal: 'Find 3 notes that ring pure', pass: () => store.discoveries.length >= 3,
         won: () => [...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ') + ' ring pure.' },
       { title: 'Hold a steady note', kind: 'lab', lab: 'hold', goal: '40% pure and steady', pass: () => labBestOf('hold') >= 40, won: () => 'Best: ' + labBestOf('hold') + '%.' },
@@ -2754,7 +2761,7 @@ function renderHome() {
     { k: 'voice', n: 1, title: 'Find your voice', desc: 'Hum low, high and in between. About 40 seconds.', done: !!p,
       result: p ? `<b>${p.type}</b> · ${nameOf(p.low)} – ${nameOf(p.high)}` : '', go: p ? 'Try again' : 'Start →', extra: p ? ['Your voice profile', () => $('#t-voice').click()] : null },
     { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
-      result: dr.length ? (good.length ? 'You sing <b>' + good.slice(0, 5).join(', ') + '</b> well' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
+      result: dr.length ? (good.length ? 'Strongest notes: <b>' + listJoin(good) + '</b>' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
     { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
       result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
     { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,

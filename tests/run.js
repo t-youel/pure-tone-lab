@@ -91,7 +91,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.id === 'scale' && s.screen === 'notes', JSON.stringify(s));
   });
 
-  await test('first lesson: Do-Re-Mi with words, then "you already sing … well"', async page => {
+  await test('first lesson: Do-Re-Mi with words, then "Strongest notes: …"', async page => {
     await voice(page);
     await page.click('[data-card="notes"] button'); await page.waitForTimeout(400);
     const words = await page.evaluate(() => [D.id, G.song.id, [...document.querySelectorAll('#staff .lyr')].map(t => t.textContent).join(' ')]);
@@ -100,10 +100,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('[data-tempo="normal"]'); await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(1800);
     const s = await page.evaluate(() => ({ head: document.querySelector('.cheer-big').textContent, done: (store.lessons || []).includes('1.2') }));
-    expect(/You already sing Do, Re, Mi, Fa, So/.test(s.head) && s.done, JSON.stringify(s));
+    expect(/Strongest notes: Do, Re, Mi, Fa and So\./.test(s.head) && s.done, JSON.stringify(s));
     await page.click('#btnHome'); await page.waitForTimeout(300);
     const after = await page.evaluate(() => ({ screen: document.body.dataset.screen, r: $('#homeCards [data-card="notes"] .result')?.textContent }));
-    expect(after.screen === 'home' && /You sing Do, Re, Mi, Fa, So well/.test(after.r), JSON.stringify(after));
+    expect(after.screen === 'home' && /Strongest notes: Do, Re, Mi, Fa and So/.test(after.r), JSON.stringify(after));
   });
 
   await test('pure-notes lesson lights up the keyboard', async page => {
