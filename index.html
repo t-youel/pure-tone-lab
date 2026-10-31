@@ -94,7 +94,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .tile.st-low .tp, .tile.st-high .tp { color: var(--warn); } .tile.st-low i, .tile.st-high i { background: var(--warn); }
 .tile.st-miss { opacity: .6; }
 .tile .ts { font: 600 0.66rem/1 var(--body); }
-.cheer-big { font: 700 1.2rem/1.3 var(--display); }
+.cheer-big { font: 700 1.1rem/1.3 var(--display); flex: 1 1 300px; align-self: center; }
+.report .score { font-size: 2.4rem; }
 .staff .mark-lbl { font: 700 13px var(--body); }
 .tuner-scale { display: flex; justify-content: space-between; font: 0.72rem/1 var(--mono); color: var(--muted); }
 .purity-row { display: flex; align-items: baseline; gap: 10px; }
@@ -179,10 +180,18 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .toggle input:checked + .switch::after { left: 19px; }
 .keybox { font: 600 0.95rem/1 var(--mono); min-width: 7.5em; text-align: center; }
 
-.report { display: grid; gap: 10px; }
+.report { display: grid; gap: 7px; }
 .report-top { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: end; }
 .score { font: 700 2.8rem/1 var(--display); color: var(--pure); font-variant-numeric: tabular-nums; }
 .score small { font-size: 1.2rem; color: var(--muted); font-weight: 500; }
+.fix-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.fixes { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+.fix { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; align-content: start; font-size: 0.84rem; line-height: 1.35; }
+.fix.good { border-left-color: var(--good); }
+.fix b { font: 700 0.92rem/1.25 var(--display); }
+.fix .why { color: var(--muted); }
+.fix .try b { font: 700 0.84rem var(--body); color: var(--accent); }
+.fix button { justify-self: start; margin-top: 2px; }
 .tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; max-width: 62ch; }
 /* sheet music */
 .sheet { min-width: 0; display: grid; gap: 8px; }
@@ -198,10 +207,12 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .staff .n-now .lyr, .staff .n-play .lyr { fill: var(--accent); font-weight: 700; }
 .staff .halo { fill: var(--accent); opacity: .16; }
 .line-nav { display: flex; justify-content: space-between; font: 0.75rem/1 var(--mono); color: var(--muted); }
+#singCard.is-done .sing-main { grid-template-columns: 1fr; }
+#singCard.is-done .target { display: none; }
 .sing-controls { border-top: 1px solid var(--line); padding-top: 10px; }
 .sing-controls .sep { flex: 1; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; }
-.tile { border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 0; display: grid; gap: 2px; text-align: center; overflow: hidden; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 6px; max-height: 76px; overflow-y: auto; padding-right: 2px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px 0; display: grid; gap: 1px; text-align: center; min-height: 68px; overflow: clip; }
 .tile b { font: 600 0.8rem/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .tn { font: 0.68rem/1 var(--mono); color: var(--muted); }
 .tile .tp { font: 700 1.15rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
@@ -1029,6 +1040,7 @@ $('#btnReset').onclick = () => {
 // ---------- sing ----------
 // Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
 const SONGS = [
+  { id: 'check', name: 'Quick voice check', kind: '20-second check', check: true, words: 'Do Mi So Do So Mi Do mm', notes: [[0,3],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3],[0,4]] },
   { id: 'doremi', name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, words: 'Do Re Mi Fa So La Ti Do', notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
   { id: 'hum', name: 'Five-note hum', kind: 'Warm-up', words: 'mm mm mm mm mm mm mm mm mm', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
   { id: 'arp', name: 'Major arpeggio', kind: 'Warm-up', words: 'ah ah ah ah ah ah ah', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
@@ -1062,7 +1074,7 @@ function loadSong(song, keepShift = false) {
   for (let a = ls; a < G.seq.length; a += chunk) G.lines.push([a, Math.min(G.seq.length, a + chunk) - 1]);
   // Low voices read treble clef an octave up (the small 8 under the clef).
   G.disp = G.seq.reduce((s, n) => s + n.m, 0) / G.seq.length < 60 ? 12 : 0;
-  G.idx = 0; G.res = []; G.acc = []; G.run = 'ready'; G.streak = 0; G.attempt = 0;
+  G.idx = 0; G.res = []; G.acc = []; G.run = 'ready'; G.streak = 0; G.attempt = 0; G.heard = false;
   renderSongs(); renderSing();
 }
 function renderSongs() {
@@ -1076,6 +1088,7 @@ function renderSongs() {
 function singActive() { return !$('#tab-sing').hidden || (!$('#tab-start').hidden && STEPS[guide.step] && STEPS[guide.step].key === 'song'); }
 function singTarget() { return (!singActive() || G.idx >= G.seq.length) ? null : G.seq[G.idx].m; }
 function renderSing() {
+  $('#singCard').classList.toggle('is-done', G.run === 'done');
   $('#keyTxt').textContent = 'Do = ' + pcOf(G.shift);
   document.querySelectorAll('[data-tempo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tempo === G.tempo));
   const done = G.run === 'done', len = G.seq.length;
@@ -1105,6 +1118,11 @@ async function startRun() {
   if (mode === 'idle') await startMic();
   if (mode === 'idle') return;
   await ensureAudio();
+  if (G.song.check) {
+    G.tempo = 'slow';
+    if (!G.heard) { G.heard = true; G.run = 'ready'; renderSing(); listenFirst(() => startRun()); $('#tgtHint').textContent = 'Listen to the pattern. You sing it next.'; return; }
+    G.heard = false;
+  }
   const beat = beatSec(), count = 3;
   G.starts = []; let t = 0; for (const n of G.seq) { G.starts.push(t); t += n.b * beat; }
   G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
@@ -1132,13 +1150,18 @@ function singStep() {
   }
   const n = G.seq[i], dur = n.b * beat, into = e - G.starts[i];
   $('#holdFill').style.width = (100 * clamp(into / dur)) + '%';
-  if (into < Math.min(0.15 * dur + 0.05, 0.3)) return;
-  const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], p: 0, cl: 0, st: 0, fo: 0 });
+  const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], attack: [], late: [], db: 0, p: 0, cl: 0, st: 0, fo: 0 });
+  if (into < Math.min(0.15 * dur + 0.05, 0.3)) {
+    // The attack is not scored, but it shows whether the singer slides up into the note.
+    if (S.voiced) { let c0 = (S.midi - n.m) * 100; if ($('#octFree').checked) c0 = ((c0 % 1200) + 1800) % 1200 - 600; a.attack.push(c0); }
+    return;
+  }
   a.total++;
   if (!S.voiced) { hint.textContent = 'Sing "' + wordAt(i) + '"'; hint.className = 'hint'; return; }
   let c = (S.midi - n.m) * 100;
   if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
   a.voiced++; a.cents.push(c); a.p += S.purity; a.cl += S.clar; a.st += S.stab; a.fo += S.focus;
+  if (into >= dur * 0.5) a.late.push(c); a.db += 20 * Math.log10(S.rms + 1e-9);
   if (Math.abs(c) <= 50) { hint.textContent = S.purity >= 72 ? 'On pitch and pure ✦' : 'On pitch'; hint.className = 'hint ok'; }
   else { hint.textContent = c < 0 ? 'A little low, go up ↑' : 'A little high, come down ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
 }
@@ -1150,7 +1173,7 @@ function finalizeNote(i) {
   if (!a || a.voiced < Math.max(3, a.total * 0.25)) r = { m: n.m, status: 'missed' };
   else {
     const cs = [...a.cents].sort((x, y) => x - y), v = a.voiced;
-    r = { m: n.m, c: cs[cs.length >> 1], p: a.p / v, cl: a.cl / v, st: a.st / v, fo: a.fo / v };
+    r = { m: n.m, c: cs[cs.length >> 1], p: a.p / v, cl: a.cl / v, st: a.st / v, fo: a.fo / v, ce: a.attack.length >= 2 ? med(a.attack) : null, cLate: a.late.length ? med(a.late) : null, db: a.db / v };
     r.status = Math.abs(r.c) <= 50 ? (r.p >= 72 ? 'pure' : 'ok') : r.c < 0 ? 'low' : 'high';
   }
   G.res[i] = r;
@@ -1249,7 +1272,7 @@ function stopPlayback(quiet) {
   $('#btnListen').textContent = '▶ Listen first';
   if (!quiet) renderSing();
 }
-async function listenFirst() {
+async function listenFirst(then) {
   if (playback) { stopPlayback(); return; }
   await ensureAudio();
   if (G.run === 'singing' || G.run === 'countin') return;
@@ -1260,10 +1283,10 @@ async function listenFirst() {
     playback.timers.push(setTimeout(() => { G.play = i; drawStaff(); showTarget(i); $('#tgtHint').textContent = 'Listen and follow the words'; $('#tgtHint').className = 'hint'; }, t * 1000));
     t += n.b * beat;
   });
-  playback.timers.push(setTimeout(() => { stopPlayback(); toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
+  playback.timers.push(setTimeout(() => { stopPlayback(); if (typeof then === 'function') then(); else toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
   $('#btnListen').textContent = '■ Stop';
 }
-$('#btnListen').onclick = listenFirst;
+$('#btnListen').onclick = () => listenFirst();
 
 // ---------- end-of-song report ----------
 function runStats() {
@@ -1279,6 +1302,61 @@ function saveRun() {
   store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo });
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true;
+}
+function med(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; }
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+// Works out why points were lost and what to do about it. Returns up to three findings, most important first.
+function diagnose(st) {
+  const out = [], add = (w, title, why, tryThis, act) => out.push({ w, title, why, tryThis, act });
+  const sung = st.sung, n = st.n;
+  if (st.missed / n > 0.2) add(st.missed / n * 4, `${st.missed} of ${n} notes weren't heard`,
+    G.tempo !== 'slow' ? 'The tempo may be too quick to get each note started.' : 'A note only counts when it has a clear, steady sound.',
+    'Switch to Slow, tap ▶ Listen first, then sing every word out clearly, a little louder than feels natural.', G.tempo !== 'slow' ? 'slow' : 'listen');
+  if (sung.length >= 3) {
+    const cs = sung.map(r => r.c), bias = Math.round(med(cs)), spread = Math.round(med(cs.map(c => Math.abs(c - bias))));
+    if (Math.abs(bias) > 20 && spread < 70) add(Math.abs(bias) / 25,
+      bias < 0 ? `Notes are close but flat: about ${-bias}¢ under` : `Notes are close but sharp: about ${bias}¢ over`,
+      bias < 0 ? 'Your ear is finding the notes. Flat singing usually comes from low breath energy or a lowered soft palate.' : 'Your ear is finding the notes. Sharp singing usually comes from pushing or tension.',
+      bias < 0 ? 'Take a deeper belly breath before each line. Lift the back of your mouth as if starting a yawn, raise your eyebrows slightly, and aim for the top edge of each note.'
+               : 'Sing a little softer, relax your jaw and shoulders, and let each note settle into place instead of reaching up for it.');
+    if (spread >= 45) add(spread / 35, `Pitch varies from note to note (±${spread}¢)`, 'Some notes land, others drift, so the tune isn\'t settled in your ear yet.',
+      'Tap ▶ Listen first and hum along quietly. Then play each orange note with Hear note and copy it straight away, three times.', 'listen');
+    const mid = med(sung.map(r => r.m)), hi = sung.filter(r => r.m > mid), lo = sung.filter(r => r.m <= mid);
+    if (hi.length >= 2 && lo.length >= 2) {
+      const bh = med(hi.map(r => r.c)), bl = med(lo.map(r => r.c)), ph = mean(hi.map(r => r.p)), pl = mean(lo.map(r => r.p));
+      if (bh < bl - 30 || ph < pl - 10) add(Math.max((bl - bh) / 30, (pl - ph) / 10),
+        'Higher notes lose ' + (bh < bl - 30 && ph < pl - 10 ? 'pitch and tone' : bh < bl - 30 ? 'pitch (they sag flat)' : 'tone quality'),
+        'Higher notes need more breath and more space. Squeezing the throat makes them thin and flat.',
+        'Open the airway on high notes: drop the jaw, rest the tongue behind the bottom teeth, feel the start of a yawn, and use a tall "oh". Push from the belly, not the throat. Still straining? Lower the key with −.', 'down');
+      else if (bl < bh - 30 || pl < ph - 10) add(Math.max((bh - bl) / 30, (ph - pl) / 10), 'Lower notes are weaker',
+        'Low notes go breathy or drop under pitch when we press down on them.',
+        'Keep low notes light and forward, as if speaking them on "mm". If they rumble or fade away, raise the key with +.', 'up');
+    }
+    const leap = [], step = [];
+    st.all.forEach((r, i) => { if (!i || r.status === 'missed') return; const iv = Math.abs(G.seq[i].m - G.seq[i - 1].m); if (iv >= 4) leap.push(Math.abs(r.c)); else if (iv > 0) step.push(Math.abs(r.c)); });
+    if (leap.length >= 2 && mean(leap) > mean(step) + 30) add((mean(leap) - mean(step)) / 30, 'Jumps between notes are harder than steps',
+      `Notes after a jump were ${Math.round(mean(leap))}¢ off on average, steps only ${Math.round(mean(step))}¢.`,
+      'Before each jump, hear the next note in your head first. The Major arpeggio is all jumps; practise it at Slow.', 'arp');
+    const scoops = sung.filter(r => r.ce != null && r.cLate != null && r.cLate - r.ce > 35).length;
+    if (scoops >= Math.max(2, sung.length * 0.3)) add(scoops / sung.length * 3, 'You slide up into notes (scooping)',
+      `${scoops} notes started below pitch and then rose.`, 'Start right on the note: breathe, imagine the pitch, then begin with a gentle "m" or "h". Hum the first note of each line before you sing it.');
+    const cl = mean(sung.map(r => r.cl ?? 1)), sb = mean(sung.map(r => r.st ?? 1)), fo = mean(sung.map(r => r.fo ?? 1));
+    if (cl < 0.78) add((0.78 - cl) * 10, 'Breathy tone: extra air is escaping', 'Air leaking past the vocal folds makes the tone fuzzy and lowers purity.',
+      'Use less air, not more. Hum "mm", then open to "ah" keeping the same buzz. Sing a bit louder rather than whispering.');
+    if (sb < 0.72) add((0.72 - sb) * 10, 'Notes wobble while you hold them', 'An uneven stream of air makes the pitch shake.',
+      'Breathe low into your belly and sides, then hiss "sss" slowly and evenly for 10 seconds. Sing with that same steady push.');
+    if (fo < 0.72) add((0.72 - fo) * 10, 'Tone is a little noisy or tight', 'Tension in the throat, tongue or jaw adds noise around the note.',
+      'Open the airway: relax the jaw, let the tongue rest forward, lift the soft palate as at the start of a yawn, and sing through an open throat on "oh".');
+    const db = mean(sung.map(r => r.db).filter(Number.isFinite));
+    if (db && db < -42) add(1.2, 'You\'re singing very softly', 'Very quiet singing tends to go breathy and flat.', 'Give the voice more breath energy: sing as if to someone across the room, without shouting.');
+    if (G.lines.length >= 2) {
+      const bad = r => r.status === 'missed' || r.p < 60, ends = G.lines.map(([, b]) => st.all[b]), rest = st.all.filter((r, i) => !G.lines.some(([, b]) => b === i));
+      const endBad = ends.filter(bad).length / ends.length, restBad = rest.filter(bad).length / Math.max(1, rest.length);
+      if (endBad >= 0.5 && endBad > restBad + 0.25) add(endBad * 2, 'You fade at the ends of lines', 'The last notes of each line were weaker, a sign of running low on air.',
+        'Take a deep, low breath at every comma and line break, and spend the air slowly at the start of each line.');
+    }
+  }
+  return out.sort((a, b) => b.w - a.w).slice(0, 3);
 }
 function encouragement(st, prev, isBest) {
   if (st.ok === st.n && st.pure === st.n) return 'Wow! Every note on pitch and pure. You nailed it!';
@@ -1304,8 +1382,8 @@ function renderReport() {
   const st = runStats();
   const runs = (store.runs || []).filter(r => r.id === G.song.id), prev = runs.length > 1 ? runs[runs.length - 2] : null;
   const scoreOf = r => (r.ok ?? 0) * 1000 + r.avg, isBest = runs.length > 1 && scoreOf(runs[runs.length - 1]) > Math.max(...runs.slice(0, -1).map(scoreOf));
-  const head = document.createElement('p'); head.className = 'cheer-big'; head.textContent = encouragement(st, prev, isBest); box.appendChild(head);
   const top = document.createElement('div'); top.className = 'report-top';
+  const head = document.createElement('p'); head.className = 'cheer-big'; head.textContent = (G.song.check ? 'Voice check done. ' : '') + encouragement(st, prev, isBest); top.appendChild(head);
   const stat = (l, v, big) => { const d = document.createElement('div'); d.className = 'stat'; const a = document.createElement('span'); a.className = 'label'; a.textContent = l; const b = document.createElement('span'); b.className = big ? 'score' : 'val'; b.textContent = v; if (big) { const sm = document.createElement('small'); sm.textContent = ' / 100'; b.appendChild(sm); } d.append(a, b); top.appendChild(d); };
   stat('Purity score', String(st.avg), true);
   stat('On pitch', st.ok + ' of ' + st.n);
@@ -1326,15 +1404,25 @@ function renderReport() {
     tiles.appendChild(t);
   });
   box.appendChild(tiles);
-  const tip = document.createElement('p'); tip.className = 'tip';
-  if (st.missed >= Math.max(2, st.n * 0.3)) tip.textContent = 'Some notes slipped by. Try Slow tempo, and tap ▶ Listen first to learn the tune before singing.';
-  else if (st.low >= 2 && st.low >= st.high) tip.textContent = 'You often land a little low. Think of each note as slightly higher than you expect, and keep the breath moving through the note.';
-  else if (st.high >= 2) tip.textContent = 'You often land a little high. Relax your throat and jaw and let each note settle down into place.';
-  else if (st.sung.length && st.avg < 72) {
-    const k = ['cl', 'st', 'fo'].map(key => [key, st.sung.reduce((s, r) => s + (r[key] ?? 1), 0)]).sort((x, y) => x[1] - y[1])[0][0];
-    tip.textContent = FIX[k];
-  } else tip.textContent = st.ok === st.n ? 'Ready for more? Try Medium tempo, or the next key up with +.' : 'Play the orange notes with Hear note, then sing it again.';
-  box.appendChild(tip);
+  const fh = document.createElement('div'); fh.className = 'fix-head';
+  fh.innerHTML = '<span class="label">How to improve</span>';
+  if (!G.song.check) { const qc = document.createElement('button'); qc.className = 'small'; qc.textContent = 'Run the 20-second voice check'; qc.onclick = () => { loadSong(SONGS.find(x => x.id === 'check')); startRun(); }; fh.appendChild(qc); }
+  box.appendChild(fh);
+  const fixes = document.createElement('div'); fixes.className = 'fixes';
+  let found = diagnose(st);
+  if (!found.length) found = [{ good: true, title: st.ok === st.n ? 'Clean and consistent' : 'No single problem stands out', why: st.ok === st.n ? 'Pitch and tone held up across the whole song.' : 'Your misses are spread out rather than following a pattern.',
+    tryThis: st.ok === st.n ? 'Stretch yourself: switch to Medium tempo, or move the key up one step with +.' : 'Sing it again at the same tempo; repetition will settle the tune.', act: st.ok === st.n ? 'medium' : null }];
+  const ACTS = { slow: ['Switch to Slow', () => { G.tempo = 'slow'; G.run = 'ready'; renderSing(); }], medium: ['Switch to Medium', () => { G.tempo = 'medium'; G.run = 'ready'; renderSing(); }],
+    listen: ['▶ Listen first', () => { G.run = 'ready'; G.res = []; renderSing(); listenFirst(); }], arp: ['Practise the arpeggio', () => loadSong(SONGS.find(x => x.id === 'arp'))],
+    down: ['Lower the key', () => { G.shift--; loadSong(G.song, true); }], up: ['Raise the key', () => { G.shift++; loadSong(G.song, true); }] };
+  for (const f of found) {
+    const d = document.createElement('div'); d.className = 'fix' + (f.good ? ' good' : '');
+    d.innerHTML = '<b></b><span class="why"></span><span class="try"><b>Try this:</b> <span></span></span>';
+    d.querySelector('b').textContent = f.title; d.querySelector('.why').textContent = f.why; d.querySelector('.try span').textContent = f.tryThis;
+    if (f.act && ACTS[f.act]) { const b = document.createElement('button'); b.className = 'small'; b.textContent = ACTS[f.act][0]; b.onclick = ACTS[f.act][1]; d.appendChild(b); }
+    fixes.appendChild(d);
+  }
+  box.appendChild(fixes);
 }
 $('#kUp').onclick = () => { G.shift++; loadSong(G.song, true); };
 $('#kDown').onclick = () => { G.shift--; loadSong(G.song, true); };
@@ -1601,7 +1689,7 @@ $('#fileLabel').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.p
 
 initCanvases();
 renderVoice();
-loadSong(SONGS[0]);
+loadSong(SONGS.find(x => x.id === "doremi"));
 goStep(Math.min(guide.step, STEPS.length));
 requestAnimationFrame(frame);
 </script>
