@@ -1977,6 +1977,7 @@ function openLab(id, fromPath) {
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
 function closeLab() {
+  D.run = null; try { speechSynthesis.cancel(); } catch (e) {}
   const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
   if (back) $('#t-path').click();
 }
@@ -2082,6 +2083,24 @@ function rangeFigure(p) {
   return `<svg class="range-fig" viewBox="0 0 700 ${y + 10}" role="img" aria-label="Your range compared with voice types">${rows.join('')}</svg>`;
 }
 
+// Spoken prompts (so the singer can close their eyes), short waits, and a sample siren glide.
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function say(text) {
+  return new Promise(res => {
+    const ss = window.speechSynthesis, on = !(store.settings && store.settings.speak === false);
+    if (!ss || !on || typeof SpeechSynthesisUtterance === 'undefined') { setTimeout(res, 500 + text.length * 25); return; }
+    let done = false; const end = () => { if (done) return; done = true; refUntil = now() + 0.3; res(); };
+    try { ss.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1; u.onend = end; u.onerror = end; refUntil = now() + 30; ss.speak(u); } catch (e) { end(); }
+    setTimeout(end, 2500 + text.length * 80);
+  });
+}
+function glide() {
+  if (!ac) return;
+  const c = Math.round(labZone().center), t = ac.currentTime + 0.05, o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.setValueAtTime(m2f(c - 9), t); o.frequency.exponentialRampToValueAtTime(m2f(c + 12), t + 1.1); o.frequency.exponentialRampToValueAtTime(m2f(c - 9), t + 2);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.25, t + 0.08); g.gain.setValueAtTime(0.25, t + 1.9); g.gain.linearRampToValueAtTime(0, t + 2.05);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 2.1); refUntil = Math.max(refUntil, now() + 2.3);
+}
 // Famous voices by type (approximate: published voice types of pop singers vary) and well-known songs that sit in that range.
 const VOICE_INFO = {
   'Bass': { who: ['Johnny Cash', 'Barry White', 'Leonard Cohen', 'Josh Turner'], songs: ['Ring of Fire (Johnny Cash)', 'Folsom Prison Blues (Johnny Cash)', 'Hallelujah (Leonard Cohen)', 'Can\'t Get Enough of Your Love, Babe (Barry White)'] },
@@ -2168,6 +2187,7 @@ function drawLadder() {
     x.fillStyle = C.ink; x.textAlign = 'right'; x.font = `700 ${13 * d}px sans-serif`; x.fillText(nameOf(last.m), lx - 20 * d, ly); x.font = `${10 * d}px monospace`;
   }
   if (guess) { x.textAlign = 'right'; x.fillStyle = C.accent; x.font = `700 ${14 * d}px sans-serif`; x.fillText('Sounds like: ' + guess, w - 8 * d, 14 * d); x.font = `${10 * d}px monospace`; }
+  if (D.cue && D.phase !== 'done') { x.textAlign = 'center'; x.fillStyle = D.cue === '✓' ? C.good : C.accent; x.globalAlpha = 0.38; x.font = `700 ${110 * d}px sans-serif`; x.fillText(D.cue, (tx0 + w) / 2, h / 2 + 20 * d); x.globalAlpha = 1; x.font = `${10 * d}px monospace`; }
   if (D.flash && t - D.flashT < 1.6) { x.textAlign = 'center'; x.fillStyle = C.pure; x.globalAlpha = 1 - (t - D.flashT) / 1.6; x.font = `700 ${22 * d}px sans-serif`; x.fillText(D.flash, (tx0 + w) / 2, h / 2 - 30 * d); x.globalAlpha = 1; x.font = `${10 * d}px monospace`; }
   x.textAlign = 'start';
 }
@@ -2182,83 +2202,118 @@ const VOWELS = [
 
 const DRILLS = {
   range: {
-    // "Find your voice": five short steps, a live ladder of voice types, then who sings like you and what you could sing.
+    // "Find your voice": five steps you can do with your eyes closed. Each step is spoken, counted in, and listens for a
+    // fixed time; the result is worked out from everything heard, so nothing has to be held perfectly.
     steps: [
-      { k: 'speak', title: 'Say hello', prompt: 'Say hello', sub: 'In your normal speaking voice: "Hello! This is my voice."' },
-      { k: 'natural', title: 'Your easy note', prompt: 'Hum an easy note', sub: 'Hum "mm" on a note that feels relaxed, like a lazy "mm-hmm". Hold it.' },
-      { k: 'low', title: 'Hum low', prompt: 'Hum low', sub: 'Hum down, lower and lower, as low as is still comfortable. Hold it a moment.' },
-      { k: 'high', title: 'Hum high', prompt: 'Hum high', sub: 'Now hum up, as high as still feels easy. Hold it a moment.' },
-      { k: 'stretch', title: 'Siren!', prompt: 'Siren!', sub: 'Just for fun: slide on "wee" from your very bottom to your very top, pausing a moment at each end. Squeaky is fine. This finds your extremes.' },
+      { k: 'speak', secs: 5, prompt: 'Say hello', cue: '💬', sub: 'In your normal speaking voice, say: "Hello! This is my voice. I am finding my singing voice today."',
+        say: 'Step one. In your normal speaking voice, say: Hello, this is my voice.' },
+      { k: 'natural', secs: 5, prompt: 'Hum an easy note', cue: '★', sub: 'Hum "mm" on a note that feels relaxed, like a lazy "mm-hmm". Just let it sit there.',
+        say: 'Step two. Hum an easy, relaxed note, like a lazy mm hmm.' },
+      { k: 'low', secs: 7, prompt: 'Hum low', cue: '↓', sub: 'Hum and let your voice sink lower and lower, as low as is still comfortable. No need to hold it perfectly.',
+        say: 'Step three. Hum low. Let your voice sink lower and lower, as low as is comfortable.' },
+      { k: 'high', secs: 7, prompt: 'Hum high', cue: '↑', sub: 'Now hum and float up, as high as still feels easy. Light and gentle, no straining.',
+        say: 'Step four. Now hum high. Float up, as high as still feels easy.' },
+      { k: 'stretch', secs: 8, prompt: 'Weeeee! 🎢', cue: '〰', sub: 'The fun one: slide on "weeee" like a siren, from your very bottom to your very top and back. Squeaky is perfect.',
+        say: 'Last one, the fun one! Slide on weee, like a siren, from your very bottom to your very top. Listen first.' },
     ],
     lane: () => ({ ladder: true }),
     start() {
-      Object.assign(D, { phase: 'intro', si: -1, low: null, high: null, natural: null, speak: [], vt: 0, win: [], xlo: null, xhi: null, rec: 0, flash: '', flashT: 0 });
+      speechSynthesis && speechSynthesis.cancel && speechSynthesis.cancel();
+      Object.assign(D, { phase: 'intro', si: 0, low: null, high: null, natural: null, speak: [], samples: [], all: [], xlo: null, xhi: null, flash: '', flashT: 0, cue: '', run: null, tries: {} });
       $('#lane').classList.add('tall');
-      dSet({ step: 'Find your voice · 5 quick steps', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. About a minute. Watch your voice climb the ladder on the right.', live: '', prog: -1 });
-      dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.go(0); } }]);
+      dSet({ step: 'Find your voice · 5 quick steps · about a minute', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. I\'ll say each step out loud and count you in, so you can close your eyes.', live: '', prog: -1 });
+      dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.run(0); } }, this.voiceBtn()]);
     },
-    go(i) {
-      if (i >= this.steps.length) return this.finish();
+    voiceBtn() {
+      const on = !(store.settings && store.settings.speak === false);
+      return { label: on ? '🔈 Spoken prompts: on' : '🔇 Spoken prompts: off', fn: () => { if (!store.settings) store.settings = {}; store.settings.speak = !on; dirty = true; this.start(); } };
+    },
+    async run(from) {
+      const id = D.run = {}; const alive = () => D.run === id && D.id === 'range';
+      for (let i = from; i < this.steps.length; i++) { if (!alive()) return; const again = await this.step(i, alive); if (again) i--; }
+      if (alive()) this.finish();
+    },
+    controls(i) {
+      dBtns([{ label: 'Pause', fn: () => { D.run = null; speechSynthesis && speechSynthesis.cancel(); D.phase = 'paused'; dSet({ live: 'Paused.', prog: -1 }); dBtns([{ label: 'Resume this step', primary: true, fn: () => this.run(i) }, { label: 'Skip it', fn: () => this.run(i + 1) }]); } },
+        { label: 'Redo this step', fn: () => this.run(i) }, { label: 'Skip', fn: () => this.run(i + 1) }]);
+    },
+    async step(i, alive) {
       const st = this.steps[i];
-      Object.assign(D, { si: i, phase: st.k, t0: now(), win: [], vt: 0, rec: now() });
-      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: '', prog: st.k === 'speak' || st.k === 'natural' || st.k === 'stretch' ? 0 : -1 });
-      const btns = [];
-      if (st.k === 'low' || st.k === 'high') btns.push({ label: 'Done →', primary: true, fn: () => { if (D[st.k] == null) { dSet({ live: 'Hold a note for a moment first, so I can catch it.' }); return; } this.go(i + 1); } });
-      btns.push({ label: 'Skip', fn: () => this.go(i + 1) });
-      dBtns(btns);
+      Object.assign(D, { si: i, phase: 'intro', samples: [], cue: st.cue });
+      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: 'Get ready…', prog: -1 });
+      this.controls(i);
+      await say(st.say); if (!alive()) return;
+      if (st.k === 'stretch') { dSet({ live: 'Listen: weeee…' }); glide(); await wait(2300); if (!alive()) return; }
+      for (let k = 3; k >= 1; k--) { dSet({ live: 'Starting in ' + k + '…' }); click(0, k === 3); await wait(650); if (!alive()) return; }
+      D.phase = st.k; D.t0 = now(); dSet({ live: st.k === 'speak' ? 'Go ahead, I\'m listening…' : 'Go! I\'m listening…', prog: 0 });
+      while (now() - D.t0 < st.secs) { await wait(100); if (!alive()) return; dSet({ prog: (now() - D.t0) / st.secs }); }
+      const r = this.evaluate(st.k);
+      if (!r.ok && !D.tries[st.k]) {
+        D.tries[st.k] = true; D.phase = 'intro';
+        dSet({ prompt: 'Once more', live: 'I didn\'t hear much. A little louder this time.', prog: -1 });
+        await say('I didn\'t quite hear that. Let\'s try once more, a little louder.'); return alive();
+      }
+      D.phase = 'got'; D.cue = '✓';
+      if (r.ok) this.flash(r.short);
+      dSet({ prompt: r.ok ? r.text : 'Skipped', live: r.ok ? '' : 'No problem, we\'ll work with the rest.', prog: -1 });
+      playTone(76, 0.12, PURE); playTone(81, 0.18, PURE, 0.12);
+      await say(r.ok ? r.say : 'No problem.'); await wait(500);
+      return false;
+    },
+    pct(a, p) { const s = [...a].sort((x, y) => x - y); return s[Math.max(0, Math.min(s.length - 1, Math.round(p * (s.length - 1))))]; },
+    evaluate(k) {
+      const m = D.samples.map(s => s.m), ok = m.length >= 40;
+      if (!ok) return { ok: false };
+      if (k === 'speak') { D.speak = m; const hz = Math.round(m2f(med(m))); return { ok, text: 'Speaking voice ✓', short: hz + ' Hz', say: 'Thanks!' }; }
+      if (k === 'natural') { D.natural = med(m); return { ok, text: 'Home note: ' + nameOf(D.natural) + ' ✓', short: 'Home: ' + nameOf(D.natural), say: 'Nice. That\'s your home note.' }; }
+      if (k === 'low') { D.low = this.pct(m, 0.1); return { ok, text: 'Low note: ' + nameOf(D.low) + ' ✓', short: 'Low: ' + nameOf(D.low), say: 'Lovely and low.' }; }
+      if (k === 'high') { D.high = this.pct(m, 0.9); return { ok, text: 'High note: ' + nameOf(D.high) + ' ✓', short: 'High: ' + nameOf(D.high), say: 'Great.' }; }
+      D.xlo = this.pct(m, 0.03); D.xhi = this.pct(m, 0.97);
+      return { ok, text: 'Full stretch: ' + nameOf(D.xlo) + ' – ' + nameOf(D.xhi) + ' ✓', short: 'Wheee!', say: 'Wheee! That was fun.' };
     },
     tick(dt, muted) {
-      if (muted || !this.steps.some(s => s.k === D.phase)) return;
-      const t = now();
-      if (S.voiced) { D.win.push({ t, m: S.midi }); while (D.win[0].t < t - 1.2) D.win.shift(); } else D.win = [];
-      const ph = D.phase, e = t - D.t0;
-      if (ph === 'speak') {
-        if (S.voiced) { D.speak.push(S.midi); D.vt += dt; }
-        dSet({ prog: D.vt / 2.5, live: S.voiced ? 'Hearing you…' : '' });
-        if (D.vt >= 2.5) { this.flash('Hello! 👋'); this.go(1); }
-      } else if (ph === 'natural') {
-        const sn = stableNote(D.win, 1.0);
-        dSet({ prog: S.voiced && D.win.length ? clamp((t - D.win[0].t) / 1.2) : 0, live: S.voiced ? nameOf(S.midi) + '… keep it steady' : '' });
-        if (sn != null) { D.natural = sn; this.flash('Home note: ' + nameOf(sn) + ' ✦'); this.go(2); }
-      } else if (ph === 'low' || ph === 'high') {
-        const sn = stableNote(D.win, 0.45);
-        if (sn != null && (D[ph] == null || (ph === 'low' ? sn < D[ph] - 0.5 : sn > D[ph] + 0.5))) {
-          const first = D[ph] == null; D[ph] = sn; D.rec = t;
-          this.flash(first ? (ph === 'low' ? 'Low: ' : 'High: ') + nameOf(sn) : (ph === 'low' ? 'New low! ' : 'New high! ') + nameOf(sn));
-        }
-        const left = D[ph] == null ? null : Math.max(0, 3.5 - (t - D.rec));
-        dSet({ live: D[ph] == null ? (S.voiced ? nameOf(S.midi) + '… hold it a moment' : '') : (ph === 'low' ? 'Lowest: ' : 'Highest: ') + nameOf(D[ph]) + (left > 0 ? `. Go ${ph === 'low' ? 'lower' : 'higher'} if it's easy…` : '') });
-        if (left === 0) this.go(D.si + 1);
-      } else if (ph === 'stretch') {
-        const sn = stableNote(D.win, 0.25);
-        if (sn != null) {
-          if (D.xlo == null || sn < D.xlo) { D.xlo = sn; if (D.low != null && sn < D.low - 0.5) this.flash('Deep! ' + nameOf(sn)); }
-          if (D.xhi == null || sn > D.xhi) { D.xhi = sn; if (D.high != null && sn > D.high + 0.5) this.flash('Wow, ' + nameOf(sn) + '!'); }
-        }
-        dSet({ prog: e / 8, live: S.voiced ? nameOf(S.midi) : 'Slide from bottom to top…' });
-        if (e >= 8) this.go(5);
-      }
+      if (muted || !this.steps.some(s => s.k === D.phase) || !S.voiced) return;
+      const t = now(); if (t - D.t0 < 0.5) return;
+      D.samples.push({ t, m: S.midi }); if (D.phase !== 'speak') D.all.push(S.midi);
+      const m = D.samples.map(s => s.m);
+      if (m.length < 20) return;
+      if (D.phase === 'low') { const v = this.pct(m, 0.1); if (D.shownLow == null || v < D.shownLow - 0.9) { D.shownLow = v; this.flash('Low: ' + nameOf(v)); } dSet({ live: 'Lowest so far: ' + nameOf(v) + '. Lower if it\'s easy…' }); }
+      if (D.phase === 'high') { const v = this.pct(m, 0.9); if (D.shownHigh == null || v > D.shownHigh + 0.9) { D.shownHigh = v; this.flash('High: ' + nameOf(v)); } dSet({ live: 'Highest so far: ' + nameOf(v) + '. Higher if it\'s easy…' }); }
+      if (D.phase === 'stretch') dSet({ live: 'Weee… ' + nameOf(S.midi) });
+      if (D.phase === 'natural') dSet({ live: nameOf(S.midi) + '… just let it sit' });
     },
     flash(txt) { D.flash = txt; D.flashT = now(); },
     guess() {
       const lo = D.low ?? (D.natural != null ? D.natural - 5 : null), hi = D.high ?? (D.natural != null ? D.natural + 7 : null);
       if (lo == null || hi == null) return null;
-      return voiceTypes(Math.round(lo), Math.round(hi), D.speak.length > 20 ? med(D.speak) : null)[0].n;
+      return voiceTypes(Math.round(Math.min(lo, hi)), Math.round(Math.max(lo, hi)), D.speak.length > 20 ? med(D.speak) : null)[0].n;
     },
     finish() {
-      if (D.low == null || D.high == null || D.high - D.low < 4) {
-        dSet({ prompt: 'One more try', sub: 'I need a held low note and a held high note at least a few notes apart.', live: '' });
-        dBtns([{ label: 'Try the low and high again', primary: true, fn: () => this.go(2) }]); return;
+      // Forgiving: take what each step gave, swap low and high if they came out reversed, and fill gaps from everything heard.
+      const all = D.all, have = all.length >= 40;
+      let low = D.low, high = D.high;
+      if (low != null && high != null && high < low) [low, high] = [high, low];
+      if (low == null) low = D.natural != null ? Math.min(D.natural, high ?? D.natural) : have ? this.pct(all, 0.1) : null;
+      if (high == null) high = D.natural != null ? Math.max(D.natural, low ?? D.natural) : have ? this.pct(all, 0.9) : null;
+      if (D.natural != null) { low = Math.min(low, D.natural); high = Math.max(high, D.natural); }
+      if (low == null || high == null) {
+        D.phase = 'done';
+        dSet({ step: 'Find your voice', prompt: 'Let\'s try again', sub: 'I couldn\'t hear enough singing to find your range. Check the mic is on (the green bar at the top moves when you hum), then try again.', live: '', prog: -1 });
+        dBtns([{ label: 'Start again', primary: true, fn: () => this.start() }]); return;
       }
-      D.phase = 'done'; $('#lane').classList.remove('tall');
-      const low = Math.round(D.low), high = Math.round(D.high), speak = D.speak.length > 20 ? med(D.speak) : null;
+      D.phase = 'done'; D.cue = ''; $('#lane').classList.remove('tall');
+      low = Math.round(low); high = Math.round(high);
+      const speak = D.speak.length > 20 ? med(D.speak) : null;
       const xlo = Math.round(Math.min(low, D.xlo ?? low)), xhi = Math.round(Math.max(high, D.xhi ?? high));
-      const natural = D.natural != null ? Math.round(D.natural) : Math.round((low + high) / 2);
-      const ranked = voiceTypes(low, high, speak), t = ranked[0];
-      const zlo = high - low >= 9 ? low + 2 : low, zhi = high - low >= 9 ? high - 3 : high;
+      const natural = Math.round(D.natural ?? (low + high) / 2);
+      const ranked = voiceTypes(low, Math.max(high, low + 1), speak), t = ranked[0];
+      const zlo = high - low >= 9 ? low + 2 : low, zhi = high - low >= 9 ? high - 3 : Math.max(high, low + 4);
       store.profile = { low, high, speak, natural, xlo, xhi, type: t.n, zlo, zhi, at: Date.now(), vowel: store.profile && store.profile.vowel };
       labSave('range', 100, { type: t.n }); renderLab();
-      dShow(voiceResult(store.profile, ranked), () => this.start());
+      const nodes = voiceResult(store.profile, ranked);
+      if (high - low < 5) nodes.splice(2, 0, fixCards([{ good: true, title: 'A cozy range today: ' + nameOf(low) + ' to ' + nameOf(high), why: 'That\'s completely normal for a first try. Voices open up as they warm up and get used to being used.', tryThis: 'Do a gentle siren on "ng" a few times a day, and try this test again in a week. Most people find several more notes.' }]));
+      say('You\'re a ' + t.n + '!');
+      dShow(nodes, () => this.start());
     },
   },
 

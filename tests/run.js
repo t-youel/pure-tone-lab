@@ -142,24 +142,31 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(flips <= 2, 'voiced flipped ' + flips + ' times');
   });
 
-  await test('Find your voice: 5 steps, voice type, famous voices, songs that fit', async page => {
+  const voiceTest = async (page, plan) => {
     await voice(page); await setLevel(page, 1);
-    await page.evaluate(() => { store.discoveries = [43, 45, 47, 48, 50, 52].map(m => ({ midi: m, purity: 90, amps: [1], at: 0 })); });
+    await page.evaluate(() => { store.settings = { speak: false }; store.discoveries = [43, 45, 47, 48, 50, 52].map(m => ({ midi: m, purity: 90, amps: [1], at: 0 })); });
     await page.evaluate(() => openLab('range')); await page.click("#dBtns >> text=Let's go");
-    await page.evaluate(() => { V.on = true; window._s = setInterval(() => { V.m = 46 + Math.sin(performance.now() / 300) * 2; }, 50); });
-    await page.waitForFunction(() => D.phase === 'natural', null, { timeout: 15000 });
-    await page.evaluate(() => { clearInterval(_s); V.m = 48; });
-    await page.waitForFunction(() => D.phase === 'low', null, { timeout: 10000 });
-    await page.evaluate(() => { const t0 = performance.now(); window._s = setInterval(() => { V.m = Math.max(41, 48 - (performance.now() - t0) / 250); }, 30); });
-    await page.waitForFunction(() => D.phase === 'high', null, { timeout: 20000 });
-    await page.evaluate(() => { clearInterval(_s); V.m = 63; });
-    await page.waitForFunction(() => D.phase === 'stretch', null, { timeout: 20000 });
-    await page.evaluate(() => { const t0 = performance.now(); window._s = setInterval(() => { const e = (performance.now() - t0) / 1000; V.m = e < 1 ? 38 : e < 6 ? 38 + (e - 1) * 6 : 68; }, 30); });
-    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 20000 }); await page.evaluate(() => clearInterval(_s));
-    const s = await page.evaluate(() => ({ p: store.profile, text: $('#dResult').textContent, fits: document.querySelectorAll('#dResult .fit-row').length }));
-    expect(s.p && s.p.type === 'Bass' && s.p.low === 41 && s.p.high === 63 && s.p.natural === 48, JSON.stringify(s.p));
+    await page.evaluate(plan => {
+      const t0 = {}; setInterval(() => {
+        const ph = D.phase, f = plan[ph]; if (!f) { V.on = false; return; }
+        t0[ph] = t0[ph] || performance.now(); const e = (performance.now() - t0[ph]) / 1000; V.on = true;
+        V.m = ph === 'speak' ? 46 + Math.sin(e * 3) * 2 : ph === 'stretch' ? (e < 1.5 ? f[0] : e < 5 ? f[0] + (e - 1.5) / 3.5 * (f[1] - f[0]) : f[1]) : Array.isArray(f) ? Math.max(f[1], f[0] - e * 4) : f;
+      }, 30);
+    }, plan);
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 120000 });
+    return page.evaluate(() => ({ p: store.profile, text: $('#dResult').hidden ? $('#dSub').textContent : $('#dResult').textContent, fits: document.querySelectorAll('#dResult .fit-row').length }));
+  };
+
+  await test('Find your voice: 5 timed steps, voice type, famous voices, songs that fit', async page => {
+    const s = await voiceTest(page, { speak: 1, natural: 48, low: [48, 41], high: 63, stretch: [38, 68] });
+    expect(s.p && s.p.type === 'Bass' && Math.abs(s.p.low - 41) <= 1 && Math.abs(s.p.high - 63) <= 1 && s.p.natural === 48, JSON.stringify(s.p));
     expect(s.p.xlo <= 39 && s.p.xhi >= 67, 'extremes ' + s.p.xlo + '–' + s.p.xhi);
     expect(/Johnny Cash/.test(s.text) && /Ring of Fire/.test(s.text) && s.fits === 3, 'result missing artists or song fits');
+  });
+
+  await test('Find your voice is forgiving: low and high mixed up still gives a result', async page => {
+    const s = await voiceTest(page, { speak: 1, natural: 55, low: 62, high: 50, stretch: [50, 64] });
+    expect(s.p && s.p.low <= 50 && s.p.high >= 62 && s.fits === 3, JSON.stringify(s));
   });
 
   await test('pitch match spots a flat singer', async page => {
