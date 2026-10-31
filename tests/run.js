@@ -338,6 +338,38 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(mig === 2 && s.ok === 3 && s.rung === 1 && s.guided > .8 && !s.tone, JSON.stringify({ mig, s }));
   });
 
+  await test('reference notes last at least 1.5 seconds', async page => {
+    const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
+    await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
+    await tab(page, '#t-sing'); await page.click('#btnRef');
+    await page.evaluate(() => { openLab('match'); }); await page.click('#dBtns >> text=▶ Start'); await page.waitForTimeout(300);
+    await page.evaluate(() => { closeLab(); store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; openLab('hold'); });
+    await page.click('#dBtns >> text=Hear the note');
+    const d = await page.evaluate(() => durs);
+    expect(s.hear.every(h => h >= 1.5) && d.length >= 3 && d.every(x => x >= 1.5), JSON.stringify({ s, d }));
+  });
+
+  await test('Note on: the note plays the whole time in a sing-through, following the song', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.click('#btnGuide');
+    expect(await page.evaluate(() => store.settings.guide && $('#btnGuide').getAttribute('aria-pressed') === 'true'), 'toggle did not turn on');
+    await page.evaluate(() => { V.follow = true; window.gs = []; setInterval(() => { if (G.run === 'singing' && G.seq[G.idx]) { const into = now() - G.t0 - G.starts[G.idx]; if (into > .15) gs.push(!!guideTone && guideTone.midi === G.seq[G.idx].m); } }, 40); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(400);
+    const s = await page.evaluate(() => ({ f: gs.filter(Boolean).length / Math.max(1, gs.length), n: gs.length, tone: !!guideTone, ok: runStats().ok, total: G.seq.length }));
+    expect(s.n > 20 && s.f > .95 && !s.tone && s.ok >= s.total - 1, JSON.stringify(s));
+  });
+
+  await test('Note on in coach mode: the note keeps playing through every turn', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { (store.settings ||= {}).guide = true; setCoach(true); window.gs = []; setInterval(() => { V.on = G.run === 'echo' && G.echo.phase === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m; if (G.run === 'echo') gs.push(!!guideTone); }, 40); });
+    expect(await page.evaluate(() => CO.rung === 1), 'not on Echo 3');
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 });
+    const s = await page.evaluate(() => ({ f: gs.filter(Boolean).length / gs.length, ok: runStats().ok, tone: !!guideTone }));
+    expect(s.f > .9 && s.ok === 3 && !s.tone, JSON.stringify(s));
+  });
+
   await test("pitch match's trickiest notes open Steady hold on that note", async page => {
     await page.evaluate(() => { openLab('match'); D.rounds = [{ m: 52, c: 55, pts: 45, rem: 0 }, { m: 48, c: 5, pts: 95, rem: 0, locked: true }]; D.n = 2; DRILLS.match.finish(); });
     await page.click('#dResult >> text=Hold E3');

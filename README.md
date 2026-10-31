@@ -16,7 +16,7 @@ practised on enough different days. Later levels add breath and tone, pitch and 
 
 ## Guide tone
 
-When a note is hard to find, the app can keep it playing while you sing: in Coach mode ("Sing along", the
+When a note is hard to find, the app can keep it playing while you sing: with the "🎵 Note on" button on the Sing screen (the note plays the whole time, in songs and in coach mode), in Coach mode ("Sing along", the
 safety net below "Echo 3 notes"), in Pitch match (automatically after two reminders, or always with
 "Keep the note playing"), and in Steady hold ("Guide on"). The tone softens once you are in the green band.
 The microphone path runs through a narrow notch filter at the guide's frequency, so the app hears the singer

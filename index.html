@@ -727,6 +727,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
       <button id="btnRef" class="small">Starting note</button>
       <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
+      <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
       <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
@@ -971,6 +972,12 @@ function guideOn(midi, vol = 0.14) {
   o.connect(g); g.connect(ac.destination); o.start(t);
   guideTone = { o, g, midi, vol, level: vol };
   notchFor(midi, t);
+}
+// glide the guide to the next note of a song without restarting it
+function guideTo(midi) {
+  if (!guideTone) return guideOn(midi);
+  const t = ac.currentTime; guideTone.midi = midi;
+  guideTone.o.frequency.setTargetAtTime(m2f(midi), t, 0.015); notchFor(midi, t);
 }
 // softer once the singer is on the note: the harness loosens as they take over
 function guideLevel(frac) {
@@ -1390,7 +1397,7 @@ function renderVoice() {
     card.querySelector('.muted').textContent = (d.tone || '') + (d.extras && d.extras.includes('over') ? ' · overtone heard' : '') + ' · ' + m2f(d.midi).toFixed(0) + ' Hz';
     const row = card.querySelector('.row');
     const play = document.createElement('button'); play.className = 'small'; play.textContent = 'Play';
-    play.onclick = async () => { await ensureAudio(); playTone(d.midi, 1.6, d.amps); };
+    play.onclick = async () => { await ensureAudio(); playTone(d.midi, 2, d.amps); };
     const del = document.createElement('button'); del.className = 'small'; del.textContent = 'Remove';
     del.onclick = () => { store.discoveries = store.discoveries.filter(x => x !== d); save(); renderVoice(); };
     row.append(play, del); dg.appendChild(card);
@@ -1508,7 +1515,7 @@ function renderSing() {
   const hint = $('#tgtHint');
   if (done) { hint.textContent = 'Finished!'; hint.className = 'hint ok'; }
   else if (G.run === 'ready') { hint.textContent = 'Tap ▶ Sing. A count of 3, then the notes move along.'; hint.className = 'hint'; }
-  renderCoach();
+  renderCoach(); renderGuideBtn();
   $('#btnSing').textContent = G.run === 'countin' || G.run === 'singing' || G.run === 'echo' ? '■ Stop' : done ? '▶ Sing again' : '▶ Sing';
   const onp = G.res.filter(r => r && (r.status === 'pure' || r.status === 'ok')).length;
   $('#tgtScore').textContent = G.run === 'singing' ? `Note ${G.idx + 1} of ${len} · ${onp} on pitch so far` : done ? '' : 'Try ' + (G.attempt + 1) + ' · ' + len + ' notes';
@@ -1531,11 +1538,11 @@ function stopTicks() { G.ticks.forEach(s => { try { s.stop(); } catch (e) {} });
 // singer answer it, with a second try on any miss; later rungs take the help away. 80% in tune climbs a rung, two runs
 // under 40% step back down, anything else repeats the rung.
 const RUNGS = [
-  { k: 'echo', size: 3, hear: 1.0, along: true, label: 'Sing along', desc: 'The note keeps playing while you sing it. Slide until the band turns green; the note gets softer as you lock on.' },
-  { k: 'echo', size: 3, hear: 1.0, label: 'Echo 3 notes', desc: 'Hear each note, then sing it back. Miss one and you get a second try.' },
-  { k: 'echo', size: 5, hear: 1.0, label: 'Echo 5 notes', desc: 'Same idea, a little longer.' },
-  { k: 'echo', size: 99, hear: 1.0, label: 'Echo every note', desc: 'The whole tune, one note at a time.' },
-  { k: 'echo', size: 99, hear: 0.4, label: 'Short hints', desc: 'Just a quick hint of each note before you sing it.' },
+  { k: 'echo', size: 3, hear: 2.0, along: true, label: 'Sing along', desc: 'The note keeps playing while you sing it. Slide until the band turns green; the note gets softer as you lock on.' },
+  { k: 'echo', size: 3, hear: 2.0, label: 'Echo 3 notes', desc: 'Hear each note, then sing it back. Miss one and you get a second try.' },
+  { k: 'echo', size: 5, hear: 2.0, label: 'Echo 5 notes', desc: 'Same idea, a little longer.' },
+  { k: 'echo', size: 99, hear: 2.0, label: 'Echo every note', desc: 'The whole tune, one note at a time.' },
+  { k: 'echo', size: 99, hear: 1.5, label: 'Short hints', desc: 'A shorter hint of each note before you sing it.' },
   { k: 'flow', size: 99, tempo: 'vslow', label: 'Very slow', desc: 'Sing it through, very slowly, with the starting note.' },
   { k: 'flow', size: 99, tempo: 'slow', label: 'Slow', desc: 'Sing it through slowly.' },
   { k: 'flow', size: 99, tempo: 'normal', label: 'Full speed', desc: 'The real thing.' },
@@ -1544,7 +1551,7 @@ const CO = { on: false, rung: 0, fails: 0, msg: '' };
 // new singers start at Echo 3 notes; Sing along is the net below it. Records from before Sing along existed move up one.
 const coachRec = id => { const r = (store.coach || {})[id]; return !r ? { rung: 1, fails: 0 } : r.v === 2 ? r : { rung: Math.min(RUNGS.length - 1, r.rung + 1), fails: r.fails || 0 }; };
 function coachSave() { if (!store.coach) store.coach = {}; store.coach[G.song.id] = { rung: CO.rung, fails: CO.fails, v: 2 }; dirty = true; }
-function rungLabel(i, n) { const r = RUNGS[i]; return r.k === 'echo' && r.size < 99 ? r.label : r.k === 'echo' && r.hear >= 1 ? 'Echo all ' + n + ' notes' : r.label; }
+function rungLabel(i, n) { const r = RUNGS[i]; return r.k === 'echo' && r.size < 99 ? r.label : r.k === 'echo' && r.hear >= 2 ? 'Echo all ' + n + ' notes' : r.label; }
 function coachTrim() {
   const r = RUNGS[CO.rung], full = G.seq.length;
   G.fullLen = full;
@@ -1579,6 +1586,12 @@ function coachAfter(st) {
   coachSave();
 }
 $('#btnCoach').onclick = () => setCoach(!CO.on);
+function renderGuideBtn() { const b = $('#btnGuide'); if (b) { b.setAttribute('aria-pressed', guidePref()); b.textContent = guidePref() ? '🎵 Note on' : '🎵 Note off'; } }
+$('#btnGuide').onclick = () => {
+  if (!store.settings) store.settings = {}; store.settings.guide = !guidePref(); dirty = true; renderGuideBtn();
+  if (!guidePref()) guideOff();
+  toast(guidePref() ? 'The note keeps playing while you sing. Headphones help.' : 'Note off: you hear each note first, then sing it on your own.');
+};
 // Echo rungs: hear a note, sing it back, a second try on a miss.
 function startEcho() {
   stopPlayback(true); stopTicks();
@@ -1589,7 +1602,7 @@ function startEcho() {
 function echoHear() {
   const r = RUNGS[CO.rung], i = G.echo.i, n = G.seq[i];
   G.echo.phase = 'hear'; G.echo.t0 = now(); G.idx = i;
-  playTone(n.m, r.hear, PURE);
+  if (r.along || guidePref()) guideOn(n.m, 0.25); else playTone(n.m, r.hear, PURE);
   showTarget(i); drawStaff(); drawFocus();
   $('#tgtHint').textContent = '🔊 Listen: "' + wordAt(i) + '" (' + nameOf(n.m) + ')'; $('#tgtHint').className = 'hint';
   $('#tgtScore').textContent = 'Note ' + (i + 1) + ' of ' + G.seq.length + (G.echo.retried ? ' · second try' : '');
@@ -1599,11 +1612,12 @@ function echoStep(dt) {
   if (E.phase === 'hear') {
     if (e > r.hear + 0.25) {
       E.phase = 'sing'; E.t0 = now(); G.acc[i] = null;
-      if (r.along) { guideOn(n.m); hint.textContent = '🎵 Sing along: "' + wordAt(i) + '" (' + nameOf(n.m) + ')'; } else hint.textContent = 'Your turn: sing "' + wordAt(i) + '"';
+      if (guideTone) { guideLevel(0.6); hint.textContent = '🎵 Sing along: "' + wordAt(i) + '" (' + nameOf(n.m) + ')'; } else hint.textContent = 'Your turn: sing "' + wordAt(i) + '"';
     }
     return;
   }
-  if (r.along) win = 3.6;
+  const along = !!guideTone;
+  if (along) win = 3.6;
   $('#holdFill').style.width = (100 * clamp(e / win)) + '%';
   if (e > 0.35) {
     const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], attack: [], late: [], db: 0, p: 0, cl: 0, st: 0, fo: 0 });
@@ -1613,7 +1627,7 @@ function echoStep(dt) {
       if (e < 0.7) a.attack.push(c);
       a.voiced++; a.cents.push(c); a.p += S.purity; a.cl += S.clar; a.st += S.stab; a.fo += S.focus; a.db += 20 * Math.log10(S.rms + 1e-9);
       if (e > win / 2) a.late.push(c);
-      if (r.along) guideLevel(Math.abs(c) <= TOL ? 0.35 : 1);
+      if (along) guideLevel(Math.abs(c) <= TOL ? 0.35 : 0.6);
       if (Math.abs(c) <= TOL) { hint.textContent = S.purity >= 72 ? 'In tune and pure ✦' : 'In tune'; hint.className = 'hint ok'; }
       else { hint.textContent = c < 0 ? 'A little low, go up ↑' : 'A little high, come down ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
     }
@@ -1641,7 +1655,7 @@ async function startRun() {
   }
   if (CO.on && G.run === 'done') loadSong(G.song, true);
   if (CO.on) CO.msg = '';
-  if (G.run === 'countin' || G.run === 'singing') { stopTicks(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
+  if (G.run === 'countin' || G.run === 'singing') { stopTicks(); guideOff(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
   stopPlayback(true);
   if (mode === 'idle') await startMic();
   if (mode === 'idle') return;
@@ -1682,6 +1696,7 @@ function singStep() {
     renderSing();
   }
   const n = G.seq[i], dur = n.b * beat, into = e - G.starts[i];
+  if (guidePref()) { if (!guideTone) guideOn(n.m); else if (guideTone.midi !== n.m) guideTo(n.m); }
   $('#holdFill').style.width = (100 * clamp(into / dur)) + '%';
   const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], attack: [], late: [], db: 0, p: 0, cl: 0, st: 0, fo: 0 });
   if (into < Math.min(0.15 * dur + 0.05, 0.3)) {
@@ -1716,7 +1731,7 @@ function finalizeNote(i) {
   clearTimeout(cheerTimer); cheerTimer = setTimeout(() => { $('#cheer').textContent = ''; }, 1400);
 }
 function finishRun() {
-  stopTicks();
+  stopTicks(); guideOff();
   G.run = 'done'; G.idx = G.seq.length; G.attempt++;
   saveRun();
   if (CO.on) coachAfter(runStats());
@@ -2099,7 +2114,7 @@ function myTimbre(m) {
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
 }
 // Starting note: the first note of the song (or the note being sung right now), on its own.
-$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[G.run === 'singing' ? Math.min(G.idx, G.seq.length - 1) : 0].m; playTone(m, 1.4, PURE); };
+$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[G.run === 'singing' ? Math.min(G.idx, G.seq.length - 1) : 0].m; playTone(m, 2, PURE); };
 $('#btnMetro').onclick = () => { G.metro = !G.metro; if (!store.settings) store.settings = {}; store.settings.metro = G.metro; dirty = true; $('#btnMetro').setAttribute('aria-pressed', G.metro); if (G.run === 'singing' || G.run === 'countin') toast('Metronome ' + (G.metro ? 'on' : 'off') + ' from the next run'); };
 $('#btnGen').onclick = () => {
   const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
@@ -2223,7 +2238,7 @@ const FINISH = { key: 'finish', title: 'You\'re ready to practice',
 function playBest() {
   const b = bestTone(); if (!b) return;
   ensureAudio().then(() => {
-    playTone(b.midi, 1.6, b.amps); GS.flags.playedAt = now(); GS.prog = 0.5; guideLive();
+    playTone(b.midi, 2, b.amps); GS.flags.playedAt = now(); GS.prog = 0.5; guideLive();
     setTimeout(() => { if (STEPS[guide.step] && STEPS[guide.step].key === 'map') completeStep(); }, 1800);
   });
 }
@@ -2411,7 +2426,7 @@ function openLab(id, fromPath) {
   if (L.kind === 'drill') { $('#dResult').hidden = true; $('#lane').hidden = false; DRILLS[id].start(); }
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
-const guidePref = () => !!(store.settings && store.settings.guide);
+function guidePref() { return !!(store.settings && store.settings.guide); }
 function guideToggle(text) {
   const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'guideTog'; cb.checked = guidePref();
   cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.guide = cb.checked; dirty = true; };
@@ -2851,14 +2866,14 @@ const DRILLS = {
       if (D.rounds.length >= D.n) return this.finish();
       const z = labZone(); let m; do { m = z.lo + Math.floor(Math.random() * (z.hi - z.lo + 1)); } while (m === D.target && z.hi > z.lo);
       Object.assign(D, { target: m, phase: 'play', t0: now(), cs: [], lock: [], rem: 0, guided: false }); guideOff(true);
-      playTone(m, 1.3, PURE);
+      playTone(m, 2, PURE);
       dSet({ step: `Round ${D.rounds.length + 1} of ${D.n}`, prompt: 'Listen: ' + nameOf(m), sub: 'Hear it in your head.', live: '🔊 playing…', prog: D.rounds.length / D.n });
       $('#dLive').className = 'live-tip';
-      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 1.3, PURE); D.rem++; } }, { label: 'Skip', fn: () => this.score() }]);
+      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 2, PURE); D.rem++; } }, { label: 'Skip', fn: () => this.score() }]);
     },
     tick(dt, muted) {
       const e = now() - D.t0;
-      if (D.phase === 'play' && e > 1.5) {
+      if (D.phase === 'play' && e > 2.2) {
         D.phase = 'sing'; D.t0 = now();
         if (guidePref()) { D.guided = true; guideOn(D.target); }
         dSet({ prompt: 'Sing ' + nameOf(D.target), sub: D.guided ? 'The note keeps playing. Sing "oo" with it and slide until the band turns green.' : 'Sing "oo" and slide until the band turns green, then hold it there.', live: D.guided ? '🎵 ' + nameOf(D.target) + ' playing: sing with it' : 'Your turn…' }); return;
@@ -2877,9 +2892,9 @@ const DRILLS = {
       }
       // Can't find it yet? Play it again and give more time (twice), then score what was sung.
       // Can't find it yet? Play it again and give more time (twice). Still lost: keep the note playing to sing along with.
-      if (!D.guided && e > 3.2 + D.rem * 3 && D.rem < 2) { D.rem++; playTone(D.target, 1.0, PURE); dSet({ live: '🔊 Listen again: ' + nameOf(D.target) + '. Take your time.' }); $('#dLive').className = 'live-tip'; }
-      else if (!D.guided && e > 9.5) { D.guided = true; D.autoGuide = true; D.t0 = now() - 3; guideOn(D.target); dSet({ prompt: 'Sing along with ' + nameOf(D.target), live: "🎵 I'll keep the note playing: match it", sub: 'Hum quietly with the tone and slide slowly until the rough "beating" disappears and the band turns green.' }); $('#dLive').className = 'live-tip'; }
-      else if (e > (D.autoGuide ? 13 : 10)) this.score(false);
+      if (!D.guided && e > 3.5 + D.rem * 3.5 && D.rem < 2) { D.rem++; playTone(D.target, 2, PURE); dSet({ live: '🔊 Listen again: ' + nameOf(D.target) + '. Take your time.' }); $('#dLive').className = 'live-tip'; }
+      else if (!D.guided && e > 11) { D.guided = true; D.autoGuide = true; D.t0 = now() - 3; guideOn(D.target); dSet({ prompt: 'Sing along with ' + nameOf(D.target), live: "🎵 I'll keep the note playing: match it", sub: 'Hum quietly with the tone and slide slowly until the rough "beating" disappears and the band turns green.' }); $('#dLive').className = 'live-tip'; }
+      else if (e > (D.autoGuide ? 14 : 11.5)) this.score(false);
     },
     score(locked) {
       const late = D.cs.filter(x => x.t > (now() - D.t0) - 1.5).map(x => x.c);
@@ -2940,21 +2955,21 @@ const DRILLS = {
       const pick = el('label', 'hold-pick'); pick.append(document.createTextNode('Your note'));
       const sel = el('select'); sel.id = 'holdSel';
       for (let m = lo; m <= hi; m++) { const o = el('option', '', nameOf(m) + (pure.has(m) ? ' ★' : '') + (hs[m] != null ? ' · best ' + hs[m] : '')); o.value = m; if (m === def) o.selected = true; sel.appendChild(o); }
-      sel.onchange = () => { D.target = +sel.value; if (!store.settings) store.settings = {}; store.settings.holdNote = D.target; dirty = true; dSet({ prompt: 'Your note: ' + nameOf(D.target) }); ex.querySelector('.nmap').replaceWith(this.noteMap(D.target)); ensureAudio().then(() => playTone(D.target, 1.2, PURE)); };
+      sel.onchange = () => { D.target = +sel.value; if (!store.settings) store.settings = {}; store.settings.holdNote = D.target; dirty = true; dSet({ prompt: 'Your note: ' + nameOf(D.target) }); ex.querySelector('.nmap').replaceWith(this.noteMap(D.target)); ensureAudio().then(() => playTone(D.target, 2, PURE)); };
       pick.appendChild(sel); ex.append(pick, guideToggle('Guide on: keep the note playing under me'), el('span', 'label', 'Your notes · ★ already pure · number = best hold score'), this.noteMap(def));
       dSet({ step: 'Steady hold · 6 seconds', prompt: 'Your note: ' + nameOf(def), sub: 'You\'ll hear the note first. Then sing it on "oo" and keep your voice inside the green band for 6 seconds. ' + POSTURE, live: '', prog: -1 });
       $('#dLive').className = 'live-tip';
-      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }, { label: 'Hear the note', fn: async () => { await ensureAudio(); playTone(D.target, 1.5, PURE); } }]);
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }, { label: 'Hear the note', fn: async () => { await ensureAudio(); playTone(D.target, 2, PURE); } }]);
     },
     go() {
       $('#dExtra').textContent = '';
       Object.assign(D, { phase: 'listen', t0: now(), samples: [], on: 0, silent: 0 });
-      playTone(D.target, 1.6, PURE);
+      playTone(D.target, 2, PURE);
       dSet({ prompt: 'Listen: ' + nameOf(D.target), sub: 'This is your note. Sing it on "oo" when the tone stops.', live: '🔊 ' + nameOf(D.target) + ' playing…', prog: 0 });
-      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 1.6, PURE); D.phase = 'listen'; D.t0 = now(); } }, { label: 'Stop', fn: () => this.finish(D.phase === 'hold' ? now() - D.t0 : 0) }]);
+      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 2, PURE); D.phase = 'listen'; D.t0 = now(); } }, { label: 'Stop', fn: () => this.finish(D.phase === 'hold' ? now() - D.t0 : 0) }]);
     },
     tick(dt, muted) {
-      if (D.phase === 'listen' && now() - D.t0 > 1.8) { D.phase = 'wait'; D.guided = guidePref(); if (D.guided) guideOn(D.target); dSet({ prompt: 'Sing ' + nameOf(D.target), live: D.guided ? '🎵 ' + nameOf(D.target) + ' keeps playing: sing with it' : 'Your turn: sing "oo"' }); return; }
+      if (D.phase === 'listen' && now() - D.t0 > 2.2) { D.phase = 'wait'; D.guided = guidePref(); if (D.guided) guideOn(D.target); dSet({ prompt: 'Sing ' + nameOf(D.target), live: D.guided ? '🎵 ' + nameOf(D.target) + ' keeps playing: sing with it' : 'Your turn: sing "oo"' }); return; }
       if (muted) return;
       if (D.phase === 'wait') { if (S.voiced) { D.on += dt; if (D.on > 0.25) { D.phase = 'hold'; D.t0 = now(); dSet({ sub: 'Keep it inside the green band: steady air, relaxed jaw, soft "oo".' }); } } else D.on = 0; return; }
       if (D.phase !== 'hold') return;
@@ -3006,7 +3021,7 @@ const DRILLS = {
     start() {
       Object.assign(D, { phase: 'intro', given: null, target: null });
       dSet({ step: 'Vowels & open airway', prompt: 'Five vowels, one note', sub: 'Pick a comfortable note (or tap Give me a note). You\'ll sing ee, eh, ah, oh, oo on the same note, 3 seconds each, without stopping. Watch the Tone color bars at the top. ' + POSTURE, live: '', prog: -1 });
-      dBtns([{ label: 'Give me a note', fn: () => { D.given = Math.round(labZone().center); playTone(D.given, 1.5, PURE); dSet({ live: 'Your note: ' + nameOf(D.given) + '. Tap Start, then sing it.' }); } },
+      dBtns([{ label: 'Give me a note', fn: () => { D.given = Math.round(labZone().center); playTone(D.given, 2, PURE); dSet({ live: 'Your note: ' + nameOf(D.given) + '. Tap Start, then sing it.' }); } },
         { label: 'Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }]);
     },
     go() {
