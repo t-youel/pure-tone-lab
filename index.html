@@ -6,6 +6,7 @@
 <title>Pure Tone Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%E2%99%AF%E2%99%AD%E2%99%AE&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: a "lab bench" — a live readout strip that never leaves the screen, three work tabs beneath it. */
@@ -32,11 +33,11 @@
 [hidden] { display: none !important; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
-.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px;
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 12px 28px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 18px; }
+  display: grid; gap: 12px; }
 h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1; }
-h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.5rem, 3vw, 1.9rem); font-weight: 700; letter-spacing: -0.01em; }
 h2 { font-size: 1.35rem; font-weight: 700; }
 h3 { font-size: 1.05rem; font-weight: 700; }
 p { margin: 0; }
@@ -48,7 +49,7 @@ p { margin: 0; }
 .top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
 .brand { display: flex; gap: 14px; align-items: center; min-width: 0; }
 .brand svg { flex: none; }
-.brand p { color: var(--muted); max-width: 46ch; }
+.brand p { color: var(--muted); max-width: 46ch; font-size: 0.88rem; line-height: 1.35; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; }
 button, .btn { font: 600 0.95rem/1 var(--body); border-radius: 999px; padding: 11px 18px; cursor: pointer;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; gap: 8px; }
@@ -66,8 +67,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* live strip */
 .live { display: grid; grid-template-columns: 1.05fr 1.1fr 1.1fr 1.2fr; gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
-.cell { background: var(--surface); padding: 16px 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
-.big { font: 700 2.9rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.cell { background: var(--surface); padding: 10px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.big { font: 700 2.3rem/1 var(--display); font-variant-numeric: tabular-nums; }
 .sub { font: 400 0.85rem/1 var(--mono); color: var(--muted); }
 .note-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .tuner { position: relative; height: 10px; border-radius: 6px; background:
@@ -83,7 +84,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .meter .fill { height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .12s; }
 .meter .v { font: 0.78rem/1 var(--mono); text-align: right; color: var(--muted); }
 .tone-name { font: 700 1.15rem/1.2 var(--display); }
-.hbars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 64px; align-items: end; }
+.hbars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 44px; align-items: end; }
 .hbars div { background: var(--accent); border-radius: 3px 3px 0 0; height: 2%; transition: height .1s; }
 .hbars div:first-child { background: var(--pure); }
 .hlabels { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; font: 0.68rem/1 var(--mono); color: var(--muted); text-align: center; }
@@ -93,14 +94,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip.main { border-color: var(--pure); }
 .chip.over { border-color: var(--accent); }
 .chip small { color: var(--muted); }
-.coach { font-size: 0.93rem; line-height: 1.45; }
+.coach { font-size: 0.86rem; line-height: 1.4; }
 
 /* tabs */
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; }
-.tabs button { white-space: nowrap; flex: none; border: 0; border-radius: 10px 10px 0 0; background: transparent; color: var(--muted); padding: 12px 16px; border-bottom: 3px solid transparent; }
+.tabs button { white-space: nowrap; flex: none; border: 0; border-radius: 10px 10px 0 0; background: transparent; color: var(--muted); padding: 9px 16px; border-bottom: 3px solid transparent; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .panel { display: grid; gap: 18px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; display: grid; gap: 10px; min-width: 0; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 canvas { display: block; width: 100%; border-radius: 8px; }
 #spec { height: 230px; }
@@ -134,20 +135,19 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; }
 
 /* sing */
-.songs { display: flex; flex-wrap: wrap; gap: 8px; }
+.songs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; flex: 1; min-width: 0; }
+.songs button { flex: none; }
+.song-bar { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.song-bar h2 { font-size: 1.05rem; flex: none; }
 .songs button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
-.sing-main { display: grid; grid-template-columns: minmax(0, 280px) 1fr; gap: 18px; align-items: center; }
+.sing-main { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); gap: 16px; align-items: center; }
 .target { display: grid; gap: 6px; justify-items: start; }
-.target .big { font-size: 4rem; }
+.target .big { font-size: 3.2rem; max-width: 100%; overflow-wrap: anywhere; }
 .hint { font: 700 1.1rem/1.2 var(--display); }
 .hint.ok { color: var(--good); }
 .hint.up, .hint.down { color: var(--warn); }
 .hold { height: 8px; width: 100%; background: var(--line); border-radius: 4px; overflow: hidden; }
 .hold div { height: 100%; width: 0; background: var(--good); }
-.lane { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; }
-.lane span { flex: none; font: 600 0.85rem/1 var(--mono); padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); }
-.lane span.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--line)); }
-.lane span.now { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.92rem; }
 .toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -157,21 +157,36 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .toggle input:checked + .switch::after { left: 19px; }
 .keybox { font: 600 0.95rem/1 var(--mono); min-width: 7.5em; text-align: center; }
 
-.lane span b { font-family: var(--display); margin-right: 4px; }
-.report { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 18px; }
-.report-top { display: flex; flex-wrap: wrap; gap: 28px; align-items: end; }
-.score { font: 700 3.6rem/1 var(--display); color: var(--pure); font-variant-numeric: tabular-nums; }
+.report { display: grid; gap: 10px; }
+.report-top { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: end; }
+.score { font: 700 2.8rem/1 var(--display); color: var(--pure); font-variant-numeric: tabular-nums; }
 .score small { font-size: 1.2rem; color: var(--muted); font-weight: 500; }
-.rows { display: grid; gap: 8px; }
-.rrow { display: grid; grid-template-columns: 6.2em minmax(0, 1fr) 2.4em 4.2em; gap: 10px; align-items: center; font-size: 0.9rem; }
-.rrow .nm b { font-family: var(--display); margin-right: 6px; }
-.rrow .nm span, .rrow .ct { font-family: var(--mono); color: var(--muted); font-size: 0.8rem; }
-.rrow .pv { font: 600 0.95rem/1 var(--mono); text-align: right; }
-.rbar { position: relative; height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; }
-.rbar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 6px; }
-.rbar i.pure { background: var(--pure); }
-.rbar::after { content: ""; position: absolute; left: 72%; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .35; }
 .tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; max-width: 62ch; }
+/* sheet music */
+.sheet { min-width: 0; display: grid; gap: 8px; }
+.staff svg { display: block; width: 100%; height: auto; max-height: 240px; color: var(--ink); overflow: visible; }
+.staff .ln { stroke: var(--muted); stroke-width: 1; }
+.staff .glyph { font-family: "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif; fill: var(--ink); }
+.staff .lyr { font: 600 13px var(--body); fill: var(--ink); text-anchor: middle; }
+.staff .nn { font: 10px var(--mono); fill: var(--muted); text-anchor: middle; }
+.staff .n-done { color: var(--warn); }
+.staff .n-pure { color: var(--pure); }
+.staff .n-skip { color: var(--muted); }
+.staff .n-now, .staff .n-play { color: var(--accent); }
+.staff .n-now .lyr, .staff .n-play .lyr { fill: var(--accent); font-weight: 700; }
+.staff .halo { fill: var(--accent); opacity: .16; }
+.line-nav { display: flex; justify-content: space-between; font: 0.75rem/1 var(--mono); color: var(--muted); }
+.sing-controls { border-top: 1px solid var(--line); padding-top: 10px; }
+.sing-controls .sep { flex: 1; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 0; display: grid; gap: 2px; text-align: center; overflow: hidden; }
+.tile b { font: 600 0.8rem/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .tn { font: 0.68rem/1 var(--mono); color: var(--muted); }
+.tile .tp { font: 700 1.15rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.tile .tp.pure { color: var(--pure); }
+.tile .tc { font: 0.65rem/1 var(--mono); color: var(--muted); }
+.tile i { display: block; height: 4px; margin: 4px -6px 0; background: var(--accent); }
+.tile i.pure { background: var(--pure); }
 details { border-top: 1px solid var(--line); padding-top: 14px; }
 summary { cursor: pointer; font: 700 1rem/1.3 var(--display); }
 details .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 12px; }
@@ -206,11 +221,15 @@ details b { color: var(--ink); }
 .demo-flag { font: 600 0.75rem/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 6px 10px; }
 #sSlot .card { border: 0; padding: 0; background: transparent; }
 #sSlot .sing-main { grid-template-columns: 1fr; }
+#sSlot .sing-controls .sep { display: none; }
 .slot-stats { display: flex; flex-wrap: wrap; gap: 18px; }
 .routine { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; max-width: 70ch; }
 .routine b { font-family: var(--display); }
 @media (max-width: 820px) { .step { grid-template-columns: 1fr; } }
+@media (max-width: 1299px) { .brand p { display: none; } .top { align-items: center; } }
 @media (max-width: 980px) { .live { grid-template-columns: 1fr 1fr; position: static; } }
+@media (max-width: 720px) { .song-bar { flex-wrap: wrap; } .songs { order: 3; flex-basis: 100%; }
+  .sing-controls .sep { display: none; } }
 @media (max-width: 720px) { .two, .sing-main { grid-template-columns: 1fr; } }
 @media (max-width: 460px) { .live { grid-template-columns: 1fr; } .big { font-size: 2.4rem; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -376,41 +395,37 @@ details b { color: var(--ink); }
 <!-- SING -->
 <section class="panel" id="tab-sing" hidden>
   <div class="card">
-    <div class="card-head"><h2>Choose something to sing</h2><span class="label" id="songKind"></span></div>
-    <div class="songs" id="songs"></div>
-    <div class="row">
-      <button id="btnGen" class="small">Compose a new melody from my pure notes</button>
-    </div>
+    <div class="song-bar"><h2>Sing</h2><div class="songs" id="songs"></div><button id="btnGen" class="small" style="flex:none">+ New melody from my pure notes</button></div>
   </div>
   <div class="card" id="singCard">
     <div class="sing-main">
       <div class="target">
-        <div class="label">Sing this note</div>
+        <div class="label">Sing this</div>
         <div id="tgtName" class="big">—</div>
         <div id="tgtNote" class="sub"></div>
         <div id="tgtHint" class="hint">Start listening to begin</div>
         <div class="hold" aria-hidden="true"><div id="holdFill"></div></div>
         <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
       </div>
-      <div style="display:grid;gap:14px;min-width:0">
-        <div class="lane" id="lane"></div>
-        <div class="row">
-          <button id="btnRef" class="small">Hear this note</button>
-          <button id="btnPlaySong" class="small">Hear the melody</button>
-          <button id="btnRestart" class="small">Restart</button>
-          <button id="btnSkip" class="small">Skip note</button>
-        </div>
-        <div class="row">
-          <span class="label">Key</span>
-          <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
-          <span id="keyTxt" class="keybox">—</span>
-          <button id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
-          <button id="kAuto" class="small">Fit to my zone</button>
-          <label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave counts</label>
-        </div>
+      <div class="sheet">
+        <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
+        <div class="line-nav"><span><span id="songKind"></span> · <span id="lineTxt"></span></span><span id="clefTxt"></span></div>
+        <div class="report" id="report" hidden></div>
       </div>
     </div>
-    <div class="report" id="report" hidden></div>
+    <div class="row sing-controls">
+      <button id="btnListen" class="primary small">▶ Listen first</button>
+      <button id="btnRef" class="small">Hear this note</button>
+      <button id="btnRestart" class="small">Restart</button>
+      <button id="btnSkip" class="small">Skip note</button>
+      <span class="sep"></span>
+      <span class="label">Key</span>
+      <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
+      <span id="keyTxt" class="keybox">—</span>
+      <button id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
+      <button id="kAuto" class="small">Fit to my zone</button>
+      <label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
+    </div>
   </div>
 </section>
 
@@ -597,6 +612,7 @@ function playTone(midi, dur = 1.2, amps = null, when = 0) {
   const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.3, t + .04);
   g.gain.setValueAtTime(.3, t + dur - .08); g.gain.linearRampToValueAtTime(0, t + dur);
   o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + .02);
+  return o;
   refUntil = Math.max(refUntil, now() + when + dur + 0.15);
 }
 
@@ -938,14 +954,14 @@ $('#btnReset').onclick = () => {
 // ---------- sing ----------
 // Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
 const SONGS = [
-  { id: 'doremi', name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
-  { id: 'hum', name: 'Five-note hum', kind: 'Warm-up', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
-  { id: 'arp', name: 'Major arpeggio', kind: 'Warm-up', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
-  { id: 'twinkle', name: 'Twinkle, Twinkle', kind: 'Song', notes: [[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2]] },
-  { id: 'ode', name: 'Ode to Joy', kind: 'Song', notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
-  { id: 'grace', name: 'Amazing Grace', kind: 'Song', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
+  { id: 'doremi', name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, words: 'Do Re Mi Fa So La Ti Do', notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
+  { id: 'hum', name: 'Five-note hum', kind: 'Warm-up', words: 'mm mm mm mm mm mm mm mm mm', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
+  { id: 'arp', name: 'Major arpeggio', kind: 'Warm-up', words: 'ah ah ah ah ah ah ah', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
+  { id: 'twinkle', name: 'Twinkle, Twinkle', kind: 'Song', words: 'Twin- kle twin- kle lit- tle star, / how I won- der what you are. / Up a- bove the world so high, / like a dia- mond in the sky. / Twin- kle twin- kle lit- tle star, / how I won- der what you are.', notes: [[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2]] },
+  { id: 'ode', name: 'Ode to Joy', kind: 'Song', words: "Joy- ful, joy- ful, we a- dore thee, / God of glo- ry, Lord of love; / Hearts un- fold like flowers be- fore thee, / op'- ning to the sun a- bove.", notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
+  { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
-const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [] };
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0 };
 const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
 const sylOf = m => SOLF[(((m - G.shift) % 12) + 12) % 12];
 
@@ -957,7 +973,18 @@ function autoShift(song) {
 }
 function loadSong(song, keepShift = false) {
   G.song = song; if (!keepShift) G.shift = autoShift(song);
-  G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b }));
+  stopPlayback(true);
+  G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b, w: '', cont: false }));
+  // Words: one token per note, "_" holds the previous syllable over another note, "/" ends a line.
+  G.lines = []; let ni = 0, ls = 0;
+  for (const tk of (song.words || '').split(/\s+/).filter(Boolean)) {
+    if (tk === '/') { if (ni > ls) { G.lines.push([ls, ni - 1]); ls = ni; } continue; }
+    if (ni < G.seq.length) { G.seq[ni].cont = tk === '_'; G.seq[ni].w = tk === '_' ? '' : tk; ni++; }
+  }
+  const rest = G.seq.length - ls, chunk = rest <= 12 ? rest : 8;
+  for (let a = ls; a < G.seq.length; a += chunk) G.lines.push([a, Math.min(G.seq.length, a + chunk) - 1]);
+  // Low voices read treble clef an octave up (the small 8 under the clef).
+  G.disp = G.seq.reduce((s, n) => s + n.m, 0) / G.seq.length < 60 ? 12 : 0;
   G.idx = 0; G.hold = 0; G.hits = []; G.res = []; G.acc = null;
   renderSongs(); renderSing();
 }
@@ -972,14 +999,12 @@ function renderSongs() {
 function singActive() { return !$('#tab-sing').hidden || (!$('#tab-start').hidden && STEPS[guide.step] && STEPS[guide.step].key === 'song'); }
 function singTarget() { return (!singActive() || G.idx >= G.seq.length) ? null : G.seq[G.idx].m; }
 function renderSing() {
-  const lane = $('#lane'); lane.textContent = '';
-  G.seq.forEach((n, i) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = sylOf(n.m); s.append(b, nameOf(n.m)); s.className = i < G.idx ? 'done' : i === G.idx ? 'now' : ''; lane.appendChild(s); });
-  const cur = lane.children[G.idx]; if (cur) lane.scrollLeft = cur.offsetLeft - lane.clientWidth / 3;
   $('#keyTxt').textContent = 'Do = ' + pcOf(G.shift);
   const done = G.idx >= G.seq.length;
-  $('#tgtName').textContent = done ? '✓' : sylOf(G.seq[G.idx].m);
-  $('#tgtNote').textContent = done ? '' : nameOf(G.seq[G.idx].m) + ' · ' + m2f(G.seq[G.idx].m).toFixed(0) + ' Hz';
+  showTarget(done ? -1 : G.idx);
+  drawStaff();
   renderReport();
+  $('#staff').hidden = done; $('#lineTxt').closest('.line-nav').hidden = done;
   if (done) {
     const avg = G.hits.length ? G.hits.reduce((s, h) => s + h.p, 0) / G.hits.length : 0;
     $('#tgtHint').textContent = 'Finished. Average purity ' + Math.round(avg) + '.'; $('#tgtHint').className = 'hint ok';
@@ -990,7 +1015,8 @@ function renderSing() {
 function singStep(dt) {
   if (!singActive() || G.idx >= G.seq.length) return;
   const hint = $('#tgtHint'), tgt = G.seq[G.idx].m;
-  if (!S.voiced) { hint.textContent = 'Sing ' + sylOf(tgt) + ' (' + nameOf(tgt) + ')'; hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
+  if (G.play >= 0) return;
+  if (!S.voiced) { hint.textContent = 'Sing ' + wordAt(G.idx) + ' (' + nameOf(tgt) + ')'; hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
   else {
     let c = (S.midi - tgt) * 100;
     if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
@@ -1013,6 +1039,94 @@ function singStep(dt) {
   }
 }
 $('#btnRestart').onclick = () => loadSong(G.song, true);
+
+// ---------- words and sheet music ----------
+function wordAt(i) {
+  const n = G.seq[i]; if (!n) return '';
+  if (!n.cont) return n.w.replace(/[,.;:!?]+$/, '');
+  let j = i; while (j > 0 && G.seq[j].cont) j--;
+  return G.seq[j].w.replace(/[-,.;:!?]+$/, '') + '…';
+}
+function showTarget(i) {
+  if (i < 0) { $('#tgtName').textContent = '✓'; $('#tgtNote').textContent = ''; return; }
+  const n = G.seq[i];
+  $('#tgtName').textContent = wordAt(i);
+  $('#tgtNote').textContent = sylOf(n.m) + ' · ' + nameOf(n.m) + ' · ' + m2f(n.m).toFixed(0) + ' Hz';
+}
+// Major keys by tonic pitch class: name, then sharps (+) or flats (−) in the signature.
+const KEYSIG = [['C', 0], ['D♭', -5], ['D', 2], ['E♭', -3], ['E', 4], ['F', -1], ['F♯', 6], ['G', 1], ['A♭', -4], ['A', 3], ['B♭', -2], ['B', 5]];
+const LETTERS = 'CDEFGAB', NAT = [0, 2, 4, 5, 7, 9, 11], DEG = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
+const SHARP_L = [3, 0, 4, 1, 5, 2, 6], FLAT_L = [6, 2, 5, 1, 4, 0, 3];
+const SHARP_STEP = [38, 35, 39, 36, 33, 37, 34], FLAT_STEP = [34, 37, 33, 36, 32, 35, 31]; // staff steps: C4 = 28, E4 = 30 (bottom line)
+function spell(m, tonicPc, sig) {
+  const tl = LETTERS.indexOf(KEYSIG[tonicPc][0][0]), rel = ((m - tonicPc) % 12 + 12) % 12;
+  const L = rel in DEG ? (tl + DEG[rel]) % 7 : (tl + DEG[sig >= 0 ? rel - 1 : rel + 1]) % 7;
+  let alt = ((m - NAT[L]) % 12 + 12) % 12; if (alt > 6) alt -= 12;
+  const keyAlt = sig > 0 && SHARP_L.slice(0, sig).includes(L) ? 1 : sig < 0 && FLAT_L.slice(0, -sig).includes(L) ? -1 : 0;
+  const oct = (m - NAT[L] - alt) / 12 - 1;
+  return { step: L + 7 * oct, acc: alt === keyAlt ? '' : alt === 1 ? '♯' : alt === -1 ? '♭' : '♮' };
+}
+function lineOf(i) { const k = G.lines.findIndex(([a, b]) => i >= a && i <= b); return k < 0 ? G.lines.length - 1 : k; }
+function drawStaff() {
+  const box = $('#staff'); if (!box || !G.lines.length) return;
+  const cur = G.play >= 0 ? G.play : Math.min(G.idx, G.seq.length - 1), li = lineOf(cur), [a, b] = G.lines[li];
+  const tonic = ((G.shift % 12) + 12) % 12, sig = KEYSIG[tonic][1], ks = Math.abs(sig);
+  const Y = st => 80 - (st - 30) * 5;
+  const xs = []; let x = 58 + ks * 10 + 18;
+  for (let i = a; i <= b; i++) { xs.push(x); x += 44 + Math.min(G.seq[i].b, 3) * 8; }
+  const W = Math.max(x + 6, 420), H = 150, out = [];
+  for (let k = 0; k < 5; k++) out.push(`<line class="ln" x1="4" x2="${W - 4}" y1="${40 + k * 10}" y2="${40 + k * 10}"/>`);
+  out.push(`<line class="ln" x1="${W - 4}" x2="${W - 4}" y1="40" y2="80"/>`);
+  out.push(`<text class="glyph" x="6" y="84" font-size="62">𝄞</text>`);
+  if (G.disp) out.push(`<text class="nn" x="22" y="110" style="font-size:11px;fill:var(--ink)">8</text>`);
+  for (let k = 0; k < ks; k++) out.push(`<text class="glyph" x="${50 + k * 10}" y="${Y(sig > 0 ? SHARP_STEP[k] : FLAT_STEP[k]) + 5}" font-size="17">${sig > 0 ? '♯' : '♭'}</text>`);
+  for (let i = a; i <= b; i++) {
+    const n = G.seq[i], cx = xs[i - a], sp = spell(n.m + G.disp, tonic, sig), y = Y(sp.step);
+    const r = G.res[i], cls = i === G.play ? 'n-play' : (G.play < 0 && i === G.idx) ? 'n-now' : r ? (r.skip ? 'n-skip' : r.p >= 72 ? 'n-pure' : 'n-done') : '';
+    const g = [];
+    if (cls === 'n-now' || cls === 'n-play') g.push(`<circle class="halo" cx="${cx}" cy="${y}" r="14"/>`);
+    for (let st = 28; st >= sp.step; st -= 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    for (let st = 40; st <= sp.step; st += 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    const hollow = n.b >= 2, up = sp.step < 34;
+    g.push(`<ellipse cx="${cx}" cy="${y}" rx="6.6" ry="4.7" transform="rotate(-20 ${cx} ${y})" fill="${hollow ? 'var(--surface)' : 'currentColor'}" stroke="currentColor" stroke-width="${hollow ? 1.8 : 1}"/>`);
+    if (n.b < 4) g.push(up ? `<line x1="${cx + 6}" x2="${cx + 6}" y1="${y - 1}" y2="${y - 33}" stroke="currentColor" stroke-width="1.4"/>` : `<line x1="${cx - 6}" x2="${cx - 6}" y1="${y + 1}" y2="${y + 33}" stroke="currentColor" stroke-width="1.4"/>`);
+    if (n.b <= 0.5) g.push(up ? `<path d="M${cx + 6} ${y - 33} q 2 9 9 13 q -5 -4 -9 -6 z" fill="currentColor" stroke="currentColor" stroke-width="1"/>` : `<path d="M${cx - 6} ${y + 33} q 2 -9 9 -13 q -5 4 -9 6 z" fill="currentColor" stroke="currentColor" stroke-width="1"/>`);
+    if ([1.5, 3].includes(n.b)) g.push(`<circle cx="${cx + 11}" cy="${y - (sp.step % 2 === 0 ? 3 : 0)}" r="1.9" fill="currentColor"/>`);
+    if (sp.acc) g.push(`<text class="glyph" x="${cx - 21}" y="${y + 5}" font-size="16" style="fill:currentColor">${sp.acc}</text>`);
+    const lyr = n.cont ? '–' : n.w;
+    g.push(`<text class="lyr" x="${cx}" y="128">${lyr.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`);
+    g.push(`<text class="nn" x="${cx}" y="144">${nameOf(n.m)}</text>`);
+    out.push(`<g class="${cls}" fill="currentColor">${g.join('')}</g>`);
+  }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
+  $('#lineTxt').textContent = 'Line ' + (li + 1) + ' of ' + G.lines.length;
+  $('#clefTxt').textContent = KEYSIG[tonic][0] + ' major' + (G.disp ? ' · sung an octave lower than written' : '');
+}
+
+// "Listen first": the whole song once in a clean, near-sine tone, with the staff following along.
+const PURE = [1, 0.12, 0.04];
+let playback = null;
+function stopPlayback(quiet) {
+  if (!playback) return;
+  playback.timers.forEach(clearTimeout); playback.oscs.forEach(o => { try { o.stop(); } catch (e) {} });
+  playback = null; G.play = -1; refUntil = 0;
+  $('#btnListen').textContent = '▶ Listen first';
+  if (!quiet) renderSing();
+}
+async function listenFirst() {
+  if (playback) { stopPlayback(); return; }
+  await ensureAudio();
+  const beat = 60 / 84; let t = 0.15;
+  playback = { timers: [], oscs: [] };
+  G.seq.forEach((n, i) => {
+    playback.oscs.push(playTone(n.m, n.b * beat * 0.94, PURE, t));
+    playback.timers.push(setTimeout(() => { G.play = i; drawStaff(); showTarget(i); $('#tgtHint').textContent = 'Listen and follow the words'; $('#tgtHint').className = 'hint'; }, t * 1000));
+    t += n.b * beat;
+  });
+  playback.timers.push(setTimeout(() => { stopPlayback(); toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
+  $('#btnListen').textContent = '■ Stop';
+}
+$('#btnListen').onclick = listenFirst;
 
 // ---------- end-of-song report ----------
 function runAvg() { const sung = G.res.filter(r => !r.skip); return sung.length ? sung.reduce((s, r) => s + r.p, 0) / sung.length : 0; }
@@ -1046,37 +1160,40 @@ function renderReport() {
   if (prev) stat('Last time', prev.avg + (avg >= prev.avg ? '  (+' : '  (') + (avg - prev.avg) + ')');
   if (runs.length > 1) stat('Your best', String(best));
   box.appendChild(top);
-  const rows = document.createElement('div'); rows.className = 'rows';
-  for (const r of G.res) {
-    const row = document.createElement('div'); row.className = 'rrow';
-    row.innerHTML = '<span class="nm"><b></b><span></span></span><span class="rbar"><i></i></span><span class="pv"></span><span class="ct"></span>';
-    row.querySelector('b').textContent = sylOf(r.m); row.querySelector('.nm span').textContent = nameOf(r.m);
-    const i = row.querySelector('i');
-    if (r.skip) { row.querySelector('.pv').textContent = '–'; row.querySelector('.ct').textContent = 'skipped'; }
+  const tiles = document.createElement('div'); tiles.className = 'tiles';
+  G.res.forEach((r, i) => {
+    const t = document.createElement('div'); t.className = 'tile';
+    t.innerHTML = '<b></b><span class="tn"></span><span class="tp"></span><span class="tc"></span><i></i>';
+    t.querySelector('b').textContent = G.seq[i].cont ? '–' : wordAt(i); t.querySelector('.tn').textContent = nameOf(r.m);
+    const bar = t.querySelector('i');
+    if (r.skip) { t.querySelector('.tp').textContent = '–'; t.querySelector('.tc').textContent = 'skipped'; bar.style.width = '0'; }
     else {
-      i.style.width = Math.round(r.p) + '%'; if (r.p >= 72) i.className = 'pure';
-      row.querySelector('.pv').textContent = Math.round(r.p);
-      row.querySelector('.ct').textContent = (r.c > 0 ? '+' : '') + Math.round(r.c) + '¢';
+      t.querySelector('.tp').textContent = Math.round(r.p); bar.style.width = Math.round(r.p) + '%';
+      if (r.p >= 72) { t.querySelector('.tp').classList.add('pure'); bar.className = 'pure'; }
+      t.querySelector('.tc').textContent = (r.c > 0 ? '+' : '') + Math.round(r.c) + '¢';
     }
-    rows.appendChild(row);
-  }
-  box.appendChild(rows);
+    t.title = wordAt(i) + ' ' + nameOf(r.m) + (r.skip ? ' skipped' : ' purity ' + Math.round(r.p));
+    tiles.appendChild(t);
+  });
+  box.appendChild(tiles);
   const tip = document.createElement('p'); tip.className = 'tip';
   if (sung.length) {
     const hi = sung.reduce((a, b) => b.p > a.p ? b : a), lo = sung.reduce((a, b) => b.p < a.p ? b : a);
     if (lo.p >= 85) tip.textContent = 'Every note was crystal pure. Try the next key up with the + button, or move on to a song.';
     else {
       const weak = lo.cl != null ? [['cl', lo.cl], ['st', lo.st], ['fo', lo.fo]].sort((a, b) => a[1] - b[1])[0][0] : 'cl';
-      tip.textContent = 'Purest: ' + sylOf(hi.m) + ' (' + Math.round(hi.p) + '). Work on ' + sylOf(lo.m) + ' (' + Math.round(lo.p) + '): ' + FIX[weak] + ' Tip: sing ' + sylOf(hi.m) + ' first, then slide to ' + sylOf(lo.m) + ' keeping the same feeling.';
+      const wi = i => G.res.indexOf(i), hw = wordAt(wi(hi)) + ' (' + nameOf(hi.m) + ')', lw = wordAt(wi(lo)) + ' (' + nameOf(lo.m) + ')';
+      tip.textContent = 'Purest: ' + hw + ', ' + Math.round(hi.p) + '. Work on ' + lw + ', ' + Math.round(lo.p) + ': ' + FIX[weak] + ' Sing ' + nameOf(hi.m) + ' first, then slide to ' + nameOf(lo.m) + ' keeping the same feeling.';
     }
   } else tip.textContent = 'No notes were sung this time.';
   box.appendChild(tip);
   const row = document.createElement('div'); row.className = 'row';
   const again = document.createElement('button'); again.className = 'primary'; again.textContent = 'Sing it again'; again.onclick = () => loadSong(G.song, true);
-  row.appendChild(again);
+  const lis = document.createElement('button'); lis.className = 'small'; lis.textContent = '▶ Listen again'; lis.onclick = () => { loadSong(G.song, true); listenFirst(); };
+  row.append(again, lis);
   if (sung.length) {
     const lo = sung.reduce((a, b) => b.p < a.p ? b : a);
-    const hear = document.createElement('button'); hear.className = 'small'; hear.textContent = 'Hear ' + sylOf(lo.m) + ' (' + nameOf(lo.m) + ')';
+    const hear = document.createElement('button'); hear.className = 'small'; hear.textContent = 'Hear ' + nameOf(lo.m);
     hear.onclick = async () => { await ensureAudio(); playTone(lo.m, 1.4, myTimbre(lo.m)); }; row.appendChild(hear);
   }
   box.appendChild(row);
@@ -1090,10 +1207,6 @@ function myTimbre(m) {
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
 }
 $('#btnRef').onclick = async () => { await ensureAudio(); if (G.idx < G.seq.length) { const m = G.seq[G.idx].m; playTone(m, 1.2, myTimbre(m)); } };
-$('#btnPlaySong').onclick = async () => {
-  await ensureAudio(); const beat = 60 / 92; let t = 0;
-  for (const n of G.seq.slice(G.idx)) { playTone(n.m, n.b * beat * 0.95, myTimbre(n.m), t); t += n.b * beat; }
-};
 $('#btnGen').onclick = () => {
   const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
   let root = lo; for (let m = lo; m <= hi; m++) if (noteScore(store.notes[m]) > noteScore(store.notes[root])) root = m;
@@ -1108,7 +1221,7 @@ $('#btnGen').onclick = () => {
     i = opts[ws.findIndex(w => (r -= w) <= 0)] ?? opts[0];
   }
   notes.push([0, 3]);
-  const song = { id: 'gen', name: 'Your melody in ' + pcOf(root) + ' pentatonic', kind: 'New melody from your pure notes', notes, tonic: 0 };
+  const song = { id: 'gen', name: 'Your melody in ' + pcOf(root) + ' pentatonic', kind: 'New melody from your pure notes', words: notes.map(() => 'oo').join(' '), notes, tonic: 0 };
   const gi = SONGS.findIndex(s => s.id === 'gen'); if (gi >= 0) SONGS.splice(gi, 1); SONGS.push(song);
   G.shift = root; loadSong(song, true);
   toast(z ? 'Composed from your strongest zone, ' + nameOf(lo) + '–' + nameOf(hi) : 'Composed in a middle range. Sing more to personalize it.');
@@ -1337,7 +1450,7 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   const tab = b.dataset.tab;
   const inGuideSong = STEPS[guide.step] && STEPS[guide.step].key === 'song';
   placeSingCard(tab === 'start' && inGuideSong);
-  if (tab === 'sing') { $('#singCard').after(trailCard); sizeCanvas(trail); renderSing(); }
+  if (tab === 'sing') renderSing();
   if (tab === 'listen') { listenTwo.appendChild(trailCard); sizeCanvas(spec); sizeCanvas(trail); specCtx.fillStyle = C.spec0; specCtx.fillRect(0, 0, spec.width, spec.height); }
   if (tab === 'voice') renderVoice();
   if (tab === 'start') renderGuide();
