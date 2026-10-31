@@ -221,6 +221,39 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.note > 0 && r.map === 22, JSON.stringify(r));
   });
 
+  await test('coach: echo 3 notes with a second try on a miss, then climbs a rung', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => setCoach(true));
+    expect(await page.evaluate(() => G.seq.length === 3 && !$('#coachBar').hidden), 'coach not set up for 3 notes');
+    // first try at each note is a semitone sharp; the second try is right on it
+    await page.evaluate(() => { setInterval(() => { const ph = G.echo && G.echo.phase; V.on = G.run === 'echo' && ph === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m + (G.echo && !G.echo.retried ? 1.2 : 0); }, 25); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(400);
+    const s = await page.evaluate(() => ({ ok: runStats().ok, rung: CO.rung, msg: $('#report .coach-offer').textContent }));
+    expect(s.ok === 3 && s.rung === 1 && /Level up/.test(s.msg), JSON.stringify(s));
+    await page.click('#report .coach-offer button'); await page.waitForTimeout(300);
+    expect(await page.evaluate(() => G.seq.length === 5 && G.run === 'echo'), 'did not move to 5 notes');
+  });
+
+  await test('coach: two hard runs step back down a rung', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { store.coach = { row: { rung: 1, fails: 0 } }; setCoach(true); setInterval(() => { V.on = G.run === 'echo' && G.echo && G.echo.phase === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m + 2.5; }, 25); });
+    for (let k = 0; k < 2; k++) {
+      await page.evaluate(() => startRun());
+      await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    }
+    const s = await page.evaluate(() => ({ rung: CO.rung, msg: CO.msg, saved: store.coach.row.rung }));
+    expect(s.rung === 0 && s.saved === 0 && /easier/.test(s.msg), JSON.stringify(s));
+  });
+
+  await test('after a hard run, the coach is offered', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { V.follow = true; V.off = 2.5; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    expect(await page.evaluate(() => /Start coach mode/.test($('#report').textContent)), 'no coach offer');
+  });
+
   await test('hidden toast never blocks taps', async page => {
     await page.evaluate(() => toast('hello'));
     const shown = await page.evaluate(() => { const r = $('#toast').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.id; });

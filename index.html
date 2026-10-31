@@ -398,6 +398,15 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 .hold-pick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 600; }
 .hold-pick select { font: 700 1rem var(--body); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 @media (max-width: 640px) { .sk-row { grid-template-columns: minmax(0, 1fr) 60px 2.2em; } .sk-tag { display: none; } .sk-row button { grid-column: 1 / -1; justify-self: start; } }
+.coach-bar { display: grid; gap: 8px; border: 2px solid var(--accent); border-radius: 14px; padding: 10px 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.coach-bar .ch-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.coach-bar .ch-head b { font: 700 1rem var(--display); }
+.coach-bar .ch-msg { font-size: 0.92rem; }
+.rungs { display: flex; gap: 4px; flex-wrap: wrap; }
+.rung { font: 600 0.72rem var(--body); padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.rung.done { border-color: var(--good); color: var(--good); } .rung.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+#btnCoach[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.coach-offer { border: 2px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -687,6 +696,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <div class="song-bar"><h2>Sing</h2><div class="songs" id="songs"></div><button id="btnWarm" class="small" style="flex:none">🔥 Warm up first</button><button id="btnGen" class="small" style="flex:none">+ New melody from my pure notes</button></div>
   </div>
   <div class="card" id="singCard">
+    <div class="coach-bar" id="coachBar" hidden></div>
     <div class="sing-main">
       <div class="sheet">
         <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
@@ -710,7 +720,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <button id="btnSing" class="primary small">▶ Sing</button>
       <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
       <button id="btnRef" class="small">Starting note</button>
-      <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
+      <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
+      <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
       <button data-min="2" id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
@@ -1128,6 +1139,7 @@ function updateReadings(rms) {
   $('#vHeld').textContent = S.voiced && S.hold ? (now() - S.hold.start).toFixed(1) + ' s on ' + nameOf(S.hold.center) : '–';
 }
 
+const isSinging = () => G.run === 'singing' || (G.run === 'echo' && G.echo && G.echo.phase === 'sing');
 // Live marker on the staff: where the voice is right now, next to the note being aimed at.
 function updateLiveMark() {
   const g = document.getElementById('liveMark'); if (!g) return;
@@ -1402,7 +1414,7 @@ const SONGS = [
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
 const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'normal', ticks: [], metro: true };
-const TEMPOS = { slow: 54, medium: 72, normal: 90 };
+const TEMPOS = { vslow: 40, slow: 54, medium: 72, normal: 90 };
 const beatSec = () => 60 / TEMPOS[G.tempo];
 const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
 const sylOf = m => SOLF[(((m - G.shift) % 12) + 12) % 12];
@@ -1427,6 +1439,8 @@ function loadSong(song, keepShift = false) {
   for (let a = ls; a < G.seq.length; a += chunk) G.lines.push([a, Math.min(G.seq.length, a + chunk) - 1]);
   // Low voices read treble clef an octave up (the small 8 under the clef).
   G.disp = G.seq.reduce((s, n) => s + n.m, 0) / G.seq.length < 60 ? 12 : 0;
+  G.fullLen = G.seq.length;
+  if (CO.on) coachTrim();
   G.idx = 0; G.res = []; G.acc = []; G.run = 'ready'; G.streak = 0; G.attempt = 0; G.heard = false;
   renderSongs(); renderSing();
 }
@@ -1455,7 +1469,8 @@ function renderSing() {
   const hint = $('#tgtHint');
   if (done) { hint.textContent = 'Finished!'; hint.className = 'hint ok'; }
   else if (G.run === 'ready') { hint.textContent = 'Tap ▶ Sing. A count of 3, then the notes move along.'; hint.className = 'hint'; }
-  $('#btnSing').textContent = G.run === 'countin' || G.run === 'singing' ? '■ Stop' : done ? '▶ Sing again' : '▶ Sing';
+  renderCoach();
+  $('#btnSing').textContent = G.run === 'countin' || G.run === 'singing' || G.run === 'echo' ? '■ Stop' : done ? '▶ Sing again' : '▶ Sing';
   const onp = G.res.filter(r => r && (r.status === 'pure' || r.status === 'ok')).length;
   $('#tgtScore').textContent = G.run === 'singing' ? `Note ${G.idx + 1} of ${len} · ${onp} on pitch so far` : done ? '' : 'Try ' + (G.attempt + 1) + ' · ' + len + ' notes';
   $('#holdFill').style.width = '0%';
@@ -1473,7 +1488,109 @@ function click(when, accent) {
   G.ticks.push(s);
 }
 function stopTicks() { G.ticks.forEach(s => { try { s.stop(); } catch (e) {} }); G.ticks = []; }
+// Coach mode: a ladder of easier versions of the same song, with a safety net. Echo rungs play each note and let the
+// singer answer it, with a second try on any miss; later rungs take the help away. 80% in tune climbs a rung, two runs
+// under 40% step back down, anything else repeats the rung.
+const RUNGS = [
+  { k: 'echo', size: 3, hear: 1.0, label: 'Echo 3 notes', desc: 'Hear each note, then sing it back. Miss one and you get a second try.' },
+  { k: 'echo', size: 5, hear: 1.0, label: 'Echo 5 notes', desc: 'Same idea, a little longer.' },
+  { k: 'echo', size: 99, hear: 1.0, label: 'Echo every note', desc: 'The whole tune, one note at a time.' },
+  { k: 'echo', size: 99, hear: 0.4, label: 'Short hints', desc: 'Just a quick hint of each note before you sing it.' },
+  { k: 'flow', size: 99, tempo: 'vslow', label: 'Very slow', desc: 'Sing it through, very slowly, with the starting note.' },
+  { k: 'flow', size: 99, tempo: 'slow', label: 'Slow', desc: 'Sing it through slowly.' },
+  { k: 'flow', size: 99, tempo: 'normal', label: 'Full speed', desc: 'The real thing.' },
+];
+const CO = { on: false, rung: 0, fails: 0, msg: '' };
+const coachRec = id => ((store.coach || {})[id]) || { rung: 0, fails: 0 };
+function coachSave() { if (!store.coach) store.coach = {}; store.coach[G.song.id] = { rung: CO.rung, fails: CO.fails }; dirty = true; }
+function rungLabel(i, n) { const r = RUNGS[i]; return r.k === 'echo' && r.size < 99 ? r.label : r.k === 'echo' && r.hear >= 1 ? 'Echo all ' + n + ' notes' : r.label; }
+function coachTrim() {
+  const r = RUNGS[CO.rung], full = G.seq.length;
+  G.fullLen = full;
+  if (r.size < full) { G.seq = G.seq.slice(0, r.size); G.lines = G.lines.filter(([a]) => a < r.size).map(([a, b]) => [a, Math.min(b, r.size - 1)]); }
+  if (r.k === 'flow') G.tempo = r.tempo;
+}
+function renderCoach() {
+  const bar = $('#coachBar'); if (!bar) return;
+  $('#btnCoach').setAttribute('aria-pressed', CO.on); bar.hidden = !CO.on; if (!CO.on) return;
+  bar.textContent = '';
+  const n = G.fullLen || G.seq.length, r = RUNGS[CO.rung];
+  const head = el('div', 'ch-head'); head.append(el('b', '', '🛟 Coach · step ' + (CO.rung + 1) + ' of ' + RUNGS.length + ': ' + rungLabel(CO.rung, n)), el('span', 'muted', r.desc)); bar.appendChild(head);
+  const rungs = el('div', 'rungs'); RUNGS.forEach((x, i) => rungs.appendChild(el('span', 'rung' + (i < CO.rung ? ' done' : i === CO.rung ? ' now' : ''), (i < CO.rung ? '✓ ' : '') + rungLabel(i, n)))); bar.appendChild(rungs);
+  if (CO.msg && G.run !== 'done') bar.appendChild(el('p', 'ch-msg', CO.msg));
+}
+function setCoach(on) {
+  CO.on = on;
+  if (on) { const rec = coachRec(G.song.id); CO.rung = rec.rung; CO.fails = rec.fails; CO.msg = 'The coach breaks the tune into small steps. Tap ▶ Sing to start.'; }
+  loadSong(G.song, true);
+}
+function coachAfter(st) {
+  const ratio = st.monotone ? 0 : st.ok / st.n, pc = Math.round(ratio * 100), n = G.fullLen || st.n;
+  if (ratio >= 0.8) {
+    CO.fails = 0;
+    if (CO.rung < RUNGS.length - 1) { CO.rung++; CO.msg = `Level up! ${pc}% in tune. Next: ${rungLabel(CO.rung, n)}.`; }
+    else CO.msg = `${pc}% in tune at full speed. You've got this one!`;
+  } else if (ratio < 0.4) {
+    CO.fails++;
+    if (CO.fails >= 2 && CO.rung > 0) { CO.rung--; CO.fails = 0; CO.msg = `Let's make it easier for a moment: ${rungLabel(CO.rung, n)}. The safety net is on; you'll climb back up.`; }
+    else CO.msg = `${pc}% in tune. Try this step once more; the net catches you.`;
+  } else { CO.fails = 0; CO.msg = `${pc}% in tune, getting there. Same step again to lock it in.`; }
+  coachSave();
+}
+$('#btnCoach').onclick = () => setCoach(!CO.on);
+// Echo rungs: hear a note, sing it back, a second try on a miss.
+function startEcho() {
+  stopPlayback(true); stopTicks();
+  G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
+  G.run = 'echo'; G.echo = { i: 0, phase: 'hear', t0: 0, retried: false }; CO.msg = '';
+  $('#cheer').textContent = ''; renderSing(); echoHear();
+}
+function echoHear() {
+  const r = RUNGS[CO.rung], i = G.echo.i, n = G.seq[i];
+  G.echo.phase = 'hear'; G.echo.t0 = now(); G.idx = i;
+  playTone(n.m, r.hear, PURE);
+  showTarget(i); drawStaff(); drawFocus();
+  $('#tgtHint').textContent = '🔊 Listen: "' + wordAt(i) + '" (' + nameOf(n.m) + ')'; $('#tgtHint').className = 'hint';
+  $('#tgtScore').textContent = 'Note ' + (i + 1) + ' of ' + G.seq.length + (G.echo.retried ? ' · second try' : '');
+}
+function echoStep(dt) {
+  const E = G.echo, r = RUNGS[CO.rung], i = E.i, n = G.seq[i], e = now() - E.t0, hint = $('#tgtHint'), win = 2.6;
+  if (E.phase === 'hear') { if (e > r.hear + 0.25) { E.phase = 'sing'; E.t0 = now(); G.acc[i] = null; hint.textContent = 'Your turn: sing "' + wordAt(i) + '"'; } return; }
+  $('#holdFill').style.width = (100 * clamp(e / win)) + '%';
+  if (e > 0.35) {
+    const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], attack: [], late: [], db: 0, p: 0, cl: 0, st: 0, fo: 0 });
+    a.total++;
+    if (S.voiced) {
+      let c = (S.midi - n.m) * 100; if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
+      if (e < 0.7) a.attack.push(c);
+      a.voiced++; a.cents.push(c); a.p += S.purity; a.cl += S.clar; a.st += S.stab; a.fo += S.focus; a.db += 20 * Math.log10(S.rms + 1e-9);
+      if (e > win / 2) a.late.push(c);
+      if (Math.abs(c) <= TOL) { hint.textContent = S.purity >= 72 ? 'In tune and pure ✦' : 'In tune'; hint.className = 'hint ok'; }
+      else { hint.textContent = c < 0 ? 'A little low, go up ↑' : 'A little high, come down ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
+    }
+  }
+  if (e >= win) {
+    finalizeNote(i);
+    const res = G.res[i];
+    if (res.status !== 'pure' && res.status !== 'ok' && !E.retried) {
+      E.retried = true;
+      $('#cheer').textContent = res.status === 'missed' ? 'Once more, a little louder' : 'Close! Listen again and aim ' + (res.status === 'low' ? 'higher ↑' : 'lower ↓');
+      echoHear(); return;
+    }
+    E.retried = false; E.i++;
+    if (E.i >= G.seq.length) { finishRun(); return; }
+    echoHear();
+  }
+}
 async function startRun() {
+  if (G.run === 'echo') { G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
+  if (CO.on && RUNGS[CO.rung].k === 'echo' && G.run !== 'countin' && G.run !== 'singing') {
+    stopPlayback(true); if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
+    if (G.run === 'done') loadSong(G.song, true);
+    startEcho(); return;
+  }
+  if (CO.on && G.run === 'done') loadSong(G.song, true);
+  if (CO.on) CO.msg = '';
   if (G.run === 'countin' || G.run === 'singing') { stopTicks(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
   stopPlayback(true);
   if (mode === 'idle') await startMic();
@@ -1497,6 +1614,7 @@ async function startRun() {
 }
 function singStep() {
   if (!singActive() || G.play >= 0) return;
+  if (G.run === 'echo') return echoStep();
   if (G.run === 'countin' || G.run === 'singing') { const ph = (((now() - G.t0) / beatSec()) % 1 + 1) % 1; $('#beatDot').classList.toggle('on', ph < 0.18); }
   const hint = $('#tgtHint');
   if (G.run === 'countin') {
@@ -1550,7 +1668,9 @@ function finalizeNote(i) {
 function finishRun() {
   stopTicks();
   G.run = 'done'; G.idx = G.seq.length; G.attempt++;
-  saveRun(); renderSing();
+  saveRun();
+  if (CO.on) coachAfter(runStats());
+  renderSing();
 }
 $('#btnSing').onclick = startRun;
 document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
@@ -1599,7 +1719,7 @@ function drawFocus() {
   for (let st = 30; st <= 38; st += 2) { const y = Y(st); if (y > 6 && y < 176) out.push(`<line class="fln" x1="8" x2="352" y1="${y}" y2="${y}"/>`); }
   if (G.run !== 'done') {
     const tm = G.seq[cur].m, by1 = cy - (stepOf(tm + TOL / 100) - cs) * H, by2 = cy - (stepOf(tm - TOL / 100) - cs) * H;
-    let inb = null; if (S.voiced && G.run === 'singing' && G.play < 0) { let m = S.midi; if ($('#octFree').checked) m = tm + (((m - tm) % 12 + 18) % 12) - 6; inb = Math.abs(m - tm) * 100 <= TOL; }
+    let inb = null; if (S.voiced && isSinging() && G.play < 0) { let m = S.midi; if ($('#octFree').checked) m = tm + (((m - tm) % 12 + 18) % 12) - 6; inb = Math.abs(m - tm) * 100 <= TOL; }
     out.push(`<rect x="130" y="${by1}" width="160" height="${Math.max(4, by2 - by1)}" rx="4" fill="${inb == null ? 'var(--line)' : inb ? 'var(--good)' : 'var(--warn)'}" opacity="${inb == null ? 0.5 : 0.28}"/>`);
   }
   [cur - 1, cur, cur + 1].forEach((k, j) => {
@@ -1616,7 +1736,7 @@ function drawFocus() {
     out.push(`<g class="${cls}">${g.join('')}</g>`);
   });
   // the live voice, next to the current note
-  if (S.voiced && G.run === 'singing' && G.play < 0 && G.idx < len) {
+  if (S.voiced && isSinging() && G.play < 0 && G.idx < len) {
     const tgt = G.seq[G.idx].m; let m = S.midi;
     if ($('#octFree').checked) m = tgt + (((m - tgt) % 12 + 18) % 12) - 6;
     const c = Math.round((m - tgt) * 100), sy = Math.max(10, Math.min(172, cy - (stepOf(clamp(m, tgt - 6, tgt + 6)) - cs) * H)), ok = Math.abs(c) <= TOL;
@@ -1865,6 +1985,14 @@ function renderReport() {
   if (G.run !== 'done') { box.hidden = true; return; }
   box.hidden = false; box.textContent = '';
   const st = runStats();
+  if (CO.on) {
+    const cb = el('div', 'coach-offer'); const nx = el('button', 'primary', '▶ ' + (CO.msg.startsWith('Level up') ? 'Next step: ' : 'Again: ') + rungLabel(CO.rung, G.fullLen || st.n));
+    nx.onclick = () => { loadSong(G.song, true); startRun(); }; cb.append(el('b', '', CO.msg), nx); box.appendChild(cb);
+  } else if (!G.song.check && st.n >= 5 && (st.monotone || st.ok / st.n < 0.5)) {
+    const cb = el('div', 'coach-offer'); const on = el('button', 'primary', '🛟 Start coach mode');
+    on.onclick = () => { setCoach(true); startRun(); };
+    cb.append(el('span', '', 'Too fast? The coach breaks it into small steps: hear a note, sing it back, with a second try on any miss.'), on); box.appendChild(cb);
+  }
   const runs = (store.runs || []).filter(r => r.id === G.song.id), prev = runs.length > 1 ? runs[runs.length - 2] : null;
   const scoreOf = r => (r.ok ?? 0) * 1000 + r.avg, isBest = runs.length > 1 && scoreOf(runs[runs.length - 1]) > Math.max(...runs.slice(0, -1).map(scoreOf));
   const top = document.createElement('div'); top.className = 'report-top';

@@ -20,3 +20,10 @@ practised on enough different days. Later levels add breath and tone, pitch and 
 (an oscillator fed into the analyser), so pitch, purity, levels, songs and buttons are checked
 without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
 on GitHub Actions after every push.
+
+## Backlog
+
+- **Body signals while singing.** Measure heart rate, breathing rate and heart-rate variability by holding a fingertip
+  over the phone camera (photoplethysmography: the camera sees the tiny colour change of each pulse), and line them up
+  with the singing data. Questions to explore: does a calmer pulse or slower breathing before a song predict purer
+  tone, steadier pitch or longer phrases? Could a 30-second calm-breathing exercise be suggested when the pulse is high?
