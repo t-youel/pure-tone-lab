@@ -164,6 +164,28 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.type === 'Baritone' && /Singer 1/.test(s.who), 'back to singer 1 ' + JSON.stringify(s));
   });
 
+  await test('vocal warm-up: 8 timed exercises, breathing guide, finishes on its own', async page => {
+    await voice(page);
+    await page.click('[data-card="practice"] >> text=Warm up'); await page.waitForTimeout(300);
+    await page.click('#dBtns >> text=Start the warm-up'); await page.waitForTimeout(300);
+    const first = await page.evaluate(() => [D.id, D.wi, $('#dPrompt').textContent]);
+    expect(first[0] === 'warmup' && first[1] === 0 && /Release/.test(first[2]), JSON.stringify(first));
+    await page.click('#dBtns >> text=Next →'); await page.waitForTimeout(400);
+    expect(await page.evaluate(() => WARM[D.wi].breath && DRILLS.warmup.lane().breath), 'breathing guide not shown');
+    await page.evaluate(() => { WARM.forEach(w => w.secs = 0.5); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 20000 });
+    expect(await page.evaluate(() => (labRec('warmup') || {}).best === 100 && /warmed up/.test($('#dResult').textContent)), 'no result');
+  });
+
+  await test('focus view magnifies the previous, current and next notes, with the live voice', async page => {
+    await voice(page); await tab(page, '#t-sing');
+    await page.evaluate(() => { V.follow = true; V.off = -0.4; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'singing' && G.idx >= 2, null, { timeout: 30000 }); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ notes: $('#focus').querySelectorAll('ellipse').length, cur: !!$('#focus .f-now'), done: !!$('#focus [class^="st-"]'), you: /¢|✓/.test($('#focus').textContent) }));
+    expect(s.notes === 3 && s.cur && s.done && s.you, JSON.stringify(s));
+  });
+
   await test('hidden toast never blocks taps', async page => {
     await page.evaluate(() => toast('hello'));
     const shown = await page.evaluate(() => { const r = $('#toast').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.id; });
@@ -263,10 +285,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForTimeout(200);
     const first = await page.evaluate(() => [played[0], G.seq[0].m]);
     expect(first[0] === first[1], 'starting note ' + first);
-    await page.click('#btnMetro');
+    const on = await page.evaluate(() => [G.tempo, G.metro]);
+    expect(on[0] === 'normal' && on[1] === true, 'defaults should be Normal + metronome: ' + on);
     await page.click('#btnSing'); await page.waitForTimeout(300);
-    const s = await page.evaluate(() => ({ ticks: G.ticks.length, beats: Math.ceil(G.seq.reduce((a, n) => a + n.b, 0)), under: played.includes(G.seq[0].m), metro: store.settings.metro }));
-    expect(s.ticks >= s.beats + 3 && s.under && s.metro, JSON.stringify(s));
+    const s = await page.evaluate(() => ({ ticks: G.ticks.length, beats: Math.ceil(G.seq.reduce((a, n) => a + n.b, 0)), under: played.includes(G.seq[0].m), metro: G.metro, focus: /starting note/.test($('#focus').textContent) }));
+    expect(s.ticks >= s.beats + 3 && s.under && s.metro && s.focus, JSON.stringify(s));
     await page.click('#btnSing');
     expect(await page.evaluate(() => G.ticks.length === 0 && G.run === 'ready'), 'ticks not stopped');
   });

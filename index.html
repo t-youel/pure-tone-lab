@@ -171,7 +171,24 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .song-bar { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .song-bar h2 { font-size: 1.05rem; flex: none; }
 .songs button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
-.sing-main { display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr); gap: 16px; align-items: center; }
+.sing-main { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.focus-row { display: grid; grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.5fr); gap: 14px; align-items: center; }
+.focus svg { display: block; width: 100%; height: auto; max-height: 230px; color: var(--ink); }
+.focus .fln { stroke: var(--ink); stroke-width: 1.6; opacity: .55; }
+.focus .f-next { color: var(--muted); }
+.focus .f-now { color: var(--accent); }
+.focus .st-pure { color: var(--pure); } .focus .st-ok { color: var(--good); } .focus .st-low, .focus .st-high { color: var(--warn); } .focus .st-miss { color: var(--muted); }
+.focus .pulse { animation: pulse 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes pulse { 50% { transform: scale(1.35); opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .focus .pulse { animation: none; } }
+#singCard.is-done .focus-row { display: none; }
+@media (max-width: 640px) {
+  .focus-row { grid-template-columns: 1fr; gap: 4px; }
+  .focus-row .target { grid-template-columns: auto 1fr; column-gap: 12px; align-items: baseline; }
+  .focus-row .target .big { font-size: 2.6rem; grid-row: span 2; }
+  .focus-row .target .label, .focus-row .target .hint, .focus-row .target .hold, .focus-row #tgtScore, .focus-row #cheer { grid-column: 1 / -1; }
+  .focus-row .target .hint { font-size: 1rem; }
+}
 .target { display: grid; gap: 6px; justify-items: start; }
 .target .big { font-size: 3.2rem; max-width: 100%; overflow-wrap: anywhere; }
 .hint { font: 700 1.1rem/1.2 var(--display); }
@@ -205,7 +222,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; max-width: 62ch; }
 /* sheet music */
 .sheet { min-width: 0; display: grid; gap: 8px; }
-.staff svg { display: block; width: 100%; height: auto; max-height: 240px; color: var(--ink); overflow: visible; }
+.staff svg { display: block; width: 100%; height: auto; max-height: 150px; color: var(--ink); overflow: visible; }
 .staff .ln { stroke: var(--muted); stroke-width: 1; }
 .staff .glyph { font-family: "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif; fill: var(--ink); }
 .staff .lyr { font: 600 13px var(--body); fill: var(--ink); text-anchor: middle; }
@@ -264,7 +281,7 @@ details b { color: var(--ink); }
 .done b { color: var(--good); }
 .demo-flag { font: 600 0.75rem/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 6px 10px; }
 #sSlot .card { border: 0; padding: 0; background: transparent; }
-#sSlot .sing-main { grid-template-columns: 1fr; }
+#sSlot .focus-row { grid-template-columns: 1fr; }
 #sSlot .sing-controls .sep { display: none; }
 .slot-stats { display: flex; flex-wrap: wrap; gap: 18px; }
 .routine { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; max-width: 70ch; }
@@ -354,7 +371,7 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .hc .acts .primary { font-size: 1.05rem; padding: 13px 22px; }
 .back-bar { display: flex; align-items: center; gap: 12px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
-body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live { display: none !important; }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
 .vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
@@ -649,10 +666,16 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 <!-- SING -->
 <section class="panel" id="tab-sing" hidden>
   <div class="card">
-    <div class="song-bar"><h2>Sing</h2><div class="songs" id="songs"></div><button id="btnGen" class="small" style="flex:none">+ New melody from my pure notes</button></div>
+    <div class="song-bar"><h2>Sing</h2><div class="songs" id="songs"></div><button id="btnWarm" class="small" style="flex:none">🔥 Warm up first</button><button id="btnGen" class="small" style="flex:none">+ New melody from my pure notes</button></div>
   </div>
   <div class="card" id="singCard">
     <div class="sing-main">
+      <div class="sheet">
+        <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
+        <div class="line-nav"><span class="legend-s"><span class="k-pure">✦ pure</span><span class="k-ok">● on pitch</span><span class="k-off">↑↓ low / high</span><span>○ missed</span></span><span><span id="lineTxt"></span> · <span id="clefTxt"></span><span id="songKind" hidden></span></span></div>
+        <div class="report" id="report" hidden></div>
+      </div>
+      <div class="focus-row">
       <div class="target">
         <div class="label">Sing this</div>
         <div id="tgtName" class="big">—</div>
@@ -662,10 +685,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
         <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
         <div id="cheer" class="cheer" aria-live="polite"></div>
       </div>
-      <div class="sheet">
-        <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
-        <div class="line-nav"><span class="legend-s"><span class="k-pure">✦ pure</span><span class="k-ok">● on pitch</span><span class="k-off">↑↓ low / high</span><span>○ missed</span></span><span><span id="lineTxt"></span> · <span id="clefTxt"></span><span id="songKind" hidden></span></span></div>
-        <div class="report" id="report" hidden></div>
+      <div class="focus" id="focus" role="img" aria-label="Close-up of the current note"></div>
       </div>
     </div>
     <div class="row sing-controls">
@@ -1110,7 +1130,7 @@ function updateLiveMark() {
 
 function updateLive(rms) {
   if ((uiTick++ & 1)) return; // ~30 fps is plenty for text
-  updateReadings(rms); updateLiveMark(); updateFind();
+  updateReadings(rms); updateLiveMark(); updateFind(); drawFocus();
   $('#lvl').style.width = (100 * clamp((20 * Math.log10(rms + 1e-9) + 70) / 50)) + '%';
   if (S.voiced) {
     const r = Math.round(S.midi), cents = Math.round((S.midi - r) * 100);
@@ -1360,7 +1380,7 @@ const SONGS = [
   { id: 'ode', name: 'Ode to Joy', kind: 'Song', words: "Joy- ful, joy- ful, we a- dore thee, / God of glo- ry, Lord of love; / Hearts un- fold like flowers be- fore thee, / op'- ning to the sun a- bove.", notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
-const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'slow', ticks: [], metro: false };
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'normal', ticks: [], metro: true };
 const TEMPOS = { slow: 54, medium: 72, normal: 90 };
 const beatSec = () => 60 / TEMPOS[G.tempo];
 const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
@@ -1407,6 +1427,7 @@ function renderSing() {
   document.querySelectorAll('[data-tempo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tempo === G.tempo));
   const done = G.run === 'done', len = G.seq.length;
   showTarget(done ? -1 : Math.min(G.idx, len - 1));
+  setTimeout(drawFocus, 0);
   drawStaff();
   renderReport();
   $('#staff').hidden = done; $('#lineTxt').closest('.line-nav').hidden = done;
@@ -1459,7 +1480,7 @@ function singStep() {
   const hint = $('#tgtHint');
   if (G.run === 'countin') {
     const left = G.t0 - now();
-    if (left > 0) { $('#tgtName').textContent = String(Math.ceil(left / beatSec())); $('#tgtNote').textContent = 'First: "' + wordAt(0) + '" on ' + nameOf(G.seq[0].m); hint.textContent = 'Get ready…'; hint.className = 'hint'; return; }
+    if (left > 0) { showTarget(0); hint.textContent = '🔊 Listen: this is your first note. Sing on the beat after ' + Math.ceil(left / beatSec()) + '…'; hint.className = 'hint'; drawFocus(); return; }
     G.run = 'singing'; G.idx = 0; renderSing();
   }
   if (G.run !== 'singing') return;
@@ -1546,6 +1567,46 @@ function spell(m, tonicPc, sig) {
 }
 function staffY(mf, tonic, sig) { const lo = Math.floor(mf), f = mf - lo, a = spell(lo + G.disp, tonic, sig).step, b = spell(lo + 1 + G.disp, tonic, sig).step; return 80 - (a + (b - a) * f - 30) * 5; }
 function lineOf(i) { const k = G.lines.findIndex(([a, b]) => i >= a && i <= b); return k < 0 ? G.lines.length - 1 : k; }
+// The focus view: the note just sung, the note now, and the next one, magnified, with the live voice beside the current note.
+function drawFocus() {
+  const box = $('#focus'); if (!box || box.offsetParent === null || !G.seq.length) return;
+  const len = G.seq.length, cur = G.play >= 0 ? G.play : Math.min(G.idx, len - 1);
+  const tonic = ((G.shift % 12) + 12) % 12, sig = KEYSIG[tonic][1];
+  const stepOf = mf => { const lo = Math.floor(mf), f = mf - lo, a = spell(lo + G.disp, tonic, sig).step, b = spell(lo + 1 + G.disp, tonic, sig).step; return a + (b - a) * f; };
+  const cs = spell(G.seq[cur].m + G.disp, tonic, sig).step, H = 9, cy = 104, Y = st => cy - (st - cs) * H;
+  const xs = [70, 190, 310], out = [];
+  for (let st = 30; st <= 38; st += 2) { const y = Y(st); if (y > 6 && y < 176) out.push(`<line class="fln" x1="8" x2="352" y1="${y}" y2="${y}"/>`); }
+  [cur - 1, cur, cur + 1].forEach((k, j) => {
+    if (k < 0 || k >= len) return;
+    const n = G.seq[k], st = spell(n.m + G.disp, tonic, sig).step, y = Y(st), x = xs[j], r = G.res[k];
+    const cls = k === cur && G.run !== 'done' ? 'f-now' + (G.run === 'countin' ? ' pulse' : '') : r ? 'st-' + (r.status === 'missed' ? 'miss' : r.status) : k === cur ? 'f-now' : 'f-next';
+    const g = [];
+    for (let s2 = 28; s2 >= st; s2 -= 2) g.push(`<line x1="${x - 20}" x2="${x + 20}" y1="${Y(s2)}" y2="${Y(s2)}" stroke="currentColor" stroke-width="1.6"/>`);
+    for (let s2 = 40; s2 <= st; s2 += 2) g.push(`<line x1="${x - 20}" x2="${x + 20}" y1="${Y(s2)}" y2="${Y(s2)}" stroke="currentColor" stroke-width="1.6"/>`);
+    if (k === cur) g.push(`<circle cx="${x}" cy="${y}" r="24" fill="currentColor" opacity=".14"/>`);
+    g.push(`<ellipse cx="${x}" cy="${y}" rx="12" ry="8.5" transform="rotate(-20 ${x} ${y})" fill="currentColor"/>`);
+    if (r && (r.status === 'low' || r.status === 'high')) { const sy = cy - (stepOf(n.m + clamp(r.c, -600, 600) / 100) - cs) * H; g.push(`<line x1="${x + 18}" x2="${x + 18}" y1="${y}" y2="${sy}" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/><circle cx="${x + 18}" cy="${sy}" r="5" fill="currentColor"/>`); }
+    g.push(`<text x="${x}" y="196" text-anchor="middle" style="font:700 15px var(--body);fill:currentColor">${(n.cont ? '–' : n.w).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`);
+    out.push(`<g class="${cls}">${g.join('')}</g>`);
+  });
+  // the live voice, next to the current note
+  if (S.voiced && G.run === 'singing' && G.play < 0 && G.idx < len) {
+    const tgt = G.seq[G.idx].m; let m = S.midi;
+    if ($('#octFree').checked) m = tgt + (((m - tgt) % 12 + 18) % 12) - 6;
+    const c = Math.round((m - tgt) * 100), sy = Math.max(10, Math.min(172, cy - (stepOf(clamp(m, tgt - 6, tgt + 6)) - cs) * H)), ok = Math.abs(c) <= 50;
+    const col = S.purity >= 72 ? 'var(--pure)' : 'var(--warn)';
+    out.push(`<line x1="${xs[1] + 30}" x2="${xs[1] + 30}" y1="${cy}" y2="${sy}" stroke="${col}" stroke-width="2.5" stroke-dasharray="4 4"/>`,
+      `<circle cx="${xs[1] + 30}" cy="${sy}" r="9" fill="${col}"/>`,
+      `<text x="${xs[1] + 44}" y="${sy + 6}" style="font:800 18px var(--display);fill:${ok ? 'var(--good)' : 'var(--warn)'}">${ok ? '✓' : (c < 0 ? '↑ ' : '↓ ') + Math.abs(c) + '¢'}</text>`);
+  }
+  // count-in: make the starting note unmistakable
+  if (G.run === 'countin') {
+    const left = Math.max(1, Math.ceil((G.t0 - now()) / beatSec()));
+    out.push(`<text x="${xs[1]}" y="26" text-anchor="middle" style="font:700 13px var(--body);fill:var(--accent)">🔊 Your starting note</text>`,
+      `<text x="340" y="40" text-anchor="end" style="font:800 40px var(--display);fill:var(--accent);opacity:.85">${left}</text>`);
+  }
+  box.innerHTML = `<svg viewBox="0 0 360 206" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
+}
 function drawStaff() {
   const box = $('#staff'); if (!box || !G.lines.length) return;
   const cur = G.play >= 0 ? G.play : Math.min(G.idx, G.seq.length - 1), li = lineOf(cur), [a, b] = G.lines[li];
@@ -2022,6 +2083,7 @@ const LAB = [
   { id: 'vowels', kind: 'drill', title: 'Vowels & open airway', tags: ['Tone', 'Airway'], time: '1 min', blurb: 'Sing ee, eh, ah, oh, oo on one note. Find your purest vowel and the mouth shape that opens your sound.' },
   { id: 'scale', kind: 'song', song: 'doremi', title: 'Scale climb: Do-Re-Mi', tags: ['Pitch', 'Range'], time: '30 s', blurb: 'Walk up the major scale. Shows whether your higher notes go flat or thin.' },
   { id: 'leaps', kind: 'song', song: 'arp', title: 'Leaps: Do-Mi-So-Do', tags: ['Intervals'], time: '30 s', blurb: 'Jump between notes cleanly, without sliding into them.' },
+  { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
 ];
@@ -2314,7 +2376,66 @@ const VOWELS = [
   ['oo', 'as in "moon"', 'Lips rounded forward, like blowing out a candle.'],
 ];
 
+// A speaker's warm-up: release, breathe, then gentle sounds that open the voice. Each exercise is timed and moves on by itself.
+const WARM = [
+  { t: 'Release', secs: 30, cue: '🙆', how: 'Roll your shoulders back slowly, three times. Let your head tip gently side to side. Massage the hinge of your jaw with your fingertips and let it hang loose.' },
+  { t: 'Belly breathing', secs: 48, cue: '🫁', breath: true, how: 'Hand on your belly. Breathe in through your nose for 4 and feel your belly push out. Then hiss "sss" slowly for 8. Shoulders stay still. Follow the circle.' },
+  { t: 'Yawn and sigh', secs: 25, cue: '🥱', mic: true, how: 'Start a big yawn to lift the back of your mouth, then let it out as a sigh, "haaa", sliding from high to low. Three or four times.' },
+  { t: 'Lip trills', secs: 30, cue: '💨', mic: true, how: 'Loose lips: blow air through them like a motorboat, "brrrr". Add your voice and slide up and down. Fingertips on your cheeks help.' },
+  { t: 'Hum', secs: 30, cue: '🐝', mic: true, purity: true, how: 'Lips closed, teeth apart, tongue relaxed. Hum "mmm" on an easy note and feel the buzz on your lips and nose. Aim for gold.' },
+  { t: 'Ng sirens', secs: 30, cue: '〰', mic: true, how: 'Say "sing" and hold the "ng". Slide from low to high and back like a siren, light and easy.' },
+  { t: 'Crisp words', secs: 30, cue: '👄', how: 'Say clearly, getting faster: "Red leather, yellow leather." "Unique New York." "Lips, teeth, the tip of the tongue." Exaggerate every consonant.' },
+  { t: 'Open vowels', secs: 30, cue: '🎵', mic: true, purity: true, how: 'On one comfortable note, sing "mah, may, mee, moh, moo", one per breath. Keep the jaw loose and the mouth tall.' },
+];
+function drawBreath(t0) {
+  const c = $('#lane'); if (!c || c.offsetParent === null) return;
+  sizeCanvas(c);
+  const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1;
+  const e = (now() - t0) % 12, inhale = e < 4, f = inhale ? e / 4 : 1 - (e - 4) / 8;
+  x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+  const r = (30 + f * (Math.min(w, h) / 2 - 50 * d)) ;
+  x.fillStyle = C.accent; x.globalAlpha = 0.18; x.beginPath(); x.arc(w / 2, h / 2, r + 14 * d, 0, Math.PI * 2); x.fill();
+  x.globalAlpha = 0.85; x.beginPath(); x.arc(w / 2, h / 2, r, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
+  x.fillStyle = C.ink; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = `700 ${20 * d}px sans-serif`;
+  x.fillText(inhale ? 'Breathe in… ' + Math.ceil(4 - e) : 'Hiss out "sss"… ' + Math.ceil(12 - e), w / 2, h - 22 * d);
+  x.textAlign = 'start';
+}
+
 const DRILLS = {
+  warmup: {
+    lane: () => WARM[D.wi] && WARM[D.wi].breath ? { breath: true } : {},
+    start() {
+      Object.assign(D, { phase: 'intro', wi: 0, run: null });
+      dSet({ step: 'Vocal warm-up · 8 short exercises · about 4 minutes', prompt: 'Warm up', sub: 'The same warm-up speakers and singers use before they go on: release, breathe, then gentle sounds that open your voice. Each one moves on by itself.', live: '', prog: -1 });
+      dBtns([{ label: 'Start the warm-up', primary: true, fn: async () => { await ensureListening(); this.go(0); } }]);
+    },
+    go(i) {
+      if (i >= WARM.length) return this.finish();
+      if (i < 0) i = 0;
+      const w = WARM[i]; Object.assign(D, { wi: i, phase: 'run', t0: now(), paused: 0 });
+      chime(i === 0 ? 'ding' : 'high');
+      dSet({ step: `Exercise ${i + 1} of ${WARM.length}`, prompt: w.cue + ' ' + w.t, sub: w.how, live: w.mic ? 'I\'m listening.' : '', prog: 0 });
+      dBtns([{ label: 'Next →', primary: true, fn: () => this.go(D.wi + 1) }, { label: '← Back', fn: () => this.go(D.wi - 1) }, { label: 'Pause', fn: () => this.pause() }]);
+    },
+    pause() {
+      D.phase = 'paused'; D.paused = now();
+      dSet({ live: 'Paused.' });
+      dBtns([{ label: 'Resume', primary: true, fn: () => { D.t0 += now() - D.paused; D.phase = 'run'; dSet({ live: '' }); dBtns([{ label: 'Next →', primary: true, fn: () => this.go(D.wi + 1) }, { label: '← Back', fn: () => this.go(D.wi - 1) }, { label: 'Pause', fn: () => this.pause() }]); } }, { label: 'Next →', fn: () => this.go(D.wi + 1) }]);
+    },
+    tick(dt, muted) {
+      if (D.phase !== 'run') return;
+      const w = WARM[D.wi], e = now() - D.t0;
+      dSet({ prog: e / w.secs });
+      if (w.purity && S.voiced && !muted) dSet({ live: 'Purity ' + Math.round(S.purity) + (S.purity >= 72 ? ' ✦ lovely' : ' · ' + (S.clar < S.stab ? 'a little less air' : 'steady and relaxed')) });
+      else if (w.mic && S.voiced && !muted) dSet({ live: nameOf(S.midi) + ' · keep it easy' });
+      if (e >= w.secs) this.go(D.wi + 1);
+    },
+    finish() {
+      D.phase = 'done';
+      labSave('warmup', 100);
+      dShow([el('p', 'cheer-big', 'You\'re warmed up. Your voice is ready. ✦'), fixCards([{ good: true, title: 'Make it a habit', why: 'Speakers and singers warm up the same way an athlete stretches: it loosens the jaw and breath, and lifts the soft palate, so the first notes come out clear.', tryThis: 'Warm up before every practice or song. It takes four minutes, and you\'ll hear the difference in your purity scores.' }])], () => this.start());
+    },
+  },
   range: {
     // "Find your voice": five steps you can do with your eyes closed. Each step is spoken, counted in, and listens for a
     // fixed time; the result is worked out from everything heard, so nothing has to be held perfectly.
@@ -2597,7 +2718,7 @@ const DRILLS = {
 function labTick(dt, muted) {
   if (!D.id || D.kind !== 'drill' || $('#labStage').offsetParent === null) return;
   DRILLS[D.id].tick(dt, muted);
-  if (!(uiTick & 1)) { const o = DRILLS[D.id].lane(); if (o.ladder) drawLadder(); else drawLane(o); }
+  if (!(uiTick & 1)) { const o = DRILLS[D.id].lane(); if (o.ladder) drawLadder(); else if (o.breath) drawBreath(D.t0); else drawLane(o); }
 }
 $('#lsBack').onclick = closeLab;
 // ---------- Levels ----------
@@ -2660,7 +2781,7 @@ const LEVELS = [
 ];
 LEVELS.forEach((L, i) => { L.n = i + 1; L.lessons.forEach((x, j) => { x.id = L.n + '.' + (j + 1); }); });
 // When each Lab exercise and song opens up.
-const LAB_LEVEL = { range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
+const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
 const SONG_LEVEL = { row: 1, mary: 1, twinkle: 2, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
 const level = () => Math.min(store.level || 1, LEVELS.length);
 
@@ -2820,7 +2941,7 @@ function renderHome() {
     { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
       result: dr.length ? (good.length ? 'Strongest notes: <b>' + listJoin(good) + '</b>' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
     { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
-      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
+      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
     { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,
       result: fit ? 'Best fit for you: ' + fit.s.name : '', go: 'Sing →' },
   ];
@@ -2833,7 +2954,7 @@ function renderHome() {
     d.appendChild(t);
     const acts = el('div', 'acts');
     const b = el('button', state === 'is-next' ? 'primary' : 'small', c.go); b.onclick = () => startHome(c.k); acts.appendChild(b);
-    if (c.extra) { const e = el('button', 'small', c.extra[0]); e.onclick = c.extra[1]; acts.appendChild(e); }
+    for (const x of [c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
     d.appendChild(acts); box.appendChild(d);
   }
 }
@@ -2862,6 +2983,7 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   $('#screenTitle').textContent = { voice: 'Step 1 · Find your voice', notes: 'Step 2 · Find your best notes', practice: 'Step 3 · Practise', songs: 'Step 4 · Sing songs', profile: 'Your voice profile' }[scr] || '';
   window.scrollTo(0, 0);
 };
+$('#btnWarm').onclick = () => openLab('warmup', true);
 $('#btnHome').onclick = () => { if (D.id) closeLab(); $('#t-home').click(); };
 $('#btnMic').onclick = () => { if (mode === 'mic') { stopSources(); setMode('idle', 'Mic off.'); } else startMic(); };
 $('#labSlot').appendChild($('#tab-listen'));
@@ -2877,7 +2999,7 @@ renderVoice();
 loadSong(SONGS.find(x => x.id === "row"));
 renderLab();
 goStep(Math.min(guide.step, STEPS.length));
-G.metro = !!(store.settings && store.settings.metro); $('#btnMetro').setAttribute('aria-pressed', G.metro);
+G.metro = !(store.settings && store.settings.metro === false); $('#btnMetro').setAttribute('aria-pressed', G.metro);
 if (!store.lv2) { store.level = 1; store.lv2 = true; save(); }
 applyLevel();
 checkLevel(true);
