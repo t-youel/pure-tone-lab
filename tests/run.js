@@ -254,6 +254,27 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(await page.evaluate(() => /Start coach mode/.test($('#report').textContent)), 'no coach offer');
   });
 
+  await test('pitch match: replays the note and gives more time until it is found; practical next steps', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => openLab('match')); await page.click('#dBtns >> text=▶ Start');
+    // lost for the first ~7 seconds of every round (a semitone sharp), then finds it
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'sing'; if (D.target != null) V.m = D.target + (now() - D.t0 < 7 ? 1.0 : 0); }, 25); });
+    await page.waitForFunction(() => D.rounds && D.rounds.length >= 1, null, { timeout: 20000 });
+    const r0 = await page.evaluate(() => D.rounds[0]);
+    expect(r0.rem >= 2 && r0.locked && Math.abs(r0.c) <= 30, 'round 1 ' + JSON.stringify(r0));
+    await page.evaluate(() => { D.n = 2; });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 30000 }); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ done: $('#drillBox').classList.contains('is-finished'), promptHidden: getComputedStyle($('#dPrompt')).display === 'none', hum: /Hum along/.test($('#dResult').textContent) }));
+    expect(s.done && s.promptHidden && s.hum, JSON.stringify(s));
+  });
+
+  await test("pitch match's trickiest notes open Steady hold on that note", async page => {
+    await page.evaluate(() => { openLab('match'); D.rounds = [{ m: 52, c: 55, pts: 45, rem: 0 }, { m: 48, c: 5, pts: 95, rem: 0, locked: true }]; D.n = 2; DRILLS.match.finish(); });
+    await page.click('#dResult >> text=Hold E3');
+    const s = await page.evaluate(() => ({ id: D.id, target: D.target }));
+    expect(s.id === 'hold' && s.target === 52, JSON.stringify(s));
+  });
+
   await test('hidden toast never blocks taps', async page => {
     await page.evaluate(() => toast('hello'));
     const shown = await page.evaluate(() => { const r = $('#toast').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.id; });
@@ -330,7 +351,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test('pitch match spots a flat singer', async page => {
     await voice(page); await setLevel(page, 4);
     await page.evaluate(() => openLab('match')); await page.click('#dBtns >> text=Start');
-    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'sing'; if (D.target != null) V.m = D.target - 0.3; }, 25); });
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'sing'; if (D.target != null) V.m = D.target - 0.25; }, 25); });
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 90000 });
     const t = await page.evaluate(() => [...document.querySelectorAll('#dResult .fix > b')].map(b => b.textContent).join(' | '));
     expect(/flat/.test(t), 'no flat finding: ' + t);

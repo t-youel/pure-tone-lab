@@ -407,6 +407,9 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 .rung.done { border-color: var(--good); color: var(--good); } .rung.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 #btnCoach[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .coach-offer { border: 2px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.drill.is-finished { grid-template-columns: 1fr; }
+.drill.is-finished #dPrompt, .drill.is-finished #dSub, .drill.is-finished #dBar, .drill.is-finished #dLive, .drill.is-finished #dExtra { display: none; }
+.drill.is-finished .drill-left { gap: 6px; }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -615,11 +618,11 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <div class="drill-left">
         <span class="label" id="dStep"></span>
         <div class="big" id="dPrompt"></div>
-        <p id="dSub" class="d-sub"></p>
-        <div id="dExtra"></div>
+        <div class="row" id="dBtns"></div>
         <div class="gbar" id="dBar"><div id="dProg"></div></div>
         <p id="dLive" class="live-tip"></p>
-        <div class="row" id="dBtns"></div>
+        <p id="dSub" class="d-sub"></p>
+        <div id="dExtra"></div>
       </div>
       <div class="drill-right">
         <canvas id="lane"></canvas>
@@ -2368,7 +2371,7 @@ function closeLab() {
 
 // drill UI helpers
 function dSet(o) {
-  if (o.step != null) $('#dStep').textContent = o.step;
+  if (o.step != null) { $('#dStep').textContent = o.step; $('#drillBox').classList.toggle('is-finished', o.step === 'Finished'); }
   if (o.prompt != null) $('#dPrompt').textContent = o.prompt;
   if (o.sub != null) $('#dSub').textContent = o.sub;
   if (o.live != null) $('#dLive').textContent = o.live;
@@ -2784,53 +2787,72 @@ const DRILLS = {
     lane: () => ({ target: D.phase === 'intro' || D.phase === 'done' ? null : D.target, tol: TOL }),
     start() {
       Object.assign(D, { phase: 'intro', rounds: [], n: 8, target: null });
-      dSet({ step: 'Pitch match', prompt: 'Hear it, sing it', sub: 'A note plays, then you sing it back on "oo" or "ah". Eight rounds. Within 10¢ is a bullseye. ' + POSTURE, live: '', prog: -1 });
-      dBtns([{ label: 'Start', primary: true, fn: async () => { if (await ensureListening()) this.next(); } }]);
+      dSet({ step: 'Pitch match · 8 rounds', prompt: 'Hear it, sing it', sub: 'A note plays, then you sing it back on "oo". Take your time: if you can\'t find it, the note plays again and you get longer. Hold it inside the green band to lock it in. ' + POSTURE, live: '', prog: -1 });
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.next(); } }]);
     },
     next() {
       if (D.rounds.length >= D.n) return this.finish();
       const z = labZone(); let m; do { m = z.lo + Math.floor(Math.random() * (z.hi - z.lo + 1)); } while (m === D.target && z.hi > z.lo);
-      Object.assign(D, { target: m, phase: 'play', t0: now(), cs: [] });
+      Object.assign(D, { target: m, phase: 'play', t0: now(), cs: [], lock: [], rem: 0 });
       playTone(m, 1.3, PURE);
-      dSet({ step: `Round ${D.rounds.length + 1} of ${D.n}`, prompt: 'Listen…', sub: 'Just listen to the note. Hear it in your head.', live: '', prog: D.rounds.length / D.n });
-      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 1.3, PURE); D.phase = 'play'; D.t0 = now(); D.cs = []; } }]);
+      dSet({ step: `Round ${D.rounds.length + 1} of ${D.n}`, prompt: 'Listen: ' + nameOf(m), sub: 'Hear it in your head.', live: '🔊 playing…', prog: D.rounds.length / D.n });
+      $('#dLive').className = 'live-tip';
+      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 1.3, PURE); D.rem++; } }, { label: 'Skip', fn: () => this.score() }]);
     },
     tick(dt, muted) {
       const e = now() - D.t0;
-      if (D.phase === 'play' && e > 1.5) { D.phase = 'sing'; D.t0 = now(); dSet({ prompt: 'Sing it!', sub: 'Sing "oo" on that note and hold it steady.' }); }
-      else if (D.phase === 'sing') {
-        if (!muted && S.voiced) {
-          let c = (S.midi - D.target) * 100; c = ((c % 1200) + 1800) % 1200 - 600;
-          if (e > 0.6) D.cs.push(c);
-          dSet({ live: Math.abs(c) <= 15 ? 'Right on it ✦' : c < 0 ? `A little low: go up ↑ (${Math.round(-c)}¢)` : `A little high: come down ↓ (${Math.round(c)}¢)` });
-        }
-        if (e > 3.2 && (D.cs.length >= 20 || e > 6)) this.score();
-      } else if (D.phase === 'score' && e > 1.4) this.next();
+      if (D.phase === 'play' && e > 1.5) { D.phase = 'sing'; D.t0 = now(); dSet({ prompt: 'Sing ' + nameOf(D.target), sub: 'Sing "oo" and slide until the band turns green, then hold it there.', live: 'Your turn…' }); return; }
+      if (D.phase === 'score') { if (e > 1.6) this.next(); return; }
+      if (D.phase !== 'sing' || muted) return;
+      if (S.voiced) {
+        let c = (S.midi - D.target) * 100; c = ((c % 1200) + 1800) % 1200 - 600;
+        if (e > 0.5) D.cs.push({ t: e, c });
+        const inb = Math.abs(c) <= TOL;
+        D.lock = inb ? D.lock.concat(c) : [];
+        $('#dLive').className = 'live-tip ' + (inb ? 'in' : 'out');
+        dSet({ live: inb ? '● In range, hold it…' : c < 0 ? `● Too low ↑ ${Math.round(-c)}¢` : `● Too high ↓ ${Math.round(c)}¢` });
+        if (D.lock.length >= 48) return this.score(true); // about 0.8 s inside the band
+      }
+      // Can't find it yet? Play it again and give more time (twice), then score what was sung.
+      if (e > 3.2 + D.rem * 3 && D.rem < 2) { D.rem++; playTone(D.target, 1.0, PURE); dSet({ live: '🔊 Listen again: ' + nameOf(D.target) + '. Take your time.' }); $('#dLive').className = 'live-tip'; }
+      else if (e > 10) this.score(false);
     },
-    score() {
-      const c = D.cs.length >= 8 ? med(D.cs) : null, pts = c == null ? 0 : Math.max(0, Math.round(100 - Math.abs(c)));
-      D.rounds.push({ m: D.target, c, pts });
+    score(locked) {
+      const late = D.cs.filter(x => x.t > (now() - D.t0) - 1.5).map(x => x.c);
+      const c = locked ? med(D.lock) : late.length >= 8 ? med(late) : D.cs.length >= 8 ? med(D.cs.map(x => x.c)) : null;
+      const pts = c == null ? 0 : Math.max(0, Math.round(100 - Math.abs(c)) - 10 * D.rem);
+      D.rounds.push({ m: D.target, c, pts, rem: D.rem, locked: !!locked });
       const a = c == null ? null : Math.abs(Math.round(c));
-      dSet({ prompt: c == null ? 'No sound heard' : a <= 10 ? 'Bullseye! ✦' : a <= 25 ? 'Great!' : a <= 50 ? 'Close' : 'Keep at it', sub: c == null ? 'Sing a little louder next round.' : a <= 3 ? 'Dead on.' : `${a}¢ ${c < 0 ? 'flat (low)' : 'sharp (high)'} · ${pts} points`, live: '' });
+      $('#dLive').className = 'live-tip';
+      dSet({ prompt: c == null ? 'No sound heard' : locked ? (a <= 10 ? 'Bullseye! ✦' : 'Found it! ✦') : a <= TOL ? 'Close' : 'Keep at it', sub: c == null ? 'Sing a little louder next round.' : `${a <= 3 ? 'Dead on' : a + '¢ ' + (c < 0 ? 'flat (low)' : 'sharp (high)')}${D.rem ? ' · after ' + D.rem + ' reminder' + (D.rem > 1 ? 's' : '') : ''} · ${pts} points`, live: '' });
       D.phase = 'score'; D.t0 = now();
     },
     finish() {
       D.phase = 'done';
       const ok = D.rounds.filter(r => r.c != null), score = Math.round(mean(D.rounds.map(r => r.pts)));
       const bias = ok.length ? Math.round(med(ok.map(r => r.c))) : 0, err = ok.length ? Math.round(mean(ok.map(r => Math.abs(r.c)))) : 0;
-      const bulls = ok.filter(r => Math.abs(r.c) <= 10).length;
+      const found = D.rounds.filter(r => r.locked).length, rems = D.rounds.reduce((x, r) => x + r.rem, 0);
       const rec = labSave('match', score, { bias });
-      const head = el('p', 'cheer-big', score >= 85 ? 'Excellent ear and voice!' : score >= 65 ? 'Good matching. You\'re close on most notes.' : 'A solid start. Matching gets much easier with a few rounds a day.');
-      const stats = statRow([['Score', String(score), true], ['Bullseyes', bulls + ' of ' + D.n], ['Average miss', err + '¢'], ['Tendency', Math.abs(bias) <= 10 ? 'centered' : bias < 0 ? Math.abs(bias) + '¢ flat' : bias + '¢ sharp'], ['Best', String(rec.best)]]);
+      const fr = found / D.n, head = el('p', 'cheer-big', found === D.n ? (score >= 85 ? 'You found every note, cleanly. Excellent ear and voice!' : 'You found every note!' + (rems ? ' Next goal: find them without the reminders.' : '')) : fr >= 0.75 ? `You found ${found} of ${D.n} notes. Your ear is doing its job.` : fr >= 0.4 ? `You found ${found} of ${D.n} notes. The rest are close; the drills below will close the gap.` : 'Finding notes is a skill, and it grows fast with a few rounds a day.');
+      const stats = statRow([['Score', String(score), true], ['Found & held', found + ' of ' + D.n], ['Average miss', err + '¢'], ['Tendency', Math.abs(bias) <= 10 ? 'centered' : bias < 0 ? Math.abs(bias) + '¢ flat' : bias + '¢ sharp'], ['Reminders', String(rems)], ['Best', String(rec.best)]]);
       const chips = el('div', 'chips-row');
-      for (const r of D.rounds) { const a = r.c == null ? null : Math.abs(r.c); chips.appendChild(el('span', 'r-chip ' + (a == null ? 'miss' : a <= 10 ? 'pure' : a <= 25 ? 'ok' : a <= 50 ? 'near' : 'off'), nameOf(r.m) + ' · ' + (a == null ? '–' : (r.c < 0 ? '−' : '+') + Math.round(a) + '¢'))); }
+      for (const r of D.rounds) { const a = r.c == null ? null : Math.abs(r.c); chips.appendChild(el('span', 'r-chip ' + (a == null ? 'miss' : a <= 10 ? 'pure' : a <= TOL ? 'ok' : a <= 50 ? 'near' : 'off'), nameOf(r.m) + ' · ' + (a == null ? '–' : (r.c < 0 ? '−' : '+') + Math.round(a) + '¢') + (r.rem ? ' ↻' + r.rem : ''))); }
       const items = [];
-      if (bias < -12) items.push({ title: `You tend to sing flat (${-bias}¢ low)`, why: 'Very common. It usually comes from low breath energy or a lowered soft palate, not a bad ear.', tryThis: 'Sit tall, raise your eyebrows slightly, feel the start of a yawn at the back of your mouth, and aim for the top edge of the note.' });
-      if (bias > 12) items.push({ title: `You tend to sing sharp (${bias}¢ high)`, why: 'Usually pushing or reaching from tension.', tryThis: 'Sing softer, relax the jaw and shoulders, and let the note settle down into place.' });
-      if (err > 40) items.push({ title: 'Some notes were a long way off', why: 'The ear and voice are still learning to connect.', tryThis: 'While the note plays, hum it very quietly along with it. Then keep humming as it stops, and open to "oo".' });
-      if (ok.length < D.rounds.length) items.push({ title: `${D.rounds.length - ok.length} rounds had no clear sound`, why: 'The note needs a steady sound for at least a second.', tryThis: 'Sing a little louder and hold the note until the next round starts.' });
-      if (!items.length) items.push({ good: true, title: 'Accurate and centered', why: 'Your misses were small and not leaning flat or sharp.', tryThis: 'Take it to a song, or try the Leaps exercise for bigger jumps.' });
-      dShow([head, stats, chips, fixCards(items.slice(0, 3))], () => this.start());
+      if (bias > 12) items.push({ title: `You tend to land sharp (${bias}¢ high)`, why: 'Usually pushing or reaching from tension: more pressure raises the pitch.', tryThis: 'Three things to do: (1) Sing softer, about half your volume. (2) Glide down into the note: start a little above and slide down slowly until the band turns green; notice how that feels. (3) Drop your shoulders and unclench your jaw before each note.' });
+      if (bias < -12) items.push({ title: `You tend to land flat (${-bias}¢ low)`, why: 'Usually low breath energy or a lowered soft palate, not a bad ear.', tryThis: 'Three things to do: (1) Glide up into the note from just below until the band turns green. (2) Raise your eyebrows slightly and feel the start of a yawn. (3) Use a brighter vowel: "ee" or "ay" instead of "oo".' });
+      items.push({ good: true, title: 'Hum along to lock in', why: 'When your voice matches a note exactly, the two sounds merge into one smooth sound with no wobble or "beating".', tryThis: 'Tap Hear it again and hum quietly along with the tone. Slide slowly until the rough beating disappears, then keep that exact feeling as the tone stops.' });
+      if (ok.length < D.rounds.length) items.push({ title: `${D.rounds.length - ok.length} rounds had no clear sound`, why: 'The note needs a steady sound to be measured.', tryThis: 'Sing a little louder, and keep going until the round ends.' });
+      if (!bias || Math.abs(bias) <= 12) if (err <= 20) items.unshift({ good: true, title: 'Accurate and centered', why: 'Your misses were small and not leaning flat or sharp.', tryThis: 'Take it to a song, or try Leaps for bigger jumps.' });
+      // the trickiest notes, with a direct way to practise each one
+      const worst = [...ok].sort((x, y) => Math.abs(y.c) - Math.abs(x.c)).filter(r => Math.abs(r.c) > TOL).slice(0, 3);
+      const nodes = [head, stats, chips, fixCards(items.slice(0, 3))];
+      if (worst.length) {
+        const box = el('div', 'vi-block'); box.append(el('span', 'label', 'Your trickiest notes · practise each one with a steady hold'));
+        const row = el('div', 'row');
+        for (const r of worst) { const b = el('button', 'small', `Hold ${nameOf(r.m)} (${r.c < 0 ? '−' : '+'}${Math.abs(Math.round(r.c))}¢) →`); b.onclick = () => { if (!store.settings) store.settings = {}; store.settings.holdNote = r.m; dirty = true; openLab('hold', D.fromPath); }; row.appendChild(b); }
+        box.appendChild(row); nodes.splice(3, 0, box);
+      }
+      dShow(nodes, () => this.start());
     },
   },
 
