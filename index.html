@@ -59,6 +59,12 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 button.small { padding: 7px 12px; font-size: 0.85rem; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 .status { font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.linkish { border: 0; background: none; padding: 2px 0; margin-left: auto; color: var(--accent); font: 600 0.85rem var(--body); text-decoration: underline; cursor: pointer; flex: none; border-radius: 4px; }
+.cell-help { display: none; font-size: 0.82rem; line-height: 1.38; color: var(--ink); }
+.cell-help p { margin: 0 0 8px; }
+.cell-help b { color: var(--accent); }
+.live.show-help .cell > :not(.label):not(.cell-help) { display: none; }
+.live.show-help .cell-help { display: block; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
 .lvl { flex: none; width: 70px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .lvl span { display: block; height: 100%; width: 0; background: var(--good); transition: width .08s; }
@@ -292,11 +298,12 @@ details b { color: var(--ink); }
   </div>
 </header>
 
-<div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span></div>
+<div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span><button id="btnHelp" class="linkish" hidden>What do these mean?</button></div>
 
-<section class="live" aria-live="off">
+<section class="live show-help" aria-live="off">
   <div class="cell">
     <div class="label">Note</div>
+    <div class="cell-help"><p>Which note you're singing, like <b>A3</b>. The needle shows if you're a little flat (left) or sharp (right); centered means in tune. Below it: how loud you are, any vibrato, and how long you've held the note.</p><button class="primary small" data-start>Start listening</button></div>
     <div class="note-row"><div id="noteName" class="big">—</div><div id="noteHz" class="sub">— Hz</div></div>
     <div class="tuner"><div id="needle" class="needle"></div></div>
     <div class="tuner-scale"><span>−50¢ flat</span><span id="centsTxt" class="mono">0¢</span><span>sharp +50¢</span></div>
@@ -308,6 +315,7 @@ details b { color: var(--ink); }
   </div>
   <div class="cell">
     <div class="label">Purity</div>
+    <div class="cell-help"><p>How clean your tone is, from 0 to 100. <b>72 or more counts as pure.</b> Three bars show why: <b>Clarity</b> (no breathiness), <b>Steadiness</b> (no wobble), <b>Harmonic focus</b> (no noise). Work on the shortest bar.</p></div>
     <div class="purity-row"><div id="purityNum" class="big">—</div><div id="grade" class="grade">silent</div></div>
     <div class="meters">
       <div class="meter"><span>Clarity</span><div class="bar"><div class="fill" id="mClar"></div></div><span class="v" id="vClar">–</span></div>
@@ -317,12 +325,14 @@ details b { color: var(--ink); }
   </div>
   <div class="cell">
     <div class="label">Tone color</div>
+    <div class="cell-help"><p>The color of your sound. Bar <b>1</b> is your note; bars 2 to 10 are its overtones. A tall bar 1 with small others sounds smooth, like a flute. Sing "oo", then "ee", and watch the bars change.</p></div>
     <div id="toneName" class="tone-name">—</div>
     <div class="hbars" id="hbars"></div>
     <div class="hlabels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
   </div>
   <div class="cell">
     <div class="label">Sounding now</div>
+    <div class="cell-help"><p>Every note we hear right now, plus a coaching tip. A second note here means you're making an overtone or undertone: <b>two notes at once</b>.</p></div>
     <div id="chips" class="chips"><span class="chip muted">nothing yet</span></div>
     <p id="coach" class="coach muted">Hum softly on "mmm" or "oo". Quiet and relaxed beats loud.</p>
   </div>
@@ -546,7 +556,7 @@ async function rebuildAudio() {
   ac = null; await ensureAudio();
   if (stream) { const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes = [src]; }
 }
-let micWatch = 0;
+let micWatch = 0, liveHelp = false;
 
 function stopSources() {
   clearTimeout(demoTimer); demoTimer = null;
@@ -562,6 +572,9 @@ function setMode(m, msg) {
   $('#status').textContent = msg;
   $('#btnStop').hidden = m === 'idle';
   $('#lvlBox').hidden = m === 'idle';
+  $('#btnHelp').hidden = m === 'idle';
+  $('.live').classList.toggle('show-help', m === 'idle' || liveHelp);
+  $('#btnHelp').textContent = liveHelp ? 'Show the meters' : 'What do these mean?';
   if (m === 'idle') { S.voiced = false; S.quietFor = 0; S.micPeak = 0; updateLive(0); updateLive(0); }
   $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
   $('#btnMic').disabled = m === 'mic';
@@ -1682,6 +1695,8 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'start') renderGuide();
 };
 $('#btnMic').onclick = startMic;
+document.querySelector('[data-start]').onclick = startMic;
+$('#btnHelp').onclick = () => { liveHelp = !liveHelp; setMode(mode, $('#status').textContent); };
 $('#btnDemo').onclick = startDemo;
 $('#btnStop').onclick = () => { stopSources(); setMode('idle', 'Stopped. Your voice map is saved in this browser.'); dirty = true; };
 $('#fileIn').onchange = e => { const f = e.target.files[0]; if (f) startFile(f); e.target.value = ''; };
