@@ -232,6 +232,7 @@ details b { color: var(--ink); }
   </div>
   <div class="controls">
     <button id="btnMic" class="primary">Start listening</button>
+    <button id="btnScale">Practice Do-Re-Mi</button>
     <button id="btnDemo">Play demo voice</button>
     <label class="btn" for="fileIn" tabindex="0" id="fileLabel">Analyze a recording</label>
     <input type="file" id="fileIn" accept="audio/*" hidden>
@@ -430,7 +431,7 @@ const isBlack = m => [1,3,6,8,10].includes(((m % 12) + 12) % 12);
 const now = () => performance.now() / 1000;
 const RANGE_LO = 36, RANGE_HI = 84; // C2..C6
 const HN = 10;
-const QUIET = 0.0025; // below this input level the app treats the room as silent
+const QUIET = 0.001; // below this input level the app treats the room as silent
 
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -507,6 +508,7 @@ function setMode(m, msg) {
   $('#status').textContent = msg;
   $('#btnStop').hidden = m === 'idle';
   $('#lvlBox').hidden = m === 'idle';
+  if (m === 'idle') { S.voiced = false; S.quietFor = 0; S.micPeak = 0; updateLive(0); updateLive(0); }
   $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
   $('#btnMic').disabled = m === 'mic';
   renderGuide();
@@ -1282,6 +1284,7 @@ function renderGuide() {
 }
 $('#sNext').onclick = () => goStep(guide.step + 1);
 $('#sSkip').onclick = () => goStep(guide.step >= STEPS.length ? 1 : guide.step + 1);
+$('#btnScale').onclick = () => { $('#gScale').click(); $('#singCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 $('#gScale').onclick = () => { $('#t-sing').click(); loadSong(SONGS.find(x => x.id === 'doremi')); };
 $('#gRestart').onclick = () => { if (gDemo) return; guide.done = []; goStep(0); };
 
