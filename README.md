@@ -10,9 +10,9 @@ It's one file, `index.html`, with no build step. All audio analysis runs in your
 
 ## Levels
 
-The app opens on **Your path**: ten levels, each adding one idea and one piece of the screen.
-Level 1 is just a ring that glows gold when your note is pure; later levels add the purity
-breakdown, the tuner, sheet music, songs, tone color and overtones.
+The app opens on **Your path**: five levels, each a set of lessons. Level 1 (Foundations) starts with Do-Re-Mi
+and shows which notes you already sing well; a level ends only when every lesson is done and you have
+practised on enough different days. Later levels add breath and tone, pitch and leaps, songs, and advanced work.
 
 ## Tests
 

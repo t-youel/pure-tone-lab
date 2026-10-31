@@ -302,6 +302,15 @@ details b { color: var(--ink); }
 .lab-card.locked { opacity: .5; cursor: not-allowed; }
 #songs button:disabled { opacity: .45; }
 @media (max-width: 640px) { .find { grid-template-columns: 1fr; justify-items: center; } }
+.lessons { display: grid; gap: 6px; }
+.lesson { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.lesson .ls-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 0.85rem var(--mono); color: var(--muted); border: 1.5px solid var(--line); }
+.lesson.done .ls-ic { background: var(--pure); border-color: var(--pure); color: var(--surface); }
+.lesson.next { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.ls-txt { display: grid; gap: 1px; min-width: 0; } .ls-txt .muted { font-size: 0.84rem; }
+.beat-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--line); display: inline-block; transition: background .05s; flex: none; }
+.beat-dot.on { background: var(--pure); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pure) 30%, transparent); }
+#btnMetro[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -380,8 +389,8 @@ details b { color: var(--ink); }
 
 <div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span><button id="btnHelp" class="linkish" hidden>What do these mean?</button></div>
 
-<section class="live" aria-live="off" data-min="3">
-  <div class="cell" data-min="4">
+<section class="live" aria-live="off" data-min="2">
+  <div class="cell" data-min="3">
     <div class="label">Note</div>
     <div class="cell-help"><p>Which note you're singing, like <b>A3</b>. The needle shows if you're a little flat (left) or sharp (right); centered means in tune. Below it: how loud you are, any vibrato, and how long you've held the note.</p><button class="primary small" data-start>Start listening</button></div>
     <div class="note-row"><div id="noteName" class="big">—</div><div id="noteHz" class="sub">— Hz</div></div>
@@ -403,14 +412,14 @@ details b { color: var(--ink); }
       <div class="meter"><span>Harmonic focus</span><div class="bar"><div class="fill" id="mFocus"></div></div><span class="v" id="vFocus">–</span></div>
     </div>
   </div>
-  <div class="cell" data-min="7">
+  <div class="cell">
     <div class="label">Tone color</div>
     <div class="cell-help"><p>The color of your sound. Bar <b>1</b> is your note; bars 2 to 10 are its overtones. A tall bar 1 with small others sounds smooth, like a flute. Sing "oo", then "ee", and watch the bars change.</p></div>
     <div id="toneName" class="tone-name">—</div>
     <div class="hbars" id="hbars"></div>
     <div class="hlabels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
   </div>
-  <div class="cell" data-min="7">
+  <div class="cell" data-min="3">
     <div class="label">Sounding now</div>
     <div class="cell-help"><p>Every note we hear right now, plus a coaching tip. A second note here means you're making an overtone or undertone: <b>two notes at once</b>.</p></div>
     <div id="chips" class="chips"><span class="chip muted">nothing yet</span></div>
@@ -420,14 +429,15 @@ details b { color: var(--ink); }
 
 <nav class="tabs" role="tablist">
   <button role="tab" id="t-path" aria-selected="true" data-tab="path">Your path</button>
-  <button role="tab" id="t-lab" aria-selected="false" data-tab="lab" data-min="2">Voice Lab</button>
-  <button role="tab" id="t-sing" aria-selected="false" data-tab="sing" data-min="6">Sing songs</button>
-  <button role="tab" id="t-voice" aria-selected="false" data-tab="voice" data-min="2">My voice</button>
+  <button role="tab" id="t-lab" aria-selected="false" data-tab="lab">Voice Lab</button>
+  <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">Sing songs</button>
+  <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
 </nav>
 
 <!-- YOUR PATH -->
 <section class="panel" id="tab-path">
   <div class="card" id="lvCurrent"></div>
+  <div class="card" id="findCard" hidden></div>
   <div class="lv-list" id="lvList"></div>
   <div class="row"><button id="btnUnlockAll" class="small">I'm experienced: unlock every level</button></div>
 </section>
@@ -588,15 +598,15 @@ details b { color: var(--ink); }
     </div>
     <div class="row sing-controls">
       <button id="btnSing" class="primary small">▶ Sing</button>
-      <button id="btnListen" class="small">▶ Listen first</button>
-      <button id="btnRef" class="small">Hear note</button>
-      <span class="seg" role="group" aria-label="Tempo"><span class="label">Tempo</span><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
+      <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
+      <button id="btnRef" class="small">Starting note</button>
+      <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
+      <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
-      <span class="label">Key</span>
       <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
       <span id="keyTxt" class="keybox">—</span>
       <button id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
-      <button id="kAuto" class="small">Fit to my zone</button>
+      <button id="kAuto" class="small" title="Move the song into your best range">Fit</button>
       <label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
     </div>
   </div>
@@ -915,6 +925,9 @@ function frame() {
       cur.s += 1; cur.e = e; S.extraScore.set(key, cur);
     }
     if (!muted) record(t, dt, midi);
+    const over = [...S.extraScore.values()].some(e => e.s > 3.5 && e.e.kind === 'over');
+    S.overT = over ? (S.overT || 0) + dt : 0;
+    if (S.overT > 2 && !store.overtone && !realStore) { store.overtone = true; dirty = true; toast('Overtone singing: two notes at once! ✦'); setTimeout(() => checkLevel(), 500); }
   } else {
     // A dropout shorter than 0.2 s keeps the last reading, so soft singing doesn't make the meters blink.
     if (!(S.voiced && t - (S.lastV || 0) < 0.2)) { S.raw = []; S.recent = []; S.long = []; S.voiced = false; S.hold = null; S.purity *= 0.9; }
@@ -931,6 +944,9 @@ function record(t, dt, midi) {
   const r = Math.round(midi);
   if (r >= RANGE_LO && r <= RANGE_HI) {
     const n = store.notes[r] || (store.notes[r] = { sec: 0, psum: 0, best: 0 });
+    const day = new Date().toDateString(); if (!store.days) store.days = [];
+    if (!store.dsec || store.dsec.d !== day) store.dsec = { d: day, s: 0 };
+    store.dsec.s += dt; if (store.dsec.s >= 20 && !store.days.includes(day)) { store.days.push(day); setTimeout(() => checkLevel(), 500); }
     n.sec += dt; n.psum += S.purity * dt; n.best = Math.max(n.best, S.purity); n.cs = (n.cs || 0) + Math.abs(midi - r) * 100 * dt; dirty = true;
   }
   // a held note becomes a discovery
@@ -1219,7 +1235,7 @@ const SONGS = [
   { id: 'ode', name: 'Ode to Joy', kind: 'Song', words: "Joy- ful, joy- ful, we a- dore thee, / God of glo- ry, Lord of love; / Hearts un- fold like flowers be- fore thee, / op'- ning to the sun a- bove.", notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
-const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'slow' };
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'slow', ticks: [], metro: false };
 const TEMPOS = { slow: 54, medium: 72, normal: 90 };
 const beatSec = () => 60 / TEMPOS[G.tempo];
 const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
@@ -1233,7 +1249,7 @@ function autoShift(song) {
 }
 function loadSong(song, keepShift = false) {
   G.song = song; if (!keepShift) G.shift = autoShift(song);
-  stopPlayback(true);
+  stopPlayback(true); stopTicks();
   G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b, w: '', cont: false }));
   // Words: one token per note, "_" holds the previous syllable over another note, "/" ends a line.
   G.lines = []; let ni = 0, ls = 0;
@@ -1280,13 +1296,18 @@ function renderSing() {
 
 // Sing-through: the song moves on by itself at the chosen tempo. Each note is judged on what was sung
 // during it (after a short grace period for the attack), so the singer is never stuck on a note.
-function click(when, hi) {
-  const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
-  o.frequency.value = hi ? 1320 : 880; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.08);
+// Metronome and count-in clicks are short noise bursts, so the pitch tracker never mistakes them for a voice.
+let clickBuf = null;
+function click(when, accent) {
+  if (!clickBuf) { clickBuf = ac.createBuffer(1, Math.round(ac.sampleRate * 0.03), ac.sampleRate); const d = clickBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.004)); }
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = clickBuf; f.type = 'highpass'; f.frequency.value = accent ? 1500 : 2500; g.gain.value = accent ? 0.9 : 0.55;
+  s.connect(f); f.connect(g); g.connect(ac.destination); s.start(ac.currentTime + when);
+  G.ticks.push(s);
 }
+function stopTicks() { G.ticks.forEach(s => { try { s.stop(); } catch (e) {} }); G.ticks = []; }
 async function startRun() {
-  if (G.run === 'countin' || G.run === 'singing') { G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
+  if (G.run === 'countin' || G.run === 'singing') { stopTicks(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
   stopPlayback(true);
   if (mode === 'idle') await startMic();
   if (mode === 'idle') return;
@@ -1299,12 +1320,17 @@ async function startRun() {
   G.starts = []; let t = 0; for (const n of G.seq) { G.starts.push(t); t += n.b * beat; }
   G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
   G.t0 = now() + count * beat + 0.12;
+  stopTicks();
   for (let k = 0; k < count; k++) click(0.12 + k * beat, k === 0);
+  // The starting note plays under the count-in, so the first note is never a guess.
+  playTone(G.seq[0].m, count * beat - 0.35, PURE, 0.12);
+  if (G.metro) for (let k = 0; k * beat < t - 0.01; k++) click(0.12 + (count + k) * beat, false);
   G.run = 'countin'; $('#cheer').textContent = '';
   renderSing();
 }
 function singStep() {
   if (!singActive() || G.play >= 0) return;
+  if (G.run === 'countin' || G.run === 'singing') { const ph = (((now() - G.t0) / beatSec()) % 1 + 1) % 1; $('#beatDot').classList.toggle('on', ph < 0.18); }
   const hint = $('#tgtHint');
   if (G.run === 'countin') {
     const left = G.t0 - now();
@@ -1355,6 +1381,7 @@ function finalizeNote(i) {
   clearTimeout(cheerTimer); cheerTimer = setTimeout(() => { $('#cheer').textContent = ''; }, 1400);
 }
 function finishRun() {
+  stopTicks();
   G.run = 'done'; G.idx = G.seq.length; G.attempt++;
   saveRun(); renderSing();
 }
@@ -1362,7 +1389,7 @@ $('#btnSing').onclick = startRun;
 document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
   const was = G.run === 'singing' || G.run === 'countin';
   G.tempo = b.dataset.tempo;
-  if (was) { G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; toast('Tempo: ' + b.textContent + '. Tap Sing to start again.'); }
+  if (was) { stopTicks(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; toast('Tempo: ' + b.textContent + '. Tap Sing to start again.'); }
   renderSing();
 });
 
@@ -1476,7 +1503,8 @@ function runAvg() { return runStats().avg; }
 function saveRun() {
   const st = runStats();
   if (!store.runs) store.runs = [];
-  store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo });
+  const good = [...new Set(st.all.map((r, i) => (r.status === 'pure' || r.status === 'ok') && !G.seq[i].cont ? wordAt(i) : null).filter(Boolean))];
+  store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo, good });
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true; setTimeout(() => checkLevel(), 1500);
 }
@@ -1497,7 +1525,7 @@ function diagnose(st) {
       bias < 0 ? 'Take a deeper belly breath before each line. Lift the back of your mouth as if starting a yawn, raise your eyebrows slightly, and aim for the top edge of each note.'
                : 'Sing a little softer, relax your jaw and shoulders, and let each note settle into place instead of reaching up for it.');
     if (spread >= 45) add(spread / 35, `Pitch varies from note to note (±${spread}¢)`, 'Some notes land, others drift, so the tune isn\'t settled in your ear yet.',
-      'Tap ▶ Listen first and hum along quietly. Then play each orange note with Hear note and copy it straight away, three times.', 'listen');
+      'Tap ▶ Listen first and hum along quietly. Then tap Starting note and copy it, and sing each orange note again slowly.', 'listen');
     const mid = med(sung.map(r => r.m)), hi = sung.filter(r => r.m > mid), lo = sung.filter(r => r.m <= mid);
     if (hi.length >= 2 && lo.length >= 2) {
       const bh = med(hi.map(r => r.c)), bl = med(lo.map(r => r.c)), ph = mean(hi.map(r => r.p)), pl = mean(lo.map(r => r.p));
@@ -1540,7 +1568,9 @@ function diagnose(st) {
 function encouragement(st, prev, isBest) {
   if (st.ok === st.n && st.pure === st.n) return 'Wow! Every note on pitch and pure.' + (diagnose(st).length ? ' A little fine-tuning below.' : ' You nailed it!');
   const m = [];
-  if (!prev || prev.ok == null) m.push(`Great start! ${st.ok} of ${st.n} notes on pitch.`);
+  const good = [...new Set(st.all.map((r, i) => (r.status === 'pure' || r.status === 'ok') && !G.seq[i].cont ? wordAt(i) : null).filter(Boolean))];
+  if (good.length && good.length < st.n) m.push(`You already sing ${good.slice(0, 6).join(', ')}${good.length > 6 ? '…' : ''} well!`);
+  if (!prev || prev.ok == null) m.push(`Great start: ${st.ok} of ${st.n} notes on pitch.`);
   else {
     if (st.ok > prev.ok) m.push(`Better! ${st.ok - prev.ok} more note${st.ok - prev.ok > 1 ? 's' : ''} on pitch than last time.`);
     if (st.avg > prev.avg) m.push(`Your tone got purer: +${st.avg - prev.avg}.`);
@@ -1612,7 +1642,9 @@ function myTimbre(m) {
   if (!store.discoveries.length) return null;
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
 }
-$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[Math.min(G.idx, G.seq.length - 1)].m; playTone(m, 1.2, PURE); };
+// Starting note: the first note of the song (or the note being sung right now), on its own.
+$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[G.run === 'singing' ? Math.min(G.idx, G.seq.length - 1) : 0].m; playTone(m, 1.4, PURE); };
+$('#btnMetro').onclick = () => { G.metro = !G.metro; if (!store.settings) store.settings = {}; store.settings.metro = G.metro; dirty = true; $('#btnMetro').setAttribute('aria-pressed', G.metro); if (G.run === 'singing' || G.run === 'countin') toast('Metronome ' + (G.metro ? 'on' : 'off') + ' from the next run'); };
 $('#btnGen').onclick = () => {
   const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
   let root = lo; for (let m = lo; m <= hi; m++) if (noteScore(store.notes[m]) > noteScore(store.notes[root])) root = m;
@@ -2237,87 +2269,110 @@ function labTick(dt, muted) {
 }
 $('#lsBack').onclick = closeLab;
 // ---------- Levels ----------
-// Ten levels. Each one adds one idea and one piece of the screen, has a clear goal, and unlocks the next.
-const bestRun = (ids, f) => Math.max(0, ...(store.runs || []).filter(r => ids.includes(r.id)).map(f));
+// Five levels, each a set of lessons with gentle goals. A level is done only when every lesson is done
+// and the singer has practised on enough different days, so the foundation has time to settle.
+const runsOf = ids => (store.runs || []).filter(r => ids.includes(r.id));
+const bestRun = (ids, f) => Math.max(0, ...runsOf(ids).map(f));
+const labBestOf = id => (labRec(id) || {}).best || 0;
+const daysPractised = () => (store.days || []).length;
+const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.good ? r.good : []; };
 const LEVELS = [
-  { title: 'Find your pure notes', short: 'Pure notes', kind: 'find',
-    intro: 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.',
-    goal: 'Find 3 pure notes', pass: () => store.discoveries.length >= 3,
-    won: () => `You already sing ${store.discoveries.length} pure notes: ${[...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ')}. Your voice naturally rings on these.` },
-  { title: 'Discover your voice type', short: 'Voice type', kind: 'lab', lab: 'range',
-    intro: 'Speak one sentence, slide down low, slide up high. Find out what kind of voice you have.',
-    goal: 'Finish the range test', adds: 'The Voice Lab and My voice tabs open. Songs will be pitched to your range.',
-    pass: () => !!store.profile, won: () => `You sound like a ${store.profile.type}, with a range of ${nameOf(store.profile.low)} to ${nameOf(store.profile.high)}.` },
-  { title: 'Hold it steady', short: 'Steady', kind: 'lab', lab: 'hold',
-    intro: 'A pure note held steady is the heart of singing. Breathe low, then hold one note for 6 seconds.',
-    goal: '50% pure and steady on a 6-second hold', adds: 'The Purity panel appears at the top: three bars show what makes a tone pure, and the shortest one is what to work on.',
-    pass: () => ((labRec('hold') || {}).best || 0) >= 50, won: () => `Best hold: ${labRec('hold').best}% pure and steady.` },
-  { title: 'Match a note', short: 'Pitch match', kind: 'lab', lab: 'match',
-    intro: 'Hear a note, then sing it back. You will learn whether you tend to sing a little flat or sharp.',
-    goal: 'Score 60 or more in Pitch match', adds: 'The Note panel appears: a tuner needle shows if you are flat (left) or sharp (right).',
-    pass: () => ((labRec('match') || {}).best || 0) >= 60, won: () => `Pitch match score: ${labRec('match').best}.` },
-  { title: 'Climb the scale', short: 'Do-Re-Mi', kind: 'lab', lab: 'scale',
-    intro: 'Sing Do-Re-Mi. Notes appear on a treble clef and light up gold when they are pure.',
-    goal: '5 of 8 notes on pitch', adds: 'Sheet music: the treble clef shows each note, and a "you" note shows where your voice is.',
-    pass: () => bestRun(['doremi'], r => r.ok || 0) >= 5, won: () => `Best scale: ${bestRun(['doremi'], r => r.ok || 0)} of 8 notes on pitch.` },
-  { title: 'Your first song', short: 'First song', kind: 'song', songs: ['row', 'mary'],
-    intro: 'Sing Row, Row, Row Your Boat or Mary Had a Little Lamb, with the words under the notes.',
-    goal: 'Half the notes on pitch in either song', adds: 'The Sing songs tab opens with your first two songs.',
-    pass: () => bestRun(['row', 'mary'], r => (r.ok || 0) / r.n) >= 0.5, won: () => 'You sang your first song!' },
-  { title: 'Open your sound', short: 'Tone color', kind: 'lab', lab: 'vowels',
-    intro: 'Vowels change your tone. Find your purest vowel, then keep that open space on every note.',
-    goal: 'Finish the vowel exercise', adds: 'The Tone color and Sounding now panels appear, so you can see your overtones.',
-    pass: () => !!labRec('vowels'), won: () => `Your purest vowel is "${labRec('vowels').bestVowel}".` },
-  { title: 'Leaps', short: 'Leaps', kind: 'lab', lab: 'leaps',
-    intro: 'Jump between notes cleanly, without sliding into them.',
-    goal: '5 of 7 leaps on pitch', adds: 'Three more songs: Twinkle, Happy Birthday and Jingle Bells.',
-    pass: () => bestRun(['arp'], r => r.ok || 0) >= 5, won: () => `Best: ${bestRun(['arp'], r => r.ok || 0)} of 7 leaps on pitch.` },
-  { title: 'Pure songs', short: 'Pure songs', kind: 'song', songs: ['twinkle', 'bday', 'jingle'],
-    intro: 'Bring it together: sing a full song with most notes pure, not just on pitch.',
-    goal: 'A song with 60% of notes pure ✦', adds: 'Ode to Joy and Amazing Grace, the Quick voice check, and melodies composed from your pure notes.',
-    pass: () => bestRun(['twinkle', 'bday', 'jingle'], r => (r.pure || 0) / r.n) >= 0.6, won: () => 'Pure tone, in a real song.' },
-  { title: 'Free voice', short: 'Free voice', kind: 'final',
-    intro: 'Everything is open: every song, every exercise, Explore and overtone singing. Keep your best scores climbing.',
-    goal: 'Keep going', adds: 'Explore: the spectrogram, overtone singing, the demo voice and recordings.', pass: () => false },
+  { title: 'Foundations', short: 'Foundations', intro: 'The basics, one small step at a time. Every lesson starts from what you already do well.',
+    lessons: [
+      { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
+        pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'You already sing ' + g.join(', ') + ' well.' : 'You sang it through.'; } },
+      { title: 'Find your pure notes', kind: 'find', goal: 'Find 3 notes that ring pure', pass: () => store.discoveries.length >= 3,
+        won: () => [...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ') + ' ring pure.' },
+      { title: 'Your voice type', kind: 'lab', lab: 'range', goal: 'Finish the range test', pass: () => !!store.profile, won: () => 'You sound like a ' + store.profile.type + '.' },
+      { title: 'Hold a steady note', kind: 'lab', lab: 'hold', goal: '40% pure and steady', pass: () => labBestOf('hold') >= 40, won: () => 'Best: ' + labBestOf('hold') + '%.' },
+      { title: 'Match a note', kind: 'lab', lab: 'match', goal: 'Score 50 or more', pass: () => labBestOf('match') >= 50, won: () => 'Best score: ' + labBestOf('match') + '.' },
+      { title: 'Your first song', kind: 'song', songs: ['row', 'mary'], goal: 'Sing Row, Row or Mary through once', pass: () => runsOf(['row', 'mary']).length > 0, won: () => 'Your first song is done!' },
+      { title: 'Practise on 3 different days', kind: 'days', need: 3, goal: 'A few minutes on 3 separate days', pass: () => daysPractised() >= 3, won: () => daysPractised() + ' days of practice.' },
+    ] },
+  { title: 'Breath & tone', short: 'Breath & tone', intro: 'Steady breath makes a steady, pure tone. Now the Purity and Tone color panels join in.',
+    adds: 'The Purity and Tone color panels appear, plus the Hum warm-up, Vowels & open airway, and Twinkle.',
+    lessons: [
+      { title: 'Hum warm-up', kind: 'lab', lab: 'hum', goal: '6 of 9 notes on pitch', pass: () => bestRun(['hum'], r => r.ok || 0) >= 6, won: () => bestRun(['hum'], r => r.ok || 0) + ' of 9 on pitch.' },
+      { title: 'Breath control: a steady hold', kind: 'lab', lab: 'hold', goal: '65% pure and steady', pass: () => labBestOf('hold') >= 65, won: () => 'Best: ' + labBestOf('hold') + '%.' },
+      { title: 'Open airway: vowels', kind: 'lab', lab: 'vowels', goal: 'Average purity 70 or more', pass: () => labBestOf('vowels') >= 70, won: () => 'Purest vowel: "' + (labRec('vowels') || {}).bestVowel + '".' },
+      { title: 'Pure Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: '5 of 8 notes pure ✦', pass: () => bestRun(['doremi'], r => r.pure || 0) >= 5, won: () => bestRun(['doremi'], r => r.pure || 0) + ' of 8 pure.' },
+      { title: 'A pure song', kind: 'song', songs: ['row', 'mary', 'twinkle'], goal: 'Half the notes pure in a song', pass: () => bestRun(['row', 'mary', 'twinkle'], r => (r.pure || 0) / r.n) >= 0.5, won: () => 'Pure tone in a real song.' },
+      { title: 'Practise on 7 different days', kind: 'days', need: 7, goal: '7 days in total', pass: () => daysPractised() >= 7, won: () => daysPractised() + ' days of practice.' },
+    ] },
+  { title: 'Pitch & leaps', short: 'Pitch & leaps', intro: 'Land every note, even after a jump. The tuner and Sounding now panels join in.',
+    adds: 'The tuner needle and Sounding now panel, Leaps, the Quick voice check, Happy Birthday and Jingle Bells.',
+    lessons: [
+      { title: 'Match a note, closely', kind: 'lab', lab: 'match', goal: 'Score 75 or more', pass: () => labBestOf('match') >= 75, won: () => 'Best score: ' + labBestOf('match') + '.' },
+      { title: 'Leaps', kind: 'lab', lab: 'leaps', goal: '5 of 7 leaps on pitch', pass: () => bestRun(['arp'], r => r.ok || 0) >= 5, won: () => bestRun(['arp'], r => r.ok || 0) + ' of 7 leaps.' },
+      { title: 'Do-Re-Mi at Medium tempo', kind: 'song', songs: ['doremi'], goal: '7 of 8 on pitch at Medium or Normal', pass: () => bestRun(['doremi'], r => r.tempo !== 'slow' ? r.ok || 0 : 0) >= 7, won: () => 'Scale at speed.' },
+      { title: 'Quick voice check', kind: 'lab', lab: 'check', goal: 'Do the 20-second check', pass: () => runsOf(['check']).length > 0, won: () => 'Checked.' },
+      { title: 'Bigger songs', kind: 'song', songs: ['twinkle', 'bday', 'jingle'], goal: '70% on pitch in one of them', pass: () => bestRun(['twinkle', 'bday', 'jingle'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'Bigger songs, on pitch.' },
+      { title: 'Practise on 14 different days', kind: 'days', need: 14, goal: '14 days in total', pass: () => daysPractised() >= 14, won: () => daysPractised() + ' days of practice.' },
+    ] },
+  { title: 'Songs & expression', short: 'Songs', intro: 'Whole songs at full speed, with pure tone from start to finish.',
+    adds: 'Ode to Joy, Amazing Grace, and new melodies composed from your pure notes.',
+    lessons: [
+      { title: 'Ode to Joy or Amazing Grace', kind: 'song', songs: ['ode', 'grace'], goal: '70% on pitch', pass: () => bestRun(['ode', 'grace'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'A classic, sung.' },
+      { title: 'Full speed, pure tone', kind: 'song', songs: ['twinkle', 'bday', 'jingle', 'ode', 'grace'], goal: '60% pure at Normal tempo', pass: () => bestRun(['twinkle', 'bday', 'jingle', 'ode', 'grace'], r => r.tempo === 'normal' ? (r.pure || 0) / r.n : 0) >= 0.6, won: () => 'Pure at full speed.' },
+      { title: 'Your own melody', kind: 'song', songs: ['gen'], goal: 'Compose one and sing it through', pass: () => runsOf(['gen']).length > 0, won: () => 'Your own tune.' },
+      { title: 'Practise on 21 different days', kind: 'days', need: 21, goal: '21 days in total', pass: () => daysPractised() >= 21, won: () => daysPractised() + ' days of practice.' },
+    ] },
+  { title: 'Advanced', short: 'Advanced', intro: 'Professional-level targets, and the strange and beautiful: overtone singing.',
+    adds: 'Explore: the spectrogram, overtone singing, the demo voice and recordings.',
+    lessons: [
+      { title: 'Pitch match: pro', kind: 'lab', lab: 'match', goal: 'Score 90 or more', pass: () => labBestOf('match') >= 90, won: () => 'Best score: ' + labBestOf('match') + '.' },
+      { title: 'Hold: pro', kind: 'lab', lab: 'hold', goal: '85% pure and steady', pass: () => labBestOf('hold') >= 85, won: () => 'Best: ' + labBestOf('hold') + '%.' },
+      { title: 'A song, 80% pure', kind: 'song', songs: ['twinkle', 'bday', 'jingle', 'ode', 'grace'], goal: '80% of notes pure in any song', pass: () => bestRun(['twinkle', 'bday', 'jingle', 'ode', 'grace'], r => (r.pure || 0) / r.n) >= 0.8, won: () => 'Professional purity.' },
+      { title: 'Overtone singing', kind: 'lab', lab: 'explore', goal: 'Hold a whistle overtone for 2 seconds', pass: () => !!store.overtone, won: () => 'Two notes at once!' },
+    ] },
 ];
-LEVELS.forEach((L, i) => L.n = i + 1);
+LEVELS.forEach((L, i) => { L.n = i + 1; L.lessons.forEach((x, j) => { x.id = L.n + '.' + (j + 1); }); });
 // When each Lab exercise and song opens up.
-const LAB_LEVEL = { range: 2, hold: 3, hum: 3, match: 4, scale: 5, vowels: 7, leaps: 8, check: 9, explore: 10 };
-const SONG_LEVEL = { row: 6, mary: 6, twinkle: 8, bday: 8, jingle: 8, ode: 9, grace: 9, gen: 9 };
-const level = () => store.level || 1;
+const LAB_LEVEL = { range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
+const SONG_LEVEL = { row: 1, mary: 1, twinkle: 2, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
+const level = () => Math.min(store.level || 1, LEVELS.length);
 
 function applyLevel() {
   const lv = level();
   document.querySelectorAll('[data-min]').forEach(e => { e.hidden = lv < +e.dataset.min; });
-  const L = LEVELS[lv - 1];
-  $('#lvlBadge').textContent = 'Level ' + lv + ' · ' + L.short;
-  $('#btnHelp').hidden = mode === 'idle' || lv < 3;
+  $('#lvlBadge').textContent = 'Level ' + lv + ' · ' + LEVELS[lv - 1].short;
+  $('#btnHelp').hidden = mode === 'idle' || lv < 2;
   renderPath(); renderLab(); renderSongs();
 }
 function checkLevel(quiet) {
   if (realStore) return; // demos never move you up
+  if (!store.lessons) store.lessons = [];
+  let fresh = [];
+  for (const L of LEVELS.slice(0, level())) for (const x of L.lessons) if (x.pass() && !store.lessons.includes(x.id)) { store.lessons.push(x.id); fresh.push(x); }
+  if (fresh.length) { dirty = true; if (!quiet) toast('Lesson done ✓ ' + fresh[fresh.length - 1].title); }
   let moved = 0;
-  while (level() < LEVELS.length && LEVELS[level() - 1].pass()) {
+  while (level() < LEVELS.length && LEVELS[level() - 1].lessons.every(x => x.pass())) {
     const done = LEVELS[level() - 1];
     store.level = level() + 1; moved++; dirty = true;
     if (!quiet) { celebrate(done, LEVELS[level() - 1]); break; }
   }
-  if (moved) { save(); applyLevel(); if (quiet) toast('Welcome back: you are on Level ' + level()); }
+  if (moved && quiet) toast('Welcome back: you are on Level ' + level());
+  if (fresh.length || moved) { save(); applyLevel(); }
 }
 function celebrate(done, next) {
-  $('#celTitle').textContent = 'Level ' + done.n + ' complete!';
-  $('#celText').textContent = done.won ? done.won() : '';
+  $('#celTitle').textContent = 'Level ' + done.n + ' complete: ' + done.title + '!';
+  $('#celText').textContent = done.lessons.filter(x => x.won).slice(0, 3).map(x => x.won()).join(' ');
   $('#celNew').textContent = 'Next, Level ' + next.n + ': ' + next.title + '. ' + (next.adds || '');
   $('#celNext').textContent = 'Start Level ' + next.n + ' →';
-  $('#celNext').onclick = () => { $('#celebrate').hidden = true; startLevel(next.n); };
+  $('#celNext').onclick = () => { $('#celebrate').hidden = true; $('#t-path').click(); };
   $('#celebrate').hidden = false; $('#celNext').focus();
 }
 $('#celStay').onclick = () => { $('#celebrate').hidden = true; };
-function startLevel(n) {
-  const L = LEVELS[n - 1];
-  if (L.kind === 'find' || L.kind === 'final') { $('#t-path').click(); if (L.kind === 'find') ensureListening(); }
-  else if (L.kind === 'lab') openLab(L.lab);
-  else if (L.kind === 'song') { $('#t-sing').click(); loadSong(SONGS.find(x => x.id === L.songs[0])); }
+let findOpen = false;
+function startLesson(x) {
+  if (x.kind === 'find') { findOpen = true; $('#t-path').click(); renderPath(); ensureListening(); $('#findCard').scrollIntoView({ block: 'nearest' }); }
+  else if (x.kind === 'lab') openLab(x.lab);
+  else if (x.kind === 'song') {
+    const ids = x.songs.filter(id => level() >= (SONG_LEVEL[id] || 1) || id === 'doremi');
+    if (ids[0] === 'doremi') { openLab('scale'); return; }
+    if (ids[0] === 'gen') { $('#t-sing').click(); $('#btnGen').click(); return; }
+    $('#t-sing').click(); loadSong(SONGS.find(s => s.id === ids[0]));
+  } else $('#t-path').click();
 }
 
 function renderPath() {
@@ -2325,29 +2380,40 @@ function renderPath() {
   cur.textContent = '';
   const head = el('div', 'lv-head');
   const dots = el('div', 'lv-dots'); LEVELS.forEach(x => dots.appendChild(el('span', x.n < lv ? 'done' : x.n === lv ? 'now' : '')));
-  head.append(el('span', 'label', 'Level ' + lv + ' of ' + LEVELS.length), dots);
+  const doneN = L.lessons.filter(x => x.pass()).length;
+  head.append(el('span', 'label', 'Level ' + lv + ' of ' + LEVELS.length), dots, el('span', 'label', doneN + ' of ' + L.lessons.length + ' lessons done'));
   cur.append(head, el('h2', '', L.title), el('p', 'lv-intro', L.intro));
-  if (L.kind === 'find') cur.appendChild(findUI());
-  const g = el('p', 'lv-goal'); g.append(el('b', '', 'Goal: '), document.createTextNode(L.goal)); cur.appendChild(g);
-  if (L.kind !== 'find' && L.kind !== 'final') { const b = el('button', 'primary', 'Start Level ' + lv + ' →'); b.onclick = () => startLevel(lv); cur.appendChild(b); }
-  const list = $('#lvList'); list.textContent = '';
+  const list = el('div', 'lessons');
+  const next = L.lessons.find(x => !x.pass() && x.kind !== 'days');
+  for (const x of L.lessons) {
+    const ok = x.pass(), row = el('div', 'lesson' + (ok ? ' done' : x === next ? ' next' : ''));
+    row.append(el('span', 'ls-ic', ok ? '✓' : x.kind === 'days' ? '◷' : '○'));
+    const t = el('div', 'ls-txt');
+    t.append(el('b', '', x.title), el('span', 'muted', ok && x.won ? x.won() : x.kind === 'days' ? daysPractised() + ' of ' + x.need + ' days so far. ' + x.goal + '.' : x.goal));
+    row.appendChild(t);
+    if (x.kind !== 'days') { const b = el('button', x === next ? 'primary small' : 'small', ok ? 'Again' : x === next ? 'Start →' : 'Start'); b.onclick = () => startLesson(x); row.appendChild(b); }
+    list.appendChild(row);
+  }
+  cur.appendChild(list);
+  const fc = $('#findCard'); fc.textContent = ''; fc.hidden = !findOpen;
+  if (findOpen) { const h = el('div', 'card-head'); const close = el('button', 'small', 'Close'); close.onclick = () => { findOpen = false; renderPath(); }; h.append(el('h3', '', 'Find your pure notes'), close); fc.append(h, el('p', 'lv-intro', 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.'), findUI()); }
+  const ll = $('#lvList'); ll.textContent = '';
   for (const x of LEVELS) {
     const row = el('div', 'lv-row' + (x.n < lv ? ' done' : x.n === lv ? ' now' : ' locked'));
     row.append(el('span', 'lv-num', x.n < lv ? '✓' : String(x.n)));
-    const t = el('div', 'lv-txt'); t.append(el('b', '', x.title), el('span', 'muted', x.n < lv ? (x.won && x.pass() ? x.won() : 'Unlocked') : x.n > lv ? 'Locked · ' + x.goal : x.goal)); row.appendChild(t);
-    if (x.n < lv && x.kind !== 'final') { const b = el('button', 'small', 'Practise'); b.onclick = () => startLevel(x.n); row.appendChild(b); }
-    list.appendChild(row);
+    const t = el('div', 'lv-txt'); t.append(el('b', '', 'Level ' + x.n + ' · ' + x.title), el('span', 'muted', x.n > lv ? 'Locked · ' + x.intro : x.n === lv ? 'You are here' : 'Complete')); row.appendChild(t);
+    ll.appendChild(row);
   }
 }
 
-// Level 1: one ring that glows gold when the note is pure, and a keyboard that lights up each pure note found.
+// The pure-notes lesson: one ring that glows gold when the note is pure, and a keyboard that lights up each pure note found.
 function findUI() {
   const w = el('div', 'find');
   w.innerHTML = '<div class="ring" id="ring"><div class="ring-in"><div class="ring-note" id="ringNote">—</div><div class="ring-lbl" id="ringLbl">tap Start, then hum</div></div></div>' +
     '<div class="find-side"><div class="label">Your pure notes</div><div id="kbd"></div><p class="find-count" id="findCount"></p><div class="row" id="findBtns"></div></div>';
   const btns = w.querySelector('#findBtns');
   const start = el('button', 'primary', 'Start'); start.onclick = () => ensureListening(); btns.appendChild(start);
-  const demo = el('button', 'small', 'Watch the demo voice'); demo.onclick = () => startDemo(); btns.appendChild(demo);
+  const demo = el('button', 'small', 'Hear the demo voice'); demo.onclick = () => startDemo(); btns.appendChild(demo);
   setTimeout(drawKbd, 0);
   return w;
 }
@@ -2381,7 +2447,7 @@ $('#lvlBadge').onclick = () => $('#t-path').click();
 let unlockArmed = false;
 $('#btnUnlockAll').onclick = () => {
   const b = $('#btnUnlockAll');
-  if (!unlockArmed) { unlockArmed = true; b.textContent = 'Tap again to unlock all 10 levels'; setTimeout(() => { unlockArmed = false; b.textContent = 'I\'m experienced: unlock every level'; }, 3500); return; }
+  if (!unlockArmed) { unlockArmed = true; b.textContent = 'Tap again to unlock all ' + LEVELS.length + ' levels'; setTimeout(() => { unlockArmed = false; b.textContent = 'I\'m experienced: unlock every level'; }, 3500); return; }
   store.level = LEVELS.length; save(); applyLevel(); toast('All levels unlocked'); unlockArmed = false;
 };
 
@@ -2411,6 +2477,7 @@ renderVoice();
 loadSong(SONGS.find(x => x.id === "row"));
 renderLab();
 goStep(Math.min(guide.step, STEPS.length));
+G.metro = !!(store.settings && store.settings.metro); $('#btnMetro').setAttribute('aria-pressed', G.metro);
 applyLevel();
 checkLevel(true);
 requestAnimationFrame(frame);

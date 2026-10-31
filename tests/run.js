@@ -55,20 +55,47 @@ async function test(name, fn) {
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
 (async () => {
-  await test('starts simple: Level 1 path only, no meters, no advanced tabs', async page => {
-    const s = await page.evaluate(() => ({ lv: $('#lvlBadge').textContent, live: $('.live').hidden, lab: $('#t-lab').hidden, sing: $('#t-sing').hidden, ring: !!$('#ring'), path: !$('#tab-path').hidden }));
+  await test('starts simple: Level 1 lessons, Do-Re-Mi first, no meters', async page => {
+    const s = await page.evaluate(() => ({ lv: $('#lvlBadge').textContent, live: $('.live').hidden, next: document.querySelector('.lesson.next b')?.textContent, n: document.querySelectorAll('.lesson').length }));
     expect(s.lv.startsWith('Level 1'), 'badge: ' + s.lv);
-    expect(s.live && s.lab && s.sing, 'advanced UI should be hidden at level 1');
-    expect(s.ring && s.path, 'level 1 ring should show on the path');
+    expect(s.live, 'meters should be hidden at level 1');
+    expect(s.next === 'Sing Do-Re-Mi' && s.n === 7, JSON.stringify(s));
   });
 
-  await test('Level 1: finding 3 pure notes celebrates and unlocks Level 2', async page => {
+  await test('first lesson: Do-Re-Mi with words, then "you already sing … well"', async page => {
     await voice(page);
+    await page.click('.lesson.next button'); await page.waitForTimeout(400);
+    const words = await page.evaluate(() => [D.id, G.song.id, [...document.querySelectorAll('#staff .lyr')].map(t => t.textContent).join(' ')]);
+    expect(words[0] === 'scale' && /Do Re Mi Fa So La Ti Do/.test(words[2]), JSON.stringify(words));
+    await page.evaluate(() => { window.badNotes = [5, 6]; setInterval(() => { const tg = G.seq[G.idx]; V.on = G.run === 'singing'; if (tg) V.m = tg.m + (badNotes.includes(G.idx) ? 1.2 : 0); }, 25); });
+    await page.click('[data-tempo="normal"]'); await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(1800);
+    const s = await page.evaluate(() => ({ head: document.querySelector('.cheer-big').textContent, done: (store.lessons || []).includes('1.1') }));
+    expect(/You already sing Do, Re, Mi, Fa, So/.test(s.head) && s.done, JSON.stringify(s));
+  });
+
+  await test('pure-notes lesson lights up the keyboard', async page => {
+    await voice(page);
+    await page.evaluate(() => startLesson(LEVELS[0].lessons[1])); await page.waitForTimeout(300);
     for (const m of [48, 52, 55]) { await page.evaluate(m => { V.on = true; V.m = m; }, m); await page.waitForTimeout(2200); await page.evaluate(() => { V.on = false; }); await page.waitForTimeout(400); }
     await page.waitForTimeout(800);
-    const s = await page.evaluate(() => ({ lv: store.level, cel: !$('#celebrate').hidden, lab: $('#t-lab').hidden, found: store.discoveries.length }));
-    expect(s.found >= 3, 'found ' + s.found);
-    expect(s.lv === 2 && s.cel && !s.lab, JSON.stringify(s));
+    const s = await page.evaluate(() => ({ found: store.discoveries.length, done: store.lessons.includes('1.2'), lit: document.querySelectorAll('#kbd rect[fill="var(--pure)"]').length, lv: level() }));
+    expect(s.found >= 3 && s.done && s.lit >= 3 && s.lv === 1, JSON.stringify(s));
+  });
+
+  await test('Level 1 lasts: every lesson plus 3 practice days before Level 2', async page => {
+    await page.evaluate(() => {
+      store.discoveries = [48, 52, 55].map(m => ({ midi: m, purity: 90, amps: [1], at: 0 }));
+      store.profile = { low: 41, high: 63, type: 'Bass', zlo: 43, zhi: 60 };
+      store.lab = { hold: { best: 45 }, match: { best: 55 } };
+      store.runs = [{ id: 'doremi', ok: 6, pure: 4, n: 8, avg: 80 }, { id: 'row', ok: 20, pure: 10, n: 27, avg: 80 }];
+      store.days = ['a', 'b']; checkLevel();
+    });
+    let lv = await page.evaluate(() => level());
+    expect(lv === 1, 'moved on before 3 days: ' + lv);
+    await page.evaluate(() => { store.days.push('c'); checkLevel(); });
+    const s = await page.evaluate(() => ({ lv: level(), cel: !$('#celebrate').hidden, live: $('.live').hidden }));
+    expect(s.lv === 2 && s.cel && !s.live, JSON.stringify(s));
   });
 
   await test('hidden toast never blocks taps', async page => {
@@ -122,14 +149,29 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(/flat/.test(t), 'no flat finding: ' + t);
   });
 
-  await test('Level 6: singing Row Row on pitch passes the level', async page => {
-    await voice(page); await setLevel(page, 6);
-    await page.click('#t-sing'); await page.click('[data-tempo="normal"]');
-    await page.evaluate(() => { V.follow = true; });
+  await test('first song lesson: Row Row sung through', async page => {
+    await voice(page);
+    await page.evaluate(() => startLesson(LEVELS[0].lessons[5])); await page.waitForTimeout(300);
+    await page.click('[data-tempo="normal"]'); await page.evaluate(() => { V.follow = true; });
     await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(2000);
-    const s = await page.evaluate(() => ({ lv: store.level, ok: runStats().ok, n: runStats().n, cel: !$('#celebrate').hidden }));
-    expect(s.lv === 7 && s.cel, JSON.stringify(s));
+    const s = await page.evaluate(() => ({ song: G.song.id, done: store.lessons.includes('1.6'), lv: level() }));
+    expect(s.song === 'row' && s.done && s.lv === 1, JSON.stringify(s));
+  });
+
+  await test('metronome ticks through the song; starting note plays first', async page => {
+    await voice(page);
+    await page.click('#t-sing');
+    await page.evaluate(() => { window.played = []; const pt = playTone; playTone = (m, ...r) => { played.push(m); return pt(m, ...r); }; $('#btnRef').click(); });
+    await page.waitForTimeout(200);
+    const first = await page.evaluate(() => [played[0], G.seq[0].m]);
+    expect(first[0] === first[1], 'starting note ' + first);
+    await page.click('#btnMetro');
+    await page.click('#btnSing'); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ ticks: G.ticks.length, beats: Math.ceil(G.seq.reduce((a, n) => a + n.b, 0)), under: played.includes(G.seq[0].m), metro: store.settings.metro }));
+    expect(s.ticks >= s.beats + 3 && s.under && s.metro, JSON.stringify(s));
+    await page.click('#btnSing');
+    expect(await page.evaluate(() => G.ticks.length === 0 && G.run === 'ready'), 'ticks not stopped');
   });
 
   await test('song feedback links to the right Lab exercise', async page => {
@@ -160,7 +202,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   });
 
   await test('locked songs and exercises cannot be opened early', async page => {
-    await setLevel(page, 6);
+    await setLevel(page, 1);
     const s = await page.evaluate(() => { openLab('vowels'); return { lab: D.id, twinkle: [...document.querySelectorAll('#songs button')].find(b => b.textContent.startsWith('Twinkle'))?.disabled }; });
     expect(s.lab !== 'vowels' && s.twinkle === true, JSON.stringify(s));
   });
