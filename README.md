@@ -7,3 +7,16 @@ A browser app that listens to your voice and gives instant feedback on pitch, to
 - **Sing**: warm-ups and public-domain songs moved into your zone, with note-by-note guidance, plus new melodies composed from your purest notes.
 
 It's one file, `index.html`, with no build step. All audio analysis runs in your browser, and your data stays in that browser's local storage. The microphone needs https or a local file.
+
+## Levels
+
+The app opens on **Your path**: ten levels, each adding one idea and one piece of the screen.
+Level 1 is just a ring that glows gold when your note is pure; later levels add the purity
+breakdown, the tuner, sheet music, songs, tone color and overtones.
+
+## Tests
+
+`node tests/run.js` runs the end-to-end suite in headless Chromium with a simulated voice
+(an oscillator fed into the analyser), so pitch, purity, levels, songs and buttons are checked
+without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
+on GitHub Actions after every push.

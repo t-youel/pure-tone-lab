@@ -71,7 +71,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .dot.on { background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 25%, transparent); }
 
 /* live strip */
-.live { display: grid; grid-template-columns: 1.05fr 1.1fr 1.1fr 1.2fr; gap: 1px; background: var(--line);
+.live { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
 .cell { background: var(--surface); padding: 8px 14px; display: grid; gap: 4px; align-content: start; min-width: 0; }
 .big { font: 700 2.3rem/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -235,8 +235,9 @@ details p { color: var(--muted); font-size: 0.93rem; max-width: 62ch; }
 details b { color: var(--ink); }
 
 #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 140%);
-  background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 999px; font-weight: 600; transition: transform .25s; z-index: 20; max-width: calc(100% - 32px); }
-#toast.show { transform: translate(-50%, 0); }
+  background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 999px; font-weight: 600; z-index: 20; max-width: calc(100% - 32px);
+  pointer-events: none; visibility: hidden; transition: transform .25s, visibility 0s linear .25s; }
+#toast.show { transform: translate(-50%, 0); visibility: visible; transition: transform .25s; }
 
 /* guided start */
 .guide-head h2 { margin-top: 6px; }
@@ -267,6 +268,40 @@ details b { color: var(--ink); }
 .routine { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; max-width: 70ch; }
 .routine b { font-family: var(--display); }
 @media (max-width: 820px) { .step { grid-template-columns: 1fr; } }
+/* levels */
+.lvl-badge { border-color: var(--pure); color: var(--ink); }
+.lv-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lv-dots { display: flex; gap: 5px; }
+.lv-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.lv-dots span.done { background: var(--pure); } .lv-dots span.now { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+#lvCurrent h2 { font-size: 1.7rem; }
+.lv-intro { font-size: 1.05rem; max-width: 56ch; }
+.lv-goal { font-size: 0.95rem; } .lv-goal b { color: var(--accent); }
+#lvCurrent > button.primary { justify-self: start; }
+.lv-list { display: grid; gap: 6px; }
+.lv-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }
+.lv-row .lv-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 0.9rem var(--mono); background: var(--line); }
+.lv-row.done .lv-num { background: var(--pure); color: var(--surface); } .lv-row.now { border-color: var(--accent); } .lv-row.now .lv-num { background: var(--accent); color: var(--accent-ink); }
+.lv-row.locked { opacity: .55; }
+.lv-txt { display: grid; gap: 2px; min-width: 0; } .lv-txt .muted { font-size: 0.85rem; }
+.find { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; }
+.ring { --p: 0; width: 210px; height: 210px; border-radius: 50%; display: grid; place-items: center; transition: box-shadow .3s;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--line) 0); }
+.ring.pure { background: conic-gradient(var(--pure) calc(var(--p) * 1%), var(--line) 0); box-shadow: 0 0 0 8px color-mix(in srgb, var(--pure) 25%, transparent), 0 0 40px color-mix(in srgb, var(--pure) 55%, transparent); }
+.ring-in { width: 172px; height: 172px; border-radius: 50%; background: var(--surface); display: grid; place-content: center; text-align: center; gap: 4px; }
+.ring-note { font: 700 3.4rem/1 var(--display); }
+.ring.pure .ring-note { color: var(--pure); }
+.ring-lbl { font-size: 0.85rem; color: var(--muted); max-width: 140px; }
+.find-side { display: grid; gap: 8px; min-width: 0; }
+.kbd-svg { width: 100%; max-width: 560px; height: auto; display: block; }
+.find-count { font: 600 0.95rem var(--body); }
+.celebrate { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(3px); }
+.cel-card { background: var(--surface); border: 2px solid var(--pure); border-radius: 20px; padding: 26px; max-width: 460px; display: grid; gap: 12px; text-align: center; justify-items: center; box-shadow: 0 20px 60px rgba(0,0,0,.18); }
+.cel-burst { font-size: 2.6rem; color: var(--pure); line-height: 1; }
+.cel-card h2 { font-size: 1.6rem; } .cel-card p { line-height: 1.45; } #celNew { color: var(--muted); font-size: 0.92rem; }
+.lab-card.locked { opacity: .5; cursor: not-allowed; }
+#songs button:disabled { opacity: .45; }
+@media (max-width: 640px) { .find { grid-template-columns: 1fr; justify-items: center; } }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -338,16 +373,15 @@ details b { color: var(--ink); }
   </div>
   <div class="controls">
     <button id="btnMic" class="primary">Start listening</button>
-    <button id="btnLab">1 · Voice Lab</button>
-    <button id="btnSongs">2 · Sing a song</button>
+    <button id="lvlBadge" class="lvl-badge">Level 1</button>
     <button id="btnStop" hidden>Stop</button>
   </div>
 </header>
 
 <div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span><button id="btnHelp" class="linkish" hidden>What do these mean?</button></div>
 
-<section class="live show-help" aria-live="off">
-  <div class="cell">
+<section class="live" aria-live="off" data-min="3">
+  <div class="cell" data-min="4">
     <div class="label">Note</div>
     <div class="cell-help"><p>Which note you're singing, like <b>A3</b>. The needle shows if you're a little flat (left) or sharp (right); centered means in tune. Below it: how loud you are, any vibrato, and how long you've held the note.</p><button class="primary small" data-start>Start listening</button></div>
     <div class="note-row"><div id="noteName" class="big">—</div><div id="noteHz" class="sub">— Hz</div></div>
@@ -369,14 +403,14 @@ details b { color: var(--ink); }
       <div class="meter"><span>Harmonic focus</span><div class="bar"><div class="fill" id="mFocus"></div></div><span class="v" id="vFocus">–</span></div>
     </div>
   </div>
-  <div class="cell">
+  <div class="cell" data-min="7">
     <div class="label">Tone color</div>
     <div class="cell-help"><p>The color of your sound. Bar <b>1</b> is your note; bars 2 to 10 are its overtones. A tall bar 1 with small others sounds smooth, like a flute. Sing "oo", then "ee", and watch the bars change.</p></div>
     <div id="toneName" class="tone-name">—</div>
     <div class="hbars" id="hbars"></div>
     <div class="hlabels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
   </div>
-  <div class="cell">
+  <div class="cell" data-min="7">
     <div class="label">Sounding now</div>
     <div class="cell-help"><p>Every note we hear right now, plus a coaching tip. A second note here means you're making an overtone or undertone: <b>two notes at once</b>.</p></div>
     <div id="chips" class="chips"><span class="chip muted">nothing yet</span></div>
@@ -385,14 +419,21 @@ details b { color: var(--ink); }
 </section>
 
 <nav class="tabs" role="tablist">
-  <button role="tab" id="t-start" aria-selected="true" data-tab="start">Start here</button>
-  <button role="tab" id="t-lab" aria-selected="false" data-tab="lab">1 · Voice Lab</button>
-  <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">2 · Sing songs</button>
-  <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
+  <button role="tab" id="t-path" aria-selected="true" data-tab="path">Your path</button>
+  <button role="tab" id="t-lab" aria-selected="false" data-tab="lab" data-min="2">Voice Lab</button>
+  <button role="tab" id="t-sing" aria-selected="false" data-tab="sing" data-min="6">Sing songs</button>
+  <button role="tab" id="t-voice" aria-selected="false" data-tab="voice" data-min="2">My voice</button>
 </nav>
 
-<!-- START HERE -->
-<section class="panel" id="tab-start">
+<!-- YOUR PATH -->
+<section class="panel" id="tab-path">
+  <div class="card" id="lvCurrent"></div>
+  <div class="lv-list" id="lvList"></div>
+  <div class="row"><button id="btnUnlockAll" class="small">I'm experienced: unlock every level</button></div>
+</section>
+
+<!-- START HERE (older guided session, kept for its demo) -->
+<section class="panel" id="tab-start" hidden>
   <div class="card">
     <div class="card-head guide-head">
       <div><span class="label">Guided session · about 10 minutes</span><h2>Start here</h2></div>
@@ -562,6 +603,10 @@ details b { color: var(--ink); }
 </section>
 
 </div>
+<div id="celebrate" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="celTitle">
+  <div class="cel-card"><div class="cel-burst">✦</div><h2 id="celTitle"></h2><p id="celText"></p><p id="celNew"></p>
+    <div class="row" style="justify-content:center"><button id="celNext" class="primary"></button><button id="celStay" class="small">Stay here</button></div></div>
+</div>
 <div id="toast" role="status"></div>
 
 <script>
@@ -647,7 +692,7 @@ function stopSources() {
   liveNodes = [];
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   if (gDemo) { clearInterval(gDemo.iv); guide = gDemo.saved; gDemo = null; $('#gDemo').textContent = 'Watch a guided demo'; $('#demoFlag').hidden = true; goStep(guide.step); }
-  if (realStore) { store = realStore; realStore = null; renderVoice(); }
+  if (realStore) { store = realStore; realStore = null; renderVoice(); drawKbd(); }
 }
 function setMode(m, msg) {
   mode = m;
@@ -655,8 +700,8 @@ function setMode(m, msg) {
   $('#status').textContent = msg;
   $('#btnStop').hidden = m === 'idle';
   $('#lvlBox').hidden = m === 'idle';
-  $('#btnHelp').hidden = m === 'idle';
-  $('.live').classList.toggle('show-help', m === 'idle' || liveHelp);
+  $('#btnHelp').hidden = m === 'idle' || (store.level || 1) < 3;
+  $('.live').classList.toggle('show-help', liveHelp);
   $('#btnHelp').textContent = liveHelp ? 'Show the meters' : 'What do these mean?';
   if (m === 'idle') { S.voiced = false; S.quietFor = 0; S.micPeak = 0; updateLive(0); updateLive(0); }
   $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
@@ -861,7 +906,7 @@ function frame() {
     const raw = 100 * (0.4 * clar + 0.3 * sp.focus + 0.3 * stab);
     const a = S.voiced ? 0.2 : 0.5;
     S.purity += (raw - S.purity) * a; S.clar += (clar - S.clar) * a; S.stab += (stab - S.stab) * a; S.focus += (sp.focus - S.focus) * a;
-    S.midi = midi; S.freq = f0; S.hDb = sp.hDb; S.voiced = true;
+    S.midi = midi; S.freq = f0; S.hDb = sp.hDb; S.voiced = true; S.lastV = t;
     const topH = Math.max(...sp.hDb), lin = sp.hDb.map(d => Math.pow(10, (d - topH) / 20));
     S.share = lin[0] * lin[0] / lin.reduce((s, v) => s + v * v, 0);
     S.tone = S.share > 0.6 ? 'Flute-like · close to a sine' : S.share > 0.35 ? 'Warm · rounded' : S.share > 0.15 ? 'Bright · rich overtones' : 'Brassy · overtone-heavy';
@@ -871,8 +916,8 @@ function frame() {
     }
     if (!muted) record(t, dt, midi);
   } else {
-    S.raw = []; S.recent = []; S.long = []; S.voiced = false; S.hold = null;
-    S.purity *= 0.9;
+    // A dropout shorter than 0.2 s keeps the last reading, so soft singing doesn't make the meters blink.
+    if (!(S.voiced && t - (S.lastV || 0) < 0.2)) { S.raw = []; S.recent = []; S.long = []; S.voiced = false; S.hold = null; S.purity *= 0.9; }
   }
   S.trail.push({ t, m: voiced ? S.midi : null, p: S.purity });
   while (S.trail.length && S.trail[0].t < t - 10) S.trail.shift();
@@ -904,6 +949,7 @@ function record(t, dt, midi) {
       store.discoveries.push({ midi: note, purity, amps, tone: S.tone, extras: extrasNow, at: Date.now() });
       dirty = true;
       toast((ex ? 'New best on ' : 'Pure tone found: ') + nameOf(note) + ' · purity ' + purity);
+      drawKbd(); setTimeout(() => checkLevel(), 600);
     }
   }
 }
@@ -958,7 +1004,7 @@ function updateLiveMark() {
 
 function updateLive(rms) {
   if ((uiTick++ & 1)) return; // ~30 fps is plenty for text
-  updateReadings(rms); updateLiveMark();
+  updateReadings(rms); updateLiveMark(); updateFind();
   $('#lvl').style.width = (100 * clamp((20 * Math.log10(rms + 1e-9) + 70) / 50)) + '%';
   if (S.voiced) {
     const r = Math.round(S.midi), cents = Math.round((S.midi - r) * 100);
@@ -1207,6 +1253,7 @@ function renderSongs() {
   for (const s of SONGS) {
     if (s.lab) continue;
     const b = document.createElement('button'); b.className = 'small'; b.textContent = s.name; b.setAttribute('aria-pressed', s === G.song);
+    const at = SONG_LEVEL[s.id] || 1; if (level() < at) { b.disabled = true; b.textContent = s.name + ' · Level ' + at; }
     b.onclick = () => loadSong(s); el.appendChild(b);
   }
   $('#songKind').textContent = G.song.kind + ' · ' + G.song.notes.length + ' notes';
@@ -1245,7 +1292,6 @@ async function startRun() {
   if (mode === 'idle') return;
   await ensureAudio();
   if (G.song.check) {
-    G.tempo = 'slow';
     if (!G.heard) { G.heard = true; G.run = 'ready'; renderSing(); listenFirst(() => startRun()); $('#tgtHint').textContent = 'Listen to the pattern. You sing it next.'; return; }
     G.heard = false;
   }
@@ -1313,7 +1359,12 @@ function finishRun() {
   saveRun(); renderSing();
 }
 $('#btnSing').onclick = startRun;
-document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => { if (G.run === 'singing' || G.run === 'countin') return; G.tempo = b.dataset.tempo; renderSing(); });
+document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
+  const was = G.run === 'singing' || G.run === 'countin';
+  G.tempo = b.dataset.tempo;
+  if (was) { G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; toast('Tempo: ' + b.textContent + '. Tap Sing to start again.'); }
+  renderSing();
+});
 
 // ---------- words and sheet music ----------
 function wordAt(i) {
@@ -1427,7 +1478,7 @@ function saveRun() {
   if (!store.runs) store.runs = [];
   store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo });
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
-  dirty = true;
+  dirty = true; setTimeout(() => checkLevel(), 1500);
 }
 function med(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; }
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
@@ -1819,7 +1870,7 @@ function labSave(id, score, extra) {
   if (!store.lab) store.lab = {};
   const r = store.lab[id] || { best: 0, tries: 0 };
   r.last = score; r.best = Math.max(r.best, score); r.tries++; r.at = Date.now(); Object.assign(r, extra || {});
-  store.lab[id] = r; dirty = true; return r;
+  store.lab[id] = r; dirty = true; setTimeout(() => checkLevel(), 1500); return r;
 }
 function labBest(L) {
   if (L.kind === 'song') { const rs = (store.runs || []).filter(r => r.id === L.song); return rs.length ? Math.max(...rs.map(r => r.avg)) : null; }
@@ -1839,8 +1890,8 @@ function renderLab() {
   st('Voice type', p ? p.type : 'not tested'); st('Range', p ? nameOf(p.low) + ' – ' + nameOf(p.high) : '–'); st('Songs pitched to', p ? nameOf(p.zlo) + ' – ' + nameOf(p.zhi) : 'default');
   const grid = $('#labGrid'); grid.textContent = '';
   const focus = store.focus || [];
-  const order = [...LAB].sort((a, b) => (focus.includes(b.id) ? 1 : 0) - (focus.includes(a.id) ? 1 : 0));
-  if (!p) { const i = order.findIndex(x => x.id === 'range'); order.unshift(order.splice(i, 1)[0]); }
+  const lockedAt = L => LAB_LEVEL[L.id] || 1, open = L => level() >= lockedAt(L);
+  const order = [...LAB].sort((a, b) => (open(b) - open(a)) || ((focus.includes(b.id) ? 1 : 0) - (focus.includes(a.id) ? 1 : 0)) || (lockedAt(a) - lockedAt(b)));
   for (const L of order) {
     const b = document.createElement('button'); b.className = 'lab-card' + (focus.includes(L.id) ? ' is-rec' : '');
     const best = labBest(L);
@@ -1850,12 +1901,13 @@ function renderLab() {
     b.querySelector('h3').textContent = L.title; b.querySelector('p').textContent = L.blurb;
     b.querySelector('.meta:last-child .muted').textContent = L.time;
     b.querySelector('.best').textContent = L.id === 'range' ? (p ? p.type : 'Not tried yet') : L.kind === 'explore' ? 'Free play' : best == null ? 'Not tried yet' : 'Best ' + best;
+    if (!open(L)) { b.classList.add('locked'); b.disabled = true; b.querySelector('.best').textContent = 'Unlocks at Level ' + lockedAt(L); b.querySelector('.rec-flag').textContent = ''; }
     b.onclick = () => openLab(L.id);
     grid.appendChild(b);
   }
 }
 function openLab(id) {
-  const L = LAB.find(x => x.id === id); if (!L) return;
+  const L = LAB.find(x => x.id === id); if (!L || level() < (LAB_LEVEL[id] || 1)) return;
   if ($('#tab-lab').hidden) { $('#t-lab').click(); }
   D.id = id; D.kind = L.kind;
   $('#labHome').hidden = true; $('#labStage').hidden = false;
@@ -2184,6 +2236,155 @@ function labTick(dt, muted) {
   if (!(uiTick & 1)) drawLane(DRILLS[D.id].lane());
 }
 $('#lsBack').onclick = closeLab;
+// ---------- Levels ----------
+// Ten levels. Each one adds one idea and one piece of the screen, has a clear goal, and unlocks the next.
+const bestRun = (ids, f) => Math.max(0, ...(store.runs || []).filter(r => ids.includes(r.id)).map(f));
+const LEVELS = [
+  { title: 'Find your pure notes', short: 'Pure notes', kind: 'find',
+    intro: 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.',
+    goal: 'Find 3 pure notes', pass: () => store.discoveries.length >= 3,
+    won: () => `You already sing ${store.discoveries.length} pure notes: ${[...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ')}. Your voice naturally rings on these.` },
+  { title: 'Discover your voice type', short: 'Voice type', kind: 'lab', lab: 'range',
+    intro: 'Speak one sentence, slide down low, slide up high. Find out what kind of voice you have.',
+    goal: 'Finish the range test', adds: 'The Voice Lab and My voice tabs open. Songs will be pitched to your range.',
+    pass: () => !!store.profile, won: () => `You sound like a ${store.profile.type}, with a range of ${nameOf(store.profile.low)} to ${nameOf(store.profile.high)}.` },
+  { title: 'Hold it steady', short: 'Steady', kind: 'lab', lab: 'hold',
+    intro: 'A pure note held steady is the heart of singing. Breathe low, then hold one note for 6 seconds.',
+    goal: '50% pure and steady on a 6-second hold', adds: 'The Purity panel appears at the top: three bars show what makes a tone pure, and the shortest one is what to work on.',
+    pass: () => ((labRec('hold') || {}).best || 0) >= 50, won: () => `Best hold: ${labRec('hold').best}% pure and steady.` },
+  { title: 'Match a note', short: 'Pitch match', kind: 'lab', lab: 'match',
+    intro: 'Hear a note, then sing it back. You will learn whether you tend to sing a little flat or sharp.',
+    goal: 'Score 60 or more in Pitch match', adds: 'The Note panel appears: a tuner needle shows if you are flat (left) or sharp (right).',
+    pass: () => ((labRec('match') || {}).best || 0) >= 60, won: () => `Pitch match score: ${labRec('match').best}.` },
+  { title: 'Climb the scale', short: 'Do-Re-Mi', kind: 'lab', lab: 'scale',
+    intro: 'Sing Do-Re-Mi. Notes appear on a treble clef and light up gold when they are pure.',
+    goal: '5 of 8 notes on pitch', adds: 'Sheet music: the treble clef shows each note, and a "you" note shows where your voice is.',
+    pass: () => bestRun(['doremi'], r => r.ok || 0) >= 5, won: () => `Best scale: ${bestRun(['doremi'], r => r.ok || 0)} of 8 notes on pitch.` },
+  { title: 'Your first song', short: 'First song', kind: 'song', songs: ['row', 'mary'],
+    intro: 'Sing Row, Row, Row Your Boat or Mary Had a Little Lamb, with the words under the notes.',
+    goal: 'Half the notes on pitch in either song', adds: 'The Sing songs tab opens with your first two songs.',
+    pass: () => bestRun(['row', 'mary'], r => (r.ok || 0) / r.n) >= 0.5, won: () => 'You sang your first song!' },
+  { title: 'Open your sound', short: 'Tone color', kind: 'lab', lab: 'vowels',
+    intro: 'Vowels change your tone. Find your purest vowel, then keep that open space on every note.',
+    goal: 'Finish the vowel exercise', adds: 'The Tone color and Sounding now panels appear, so you can see your overtones.',
+    pass: () => !!labRec('vowels'), won: () => `Your purest vowel is "${labRec('vowels').bestVowel}".` },
+  { title: 'Leaps', short: 'Leaps', kind: 'lab', lab: 'leaps',
+    intro: 'Jump between notes cleanly, without sliding into them.',
+    goal: '5 of 7 leaps on pitch', adds: 'Three more songs: Twinkle, Happy Birthday and Jingle Bells.',
+    pass: () => bestRun(['arp'], r => r.ok || 0) >= 5, won: () => `Best: ${bestRun(['arp'], r => r.ok || 0)} of 7 leaps on pitch.` },
+  { title: 'Pure songs', short: 'Pure songs', kind: 'song', songs: ['twinkle', 'bday', 'jingle'],
+    intro: 'Bring it together: sing a full song with most notes pure, not just on pitch.',
+    goal: 'A song with 60% of notes pure ✦', adds: 'Ode to Joy and Amazing Grace, the Quick voice check, and melodies composed from your pure notes.',
+    pass: () => bestRun(['twinkle', 'bday', 'jingle'], r => (r.pure || 0) / r.n) >= 0.6, won: () => 'Pure tone, in a real song.' },
+  { title: 'Free voice', short: 'Free voice', kind: 'final',
+    intro: 'Everything is open: every song, every exercise, Explore and overtone singing. Keep your best scores climbing.',
+    goal: 'Keep going', adds: 'Explore: the spectrogram, overtone singing, the demo voice and recordings.', pass: () => false },
+];
+LEVELS.forEach((L, i) => L.n = i + 1);
+// When each Lab exercise and song opens up.
+const LAB_LEVEL = { range: 2, hold: 3, hum: 3, match: 4, scale: 5, vowels: 7, leaps: 8, check: 9, explore: 10 };
+const SONG_LEVEL = { row: 6, mary: 6, twinkle: 8, bday: 8, jingle: 8, ode: 9, grace: 9, gen: 9 };
+const level = () => store.level || 1;
+
+function applyLevel() {
+  const lv = level();
+  document.querySelectorAll('[data-min]').forEach(e => { e.hidden = lv < +e.dataset.min; });
+  const L = LEVELS[lv - 1];
+  $('#lvlBadge').textContent = 'Level ' + lv + ' · ' + L.short;
+  $('#btnHelp').hidden = mode === 'idle' || lv < 3;
+  renderPath(); renderLab(); renderSongs();
+}
+function checkLevel(quiet) {
+  if (realStore) return; // demos never move you up
+  let moved = 0;
+  while (level() < LEVELS.length && LEVELS[level() - 1].pass()) {
+    const done = LEVELS[level() - 1];
+    store.level = level() + 1; moved++; dirty = true;
+    if (!quiet) { celebrate(done, LEVELS[level() - 1]); break; }
+  }
+  if (moved) { save(); applyLevel(); if (quiet) toast('Welcome back: you are on Level ' + level()); }
+}
+function celebrate(done, next) {
+  $('#celTitle').textContent = 'Level ' + done.n + ' complete!';
+  $('#celText').textContent = done.won ? done.won() : '';
+  $('#celNew').textContent = 'Next, Level ' + next.n + ': ' + next.title + '. ' + (next.adds || '');
+  $('#celNext').textContent = 'Start Level ' + next.n + ' →';
+  $('#celNext').onclick = () => { $('#celebrate').hidden = true; startLevel(next.n); };
+  $('#celebrate').hidden = false; $('#celNext').focus();
+}
+$('#celStay').onclick = () => { $('#celebrate').hidden = true; };
+function startLevel(n) {
+  const L = LEVELS[n - 1];
+  if (L.kind === 'find' || L.kind === 'final') { $('#t-path').click(); if (L.kind === 'find') ensureListening(); }
+  else if (L.kind === 'lab') openLab(L.lab);
+  else if (L.kind === 'song') { $('#t-sing').click(); loadSong(SONGS.find(x => x.id === L.songs[0])); }
+}
+
+function renderPath() {
+  const lv = level(), cur = $('#lvCurrent'), L = LEVELS[lv - 1];
+  cur.textContent = '';
+  const head = el('div', 'lv-head');
+  const dots = el('div', 'lv-dots'); LEVELS.forEach(x => dots.appendChild(el('span', x.n < lv ? 'done' : x.n === lv ? 'now' : '')));
+  head.append(el('span', 'label', 'Level ' + lv + ' of ' + LEVELS.length), dots);
+  cur.append(head, el('h2', '', L.title), el('p', 'lv-intro', L.intro));
+  if (L.kind === 'find') cur.appendChild(findUI());
+  const g = el('p', 'lv-goal'); g.append(el('b', '', 'Goal: '), document.createTextNode(L.goal)); cur.appendChild(g);
+  if (L.kind !== 'find' && L.kind !== 'final') { const b = el('button', 'primary', 'Start Level ' + lv + ' →'); b.onclick = () => startLevel(lv); cur.appendChild(b); }
+  const list = $('#lvList'); list.textContent = '';
+  for (const x of LEVELS) {
+    const row = el('div', 'lv-row' + (x.n < lv ? ' done' : x.n === lv ? ' now' : ' locked'));
+    row.append(el('span', 'lv-num', x.n < lv ? '✓' : String(x.n)));
+    const t = el('div', 'lv-txt'); t.append(el('b', '', x.title), el('span', 'muted', x.n < lv ? (x.won && x.pass() ? x.won() : 'Unlocked') : x.n > lv ? 'Locked · ' + x.goal : x.goal)); row.appendChild(t);
+    if (x.n < lv && x.kind !== 'final') { const b = el('button', 'small', 'Practise'); b.onclick = () => startLevel(x.n); row.appendChild(b); }
+    list.appendChild(row);
+  }
+}
+
+// Level 1: one ring that glows gold when the note is pure, and a keyboard that lights up each pure note found.
+function findUI() {
+  const w = el('div', 'find');
+  w.innerHTML = '<div class="ring" id="ring"><div class="ring-in"><div class="ring-note" id="ringNote">—</div><div class="ring-lbl" id="ringLbl">tap Start, then hum</div></div></div>' +
+    '<div class="find-side"><div class="label">Your pure notes</div><div id="kbd"></div><p class="find-count" id="findCount"></p><div class="row" id="findBtns"></div></div>';
+  const btns = w.querySelector('#findBtns');
+  const start = el('button', 'primary', 'Start'); start.onclick = () => ensureListening(); btns.appendChild(start);
+  const demo = el('button', 'small', 'Watch the demo voice'); demo.onclick = () => startDemo(); btns.appendChild(demo);
+  setTimeout(drawKbd, 0);
+  return w;
+}
+function drawKbd() {
+  const box = $('#kbd'); if (!box) return;
+  const found = new Set(store.discoveries.map(d => d.midi));
+  let lo = 40, hi = 72; for (const m of found) { lo = Math.min(lo, m - 2); hi = Math.max(hi, m + 2); }
+  while (isBlack(lo)) lo--; while (isBlack(hi)) hi++;
+  const whites = []; for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m);
+  const W = 18, out = [];
+  whites.forEach((m, i) => out.push(`<rect x="${i * W}" y="0" width="${W - 1}" height="70" rx="3" fill="${found.has(m) ? 'var(--pure)' : 'var(--surface)'}" stroke="var(--line)"/>`, m % 12 === 0 ? `<text x="${i * W + W / 2}" y="84" text-anchor="middle" style="font:9px var(--mono);fill:var(--muted)">${nameOf(m)}</text>` : ''));
+  whites.forEach((m, i) => { if (m + 1 <= hi && isBlack(m + 1)) out.push(`<rect x="${i * W + W * 0.65}" y="0" width="${W * 0.7}" height="42" rx="2" fill="${found.has(m + 1) ? 'var(--pure)' : 'var(--ink)'}"/>`); });
+  box.innerHTML = `<svg viewBox="0 0 ${whites.length * W} 90" class="kbd-svg" role="img" aria-label="Keyboard with your pure notes lit">${out.join('')}</svg>`;
+  const n = found.size;
+  $('#findCount').textContent = n === 0 ? 'None yet. Your first one is close.' : n + (n === 1 ? ' pure note: ' : ' pure notes: ') + [...found].sort((a, b) => a - b).map(nameOf).join(', ');
+}
+function updateFind() {
+  const ring = $('#ring'); if (!ring || ring.offsetParent === null) return;
+  const pv = S.voiced ? Math.round(S.purity) : 0, pure = S.voiced && S.purity >= 72;
+  ring.style.setProperty('--p', pv);
+  ring.classList.toggle('pure', pure);
+  $('#ringNote').textContent = S.voiced ? nameOf(S.midi) : '—';
+  let lbl = mode === 'idle' ? 'tap Start, then hum' : 'hum any note';
+  if (S.voiced) {
+    if (pure && S.hold) { const held = now() - S.hold.start; lbl = held < 1.2 ? 'pure! hold it… ' + Math.max(0, 1.2 - held).toFixed(1) + ' s' : 'pure! ✦'; }
+    else lbl = 'purity ' + pv + (S.clar < S.focus && S.clar < S.stab ? ' · less air' : S.stab < S.focus ? ' · hold steadier' : ' · softer, rounder');
+  }
+  $('#ringLbl').textContent = lbl;
+}
+$('#lvlBadge').onclick = () => $('#t-path').click();
+let unlockArmed = false;
+$('#btnUnlockAll').onclick = () => {
+  const b = $('#btnUnlockAll');
+  if (!unlockArmed) { unlockArmed = true; b.textContent = 'Tap again to unlock all 10 levels'; setTimeout(() => { unlockArmed = false; b.textContent = 'I\'m experienced: unlock every level'; }, 3500); return; }
+  store.level = LEVELS.length; save(); applyLevel(); toast('All levels unlocked'); unlockArmed = false;
+};
+
 
 for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   for (const o of document.querySelectorAll('.tabs button')) { o.setAttribute('aria-selected', o === b); $('#tab-' + o.dataset.tab).hidden = o !== b; }
@@ -2194,10 +2395,9 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'sing') { placeSingCard('sing'); if (G.song.lab) loadSong(SONGS.find(x => x.id === 'row')); else renderSing(); }
   if (tab === 'voice') renderVoice();
   if (tab === 'start') renderGuide();
+  if (tab === 'path') renderPath();
 };
 $('#btnMic').onclick = startMic;
-$('#btnLab').onclick = () => { $('#t-lab').click(); closeLab(); };
-$('#btnSongs').onclick = () => $('#t-sing').click();
 $('#labSlot').appendChild($('#tab-listen'));
 document.querySelector('[data-start]').onclick = startMic;
 $('#btnHelp').onclick = () => { liveHelp = !liveHelp; setMode(mode, $('#status').textContent); };
@@ -2211,6 +2411,8 @@ renderVoice();
 loadSong(SONGS.find(x => x.id === "row"));
 renderLab();
 goStep(Math.min(guide.step, STEPS.length));
+applyLevel();
+checkLevel(true);
 requestAnimationFrame(frame);
 </script>
 </body>
