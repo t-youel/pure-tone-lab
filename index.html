@@ -573,8 +573,8 @@ function frame() {
   if (voiced) {
     S.raw.push(f2m(p.freq)); if (S.raw.length > 3) S.raw.shift();
     const midi = [...S.raw].sort((a, b) => a - b)[Math.floor(S.raw.length / 2)];
-    if (S.recent.length && Math.abs(midi - S.recent[S.recent.length - 1].m) > 0.7) S.recent = []; // a new note starts a fresh steadiness window
-    S.recent.push({ t, m: midi }); while (S.recent.length && S.recent[0].t < t - 0.4) S.recent.shift();
+    S.recent.push({ t, m: midi });
+    S.recent = S.recent.filter(r => Math.abs(r.m - midi) < 0.5); // only judge steadiness on the note being sung now, not the slide into it while (S.recent.length && S.recent[0].t < t - 0.4) S.recent.shift();
     let stab = 0.6;
     if (S.recent.length >= 5) {
       const mean = S.recent.reduce((s, r) => s + r.m, 0) / S.recent.length;
