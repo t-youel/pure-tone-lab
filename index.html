@@ -347,6 +347,12 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .d-sub { font-size: 0.9rem; line-height: 1.45; }
 .drill-right { min-width: 0; display: grid; gap: 10px; align-content: start; }
 #lane { height: 240px; }
+#lane.tall { height: 380px; }
+.vi-block { display: grid; gap: 6px; }
+.fit-list { display: grid; gap: 6px; }
+.fit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.fit-row b { font: 700 0.95rem var(--display); } .fit-row .muted { grid-column: 1; font-size: 0.82rem; } .fit-row button { grid-row: 1 / 3; grid-column: 2; }
+.fine { font-size: 0.82rem; color: var(--muted); }
 .d-result { display: grid; gap: 10px; }
 .chips-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .r-chip { font: 600 0.78rem/1 var(--mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line); }
@@ -1194,6 +1200,7 @@ function renderVoice() {
   if (pr) {
     vt.appendChild(statRow([['Range', nameOf(pr.low) + ' – ' + nameOf(pr.high)], ['Best singing zone', nameOf(pr.zlo) + ' – ' + nameOf(pr.zhi)], ['Speaking pitch', pr.speak != null ? Math.round(m2f(pr.speak)) + ' Hz' : '–'], ['Purest vowel', pr.vowel || 'not tested']]));
     const f = el('div'); f.innerHTML = rangeFigure(pr); vt.appendChild(f);
+    const vi = VOICE_INFO[pr.type]; if (vi) vt.append(el('p', '', 'Famous voices like yours: ' + vi.who.join(', ') + '.'), el('p', 'fine', 'Songs in a range like yours: ' + vi.songs.join(' · ')));
   } else vt.appendChild(el('p', 'muted', 'Not tested yet. The Range & voice type test in the Voice Lab takes about a minute and tells you whether you are a bass, baritone, tenor, alto, mezzo or soprano.'));
   const vb = el('button', 'small', pr ? 'Test again in the Lab' : 'Take the range test →'); vb.onclick = () => openLab('range'); vh.appendChild(vb);
   // Note table: which notes were pure and how far off the others were
@@ -1903,7 +1910,7 @@ $('#gDemo').onclick = () => { if (gDemo) { stopSources(); setMode('idle', 'Demo 
 // Short exercises that each measure one skill, explain the result and say what to change.
 const LAB = [
   { id: 'check', kind: 'song', song: 'check', title: 'Quick voice check', tags: ['Diagnosis'], time: '20 s', blurb: 'Hear a short pattern, sing it back, and get a diagnosis of what to work on first.' },
-  { id: 'range', kind: 'drill', title: 'Range & voice type', tags: ['Range'], time: '1 min', blurb: 'Speak a sentence, then slide to your lowest and highest notes. Find out if you are a bass, baritone, tenor, alto, mezzo or soprano.' },
+  { id: 'range', kind: 'drill', title: 'Find your voice', tags: ['Range'], time: '1 min', blurb: 'Five quick steps: say hello, hum an easy note, hum low, hum high, then a siren. Find your voice type, famous voices like yours, and songs that fit.' },
   { id: 'match', kind: 'drill', title: 'Pitch match', tags: ['Pitch', 'Ear'], time: '2 min', blurb: 'Hear a note, sing it back. Eight rounds. Within 10¢ is a bullseye.' },
   { id: 'hold', kind: 'drill', title: 'Steady hold', tags: ['Breath', 'Purity'], time: '1 min', blurb: 'Hold one note for 6 seconds, as straight and pure as you can. Shows sagging, wobble and breath.' },
   { id: 'vowels', kind: 'drill', title: 'Vowels & open airway', tags: ['Tone', 'Airway'], time: '1 min', blurb: 'Sing ee, eh, ah, oh, oo on one note. Find your purest vowel and the mouth shape that opens your sound.' },
@@ -2066,14 +2073,104 @@ function rangeFigure(p) {
     y += 18;
   }
   y += 4;
-  if (p) rows.push(`<rect x="${X(p.low)}" y="${y}" width="${Math.max(4, X(p.high) - X(p.low))}" height="15" rx="7.5" fill="var(--ink)" opacity=".18"/>`,
-    `<rect x="${X(p.zlo)}" y="${y}" width="${Math.max(4, X(p.zhi) - X(p.zlo))}" height="15" rx="7.5" fill="var(--pure)"/>`,
+  if (p) rows.push(`<rect x="${X(p.xlo ?? p.low)}" y="${y}" width="${Math.max(4, X(p.xhi ?? p.high) - X(p.xlo ?? p.low))}" height="15" rx="7.5" fill="var(--ink)" opacity=".15"/>`,
+    `<rect x="${X(p.low)}" y="${y}" width="${Math.max(4, X(p.high) - X(p.low))}" height="15" rx="7.5" fill="var(--pure)"/>`,
+    p.natural != null ? `<text x="${X(p.natural)}" y="${y + 12}" text-anchor="middle" style="font:15px serif;fill:var(--accent)">★</text>` : '',
     `<text x="92" y="${y + 11}" text-anchor="end" style="font:700 11px var(--body);fill:var(--ink)">You</text>`);
   y += 24;
   for (let m = 36; m <= 84; m += 12) rows.push(`<line x1="${X(m)}" x2="${X(m)}" y1="4" y2="${y - 6}" stroke="var(--line)" stroke-dasharray="2 3"/>`, `<text x="${X(m)}" y="${y + 4}" text-anchor="middle" style="font:10px var(--mono);fill:var(--muted)">${nameOf(m)}</text>`);
   return `<svg class="range-fig" viewBox="0 0 700 ${y + 10}" role="img" aria-label="Your range compared with voice types">${rows.join('')}</svg>`;
 }
 
+// Famous voices by type (approximate: published voice types of pop singers vary) and well-known songs that sit in that range.
+const VOICE_INFO = {
+  'Bass': { who: ['Johnny Cash', 'Barry White', 'Leonard Cohen', 'Josh Turner'], songs: ['Ring of Fire (Johnny Cash)', 'Folsom Prison Blues (Johnny Cash)', 'Hallelujah (Leonard Cohen)', 'Can\'t Get Enough of Your Love, Babe (Barry White)'] },
+  'Baritone': { who: ['Frank Sinatra', 'Elvis Presley', 'David Bowie', 'Michael Bublé', 'Josh Groban'], songs: ['Fly Me to the Moon (Frank Sinatra)', 'Can\'t Help Falling in Love (Elvis Presley)', 'Stand by Me (Ben E. King)', 'Feeling Good (Michael Bublé)'] },
+  'Tenor': { who: ['Paul McCartney', 'Stevie Wonder', 'Bruno Mars', 'Elton John', 'Luciano Pavarotti'], songs: ['Let It Be (The Beatles)', 'Your Song (Elton John)', 'Isn\'t She Lovely (Stevie Wonder)', 'Just the Way You Are (Bruno Mars)'] },
+  'Alto': { who: ['Cher', 'Tracy Chapman', 'Amy Winehouse', 'Toni Braxton', 'Annie Lennox'], songs: ['Fast Car (Tracy Chapman)', 'Believe (Cher)', 'Valerie (Amy Winehouse)', 'Sweet Dreams (Eurythmics)'] },
+  'Mezzo-soprano': { who: ['Adele', 'Beyoncé', 'Taylor Swift', 'Rihanna', 'Lady Gaga'], songs: ['Someone Like You (Adele)', 'Shake It Off (Taylor Swift)', 'Halo (Beyoncé)', 'Umbrella (Rihanna)'] },
+  'Soprano': { who: ['Mariah Carey', 'Ariana Grande', 'Julie Andrews', 'Dolly Parton', 'Kristin Chenoweth'], songs: ['The Sound of Music (Julie Andrews)', 'Jolene (Dolly Parton)', 'Hero (Mariah Carey)', '7 rings (Ariana Grande)'] },
+};
+// Notes this singer already sings purely: saved pure tones, plus notes with 1 s or more at average purity 72+.
+function pureSet() {
+  const s = new Set(store.discoveries.map(d => d.midi));
+  for (const k in store.notes) { const n = store.notes[k]; if (n.sec >= 1 && n.psum / n.sec >= 72) s.add(+k); }
+  return s;
+}
+// For each song, the key inside the comfortable range where the most singing time lands on pure notes.
+function songFits(p) {
+  const pure = pureSet(), out = [];
+  for (const s of SONGS) {
+    if (s.lab || s.id === 'gen') continue;
+    const offs = s.notes.map(n => n[0]), lo = Math.min(...offs), hi = Math.max(...offs), total = s.notes.reduce((a, n) => a + n[1], 0);
+    let best = null;
+    for (let k = p.low - lo; k <= p.high - hi; k++) {
+      const onPure = s.notes.reduce((a, [o, b]) => a + (pure.has(o + k) ? b : 0), 0) / total;
+      const center = Math.abs((lo + hi) / 2 + k - (p.zlo + p.zhi) / 2);
+      if (!best || onPure > best.fit + 1e-9 || (Math.abs(onPure - best.fit) < 1e-9 && center < best.center)) best = { fit: onPure, k, center };
+    }
+    if (best) out.push({ s, ...best });
+  }
+  return out.sort((a, b) => b.fit - a.fit);
+}
+function voiceResult(p, ranked) {
+  const t = ranked[0], info = VOICE_INFO[t.n];
+  const head = el('p', 'cheer-big', `You're a ${t.n}! ✦`);
+  const stats = statRow([['Comfortable range', nameOf(p.low) + ' – ' + nameOf(p.high)], ['Home note', nameOf(p.natural)], ['Full stretch', nameOf(p.xlo) + ' – ' + nameOf(p.xhi)], ['Speaking voice', p.speak != null ? Math.round(m2f(p.speak)) + ' Hz' : '–']]);
+  const fig = el('div', 'fig'); fig.innerHTML = rangeFigure(p);
+  const who = el('div', 'vi-block'); who.append(el('span', 'label', 'Famous voices like yours'));
+  const chips = el('div', 'chips-row'); for (const w of info.who) chips.appendChild(el('span', 'r-chip ok', w)); who.appendChild(chips);
+  const songs = el('div', 'vi-block'); songs.append(el('span', 'label', 'Songs in a range like yours'), el('p', '', info.songs.join(' · ')));
+  const fits = songFits(p).slice(0, 3), fitBox = el('div', 'vi-block');
+  fitBox.append(el('span', 'label', 'In this app, these fit the notes you already sing purely'));
+  const fl = el('div', 'fit-list');
+  for (const f of fits) {
+    const row = el('div', 'fit-row'), at = SONG_LEVEL[f.s.id] || 1, open = level() >= at;
+    row.append(el('b', '', f.s.name), el('span', 'muted', Math.round(f.fit * 100) + '% of the song on your pure notes · Do = ' + nameOf(f.k)));
+    const b = el('button', 'small', open ? 'Sing it →' : 'Level ' + at); b.disabled = !open;
+    b.onclick = () => { closeLab(); $('#t-sing').click(); G.shift = f.k; loadSong(f.s, true); };
+    row.appendChild(b); fl.appendChild(row);
+  }
+  fitBox.appendChild(fl);
+  const note = el('p', 'fine', (ranked[1].pen - t.pen < 3 ? ranked[1].n + ' is a close second. ' : '') + 'Voice types are a guide, not a box, and the types of famous singers are approximate. Your top notes will rise with practice.');
+  return [head, stats, fig, who, songs, fitBox, note];
+}
+// The live ladder for "Find your voice": voice-type lanes, your range filling in, and your voice as a moving dot.
+function drawLadder() {
+  const c = $('#lane'); if (!c || c.offsetParent === null) return;
+  sizeCanvas(c);
+  const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
+  x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+  const lo = 36, hi = 84, Y = m => h - 10 * d - (m - lo) / (hi - lo) * (h - 20 * d);
+  x.font = `${10 * d}px ${getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace'}`; x.textBaseline = 'middle';
+  for (let m = lo; m <= hi; m += 12) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(30 * d, Y(m)); x.lineTo(w, Y(m)); x.stroke(); x.fillStyle = C.muted; x.fillText(nameOf(m), 2 * d, Y(m)); }
+  const guess = DRILLS.range.guess(), laneW = 15 * d, gap = 4 * d, x0 = 36 * d;
+  TYPES.forEach((T, i) => {
+    const lx = x0 + i * (laneW + gap), me = T.n === guess;
+    x.fillStyle = me ? C.accent : C.line; x.globalAlpha = me ? 0.85 : 0.7;
+    x.beginPath(); x.roundRect ? x.roundRect(lx, Y(T.hi), laneW, Y(T.lo) - Y(T.hi), 7 * d) : x.rect(lx, Y(T.hi), laneW, Y(T.lo) - Y(T.hi)); x.fill(); x.globalAlpha = 1;
+    x.save(); x.translate(lx + laneW / 2, (Y(T.hi) + Y(T.lo)) / 2); x.rotate(-Math.PI / 2); x.textAlign = 'center'; x.fillStyle = me ? C.surface : C.muted; x.fillText(T.n.replace('-soprano', ''), 0, 0); x.restore();
+  });
+  const bx = x0 + 6 * (laneW + gap) + 10 * d, bw = 22 * d;
+  if (D.xlo != null && D.xhi != null) { x.fillStyle = C.ink; x.globalAlpha = 0.15; x.fillRect(bx, Y(D.xhi), bw, Y(D.xlo) - Y(D.xhi)); x.globalAlpha = 1; }
+  if (D.low != null || D.high != null) { const a = D.high ?? D.natural ?? D.low, b = D.low ?? D.natural ?? D.high; x.fillStyle = C.pure; x.fillRect(bx, Y(a), bw, Math.max(3 * d, Y(b) - Y(a))); }
+  const mark = (m, label) => { x.fillStyle = C.ink; x.textAlign = 'left'; x.fillText(label + ' ' + nameOf(m), bx + bw + 6 * d, Y(m)); };
+  if (D.low != null) mark(D.low, '▲ low'); if (D.high != null) mark(D.high, '▼ high');
+  if (D.natural != null) { x.fillStyle = C.accent; x.font = `${16 * d}px serif`; x.fillText('★', bx + bw / 2 - 6 * d, Y(D.natural)); x.font = `${10 * d}px monospace`; }
+  // live trail: last 3 seconds
+  const tx0 = bx + bw + 80 * d, pts = S.trail.filter(p => p.m != null && p.t > t - 3);
+  for (const p of pts) { x.fillStyle = mixPurity(p.p); x.beginPath(); x.arc(tx0 + (w - tx0 - 30 * d) * (1 - (t - p.t) / 3), Y(p.m), 2.5 * d, 0, Math.PI * 2); x.fill(); }
+  const last = pts[pts.length - 1];
+  if (last && t - last.t < 0.25) {
+    const lx = w - 30 * d, ly = Y(last.m);
+    x.fillStyle = C.pure; x.globalAlpha = 0.25; x.beginPath(); x.arc(lx, ly, 16 * d, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
+    x.fillStyle = C.pure; x.beginPath(); x.arc(lx, ly, 8 * d, 0, Math.PI * 2); x.fill();
+    x.fillStyle = C.ink; x.textAlign = 'right'; x.font = `700 ${13 * d}px sans-serif`; x.fillText(nameOf(last.m), lx - 20 * d, ly); x.font = `${10 * d}px monospace`;
+  }
+  if (guess) { x.textAlign = 'right'; x.fillStyle = C.accent; x.font = `700 ${14 * d}px sans-serif`; x.fillText('Sounds like: ' + guess, w - 8 * d, 14 * d); x.font = `${10 * d}px monospace`; }
+  if (D.flash && t - D.flashT < 1.6) { x.textAlign = 'center'; x.fillStyle = C.pure; x.globalAlpha = 1 - (t - D.flashT) / 1.6; x.font = `700 ${22 * d}px sans-serif`; x.fillText(D.flash, (tx0 + w) / 2, h / 2 - 30 * d); x.globalAlpha = 1; x.font = `${10 * d}px monospace`; }
+  x.textAlign = 'start';
+}
 const POSTURE = 'Sit or stand tall, shoulders down and relaxed, chin level.';
 const VOWELS = [
   ['ee', 'as in "see"', 'Slight smile, tongue high and forward, jaw still loose.'],
@@ -2085,45 +2182,83 @@ const VOWELS = [
 
 const DRILLS = {
   range: {
-    lane: () => ({ marks: [D.low != null && { m: D.low, label: 'lowest ' + nameOf(D.low) }, D.high != null && { m: D.high, label: 'highest ' + nameOf(D.high) }] }),
+    // "Find your voice": five short steps, a live ladder of voice types, then who sings like you and what you could sing.
+    steps: [
+      { k: 'speak', title: 'Say hello', prompt: 'Say hello', sub: 'In your normal speaking voice: "Hello! This is my voice."' },
+      { k: 'natural', title: 'Your easy note', prompt: 'Hum an easy note', sub: 'Hum "mm" on a note that feels relaxed, like a lazy "mm-hmm". Hold it.' },
+      { k: 'low', title: 'Hum low', prompt: 'Hum low', sub: 'Hum down, lower and lower, as low as is still comfortable. Hold it a moment.' },
+      { k: 'high', title: 'Hum high', prompt: 'Hum high', sub: 'Now hum up, as high as still feels easy. Hold it a moment.' },
+      { k: 'stretch', title: 'Siren!', prompt: 'Siren!', sub: 'Just for fun: slide on "wee" from your very bottom to your very top, pausing a moment at each end. Squeaky is fine. This finds your extremes.' },
+    ],
+    lane: () => ({ ladder: true }),
     start() {
-      Object.assign(D, { phase: 'intro', low: null, high: null, speak: [], vt: 0, win: [] });
-      dSet({ step: 'Range & voice type', prompt: 'Find your range', sub: 'Three short parts, about a minute: speak a sentence, slide down to your lowest note, slide up to your highest. ' + POSTURE, live: '', prog: -1 });
-      dBtns([{ label: 'Start', primary: true, fn: async () => { if (await ensureListening()) this.go('speak'); } }]);
+      Object.assign(D, { phase: 'intro', si: -1, low: null, high: null, natural: null, speak: [], vt: 0, win: [], xlo: null, xhi: null, rec: 0, flash: '', flashT: 0 });
+      $('#lane').classList.add('tall');
+      dSet({ step: 'Find your voice · 5 quick steps', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. About a minute. Watch your voice climb the ladder on the right.', live: '', prog: -1 });
+      dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.go(0); } }]);
     },
-    go(ph) {
-      D.phase = ph; D.t0 = now(); D.win = [];
-      if (ph === 'speak') { dSet({ step: 'Part 1 of 3 · Speaking voice', prompt: 'Speak', sub: 'Read this aloud in your normal speaking voice: "Hello! I am finding my singing voice today, one note at a time."', live: 'Listening…', prog: 0 }); dBtns([{ label: 'Skip this part', fn: () => this.go('low') }]); }
-      if (ph === 'low') { dSet({ step: 'Part 2 of 3 · Lowest note', prompt: 'Slide low', sub: 'Sing "ah" and slide slowly down to your lowest comfortable note. Hold it for a second. Stop before it turns into a growl.', live: 'Lowest note held: none yet', prog: -1 }); dBtns([{ label: 'That\'s my lowest →', primary: true, fn: () => this.go('high') }]); }
-      if (ph === 'high') { dSet({ step: 'Part 3 of 3 · Highest note', prompt: 'Slide high', sub: 'Now slide up on "oo" to your highest comfortable note. No straining or shouting. Hold it for a second.', live: 'Highest note held: none yet', prog: -1 }); dBtns([{ label: 'That\'s my highest →', primary: true, fn: () => this.finish() }]); }
+    go(i) {
+      if (i >= this.steps.length) return this.finish();
+      const st = this.steps[i];
+      Object.assign(D, { si: i, phase: st.k, t0: now(), win: [], vt: 0, rec: now() });
+      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: '', prog: st.k === 'speak' || st.k === 'natural' || st.k === 'stretch' ? 0 : -1 });
+      const btns = [];
+      if (st.k === 'low' || st.k === 'high') btns.push({ label: 'Done →', primary: true, fn: () => { if (D[st.k] == null) { dSet({ live: 'Hold a note for a moment first, so I can catch it.' }); return; } this.go(i + 1); } });
+      btns.push({ label: 'Skip', fn: () => this.go(i + 1) });
+      dBtns(btns);
     },
     tick(dt, muted) {
-      if (muted || D.phase === 'intro' || D.phase === 'done') return;
-      if (S.voiced) { D.win.push({ t: now(), m: S.midi }); while (D.win[0].t < now() - 1) D.win.shift(); } else D.win = [];
-      if (D.phase === 'speak') {
+      if (muted || !this.steps.some(s => s.k === D.phase)) return;
+      const t = now();
+      if (S.voiced) { D.win.push({ t, m: S.midi }); while (D.win[0].t < t - 1.2) D.win.shift(); } else D.win = [];
+      const ph = D.phase, e = t - D.t0;
+      if (ph === 'speak') {
         if (S.voiced) { D.speak.push(S.midi); D.vt += dt; }
-        dSet({ prog: D.vt / 3.5 });
-        if (D.vt >= 3.5) { toast('Speaking pitch: about ' + Math.round(m2f(med(D.speak))) + ' Hz'); this.go('low'); }
-      } else {
-        const sn = stableNote(D.win); if (sn == null) return;
-        if (D.phase === 'low' && (D.low == null || sn < D.low)) { D.low = sn; dSet({ live: 'Lowest note held: ' + nameOf(sn) + ' (' + Math.round(m2f(sn)) + ' Hz). Go lower if it\'s still comfortable.' }); }
-        if (D.phase === 'high' && (D.high == null || sn > D.high)) { D.high = sn; dSet({ live: 'Highest note held: ' + nameOf(sn) + ' (' + Math.round(m2f(sn)) + ' Hz). Go higher only if it\'s easy.' }); }
+        dSet({ prog: D.vt / 2.5, live: S.voiced ? 'Hearing you…' : '' });
+        if (D.vt >= 2.5) { this.flash('Hello! 👋'); this.go(1); }
+      } else if (ph === 'natural') {
+        const sn = stableNote(D.win, 1.0);
+        dSet({ prog: S.voiced && D.win.length ? clamp((t - D.win[0].t) / 1.2) : 0, live: S.voiced ? nameOf(S.midi) + '… keep it steady' : '' });
+        if (sn != null) { D.natural = sn; this.flash('Home note: ' + nameOf(sn) + ' ✦'); this.go(2); }
+      } else if (ph === 'low' || ph === 'high') {
+        const sn = stableNote(D.win, 0.45);
+        if (sn != null && (D[ph] == null || (ph === 'low' ? sn < D[ph] - 0.5 : sn > D[ph] + 0.5))) {
+          const first = D[ph] == null; D[ph] = sn; D.rec = t;
+          this.flash(first ? (ph === 'low' ? 'Low: ' : 'High: ') + nameOf(sn) : (ph === 'low' ? 'New low! ' : 'New high! ') + nameOf(sn));
+        }
+        const left = D[ph] == null ? null : Math.max(0, 3.5 - (t - D.rec));
+        dSet({ live: D[ph] == null ? (S.voiced ? nameOf(S.midi) + '… hold it a moment' : '') : (ph === 'low' ? 'Lowest: ' : 'Highest: ') + nameOf(D[ph]) + (left > 0 ? `. Go ${ph === 'low' ? 'lower' : 'higher'} if it's easy…` : '') });
+        if (left === 0) this.go(D.si + 1);
+      } else if (ph === 'stretch') {
+        const sn = stableNote(D.win, 0.25);
+        if (sn != null) {
+          if (D.xlo == null || sn < D.xlo) { D.xlo = sn; if (D.low != null && sn < D.low - 0.5) this.flash('Deep! ' + nameOf(sn)); }
+          if (D.xhi == null || sn > D.xhi) { D.xhi = sn; if (D.high != null && sn > D.high + 0.5) this.flash('Wow, ' + nameOf(sn) + '!'); }
+        }
+        dSet({ prog: e / 8, live: S.voiced ? nameOf(S.midi) : 'Slide from bottom to top…' });
+        if (e >= 8) this.go(5);
       }
     },
+    flash(txt) { D.flash = txt; D.flashT = now(); },
+    guess() {
+      const lo = D.low ?? (D.natural != null ? D.natural - 5 : null), hi = D.high ?? (D.natural != null ? D.natural + 7 : null);
+      if (lo == null || hi == null) return null;
+      return voiceTypes(Math.round(lo), Math.round(hi), D.speak.length > 20 ? med(D.speak) : null)[0].n;
+    },
     finish() {
-      if (D.low == null || D.high == null || D.high - D.low < 4) { dSet({ live: 'I need a held low note and a held high note at least a few notes apart. Hold each one for a second, then tap the button.' }); if (D.low == null) this.go('low'); return; }
-      D.phase = 'done';
+      if (D.low == null || D.high == null || D.high - D.low < 4) {
+        dSet({ prompt: 'One more try', sub: 'I need a held low note and a held high note at least a few notes apart.', live: '' });
+        dBtns([{ label: 'Try the low and high again', primary: true, fn: () => this.go(2) }]); return;
+      }
+      D.phase = 'done'; $('#lane').classList.remove('tall');
       const low = Math.round(D.low), high = Math.round(D.high), speak = D.speak.length > 20 ? med(D.speak) : null;
+      const xlo = Math.round(Math.min(low, D.xlo ?? low)), xhi = Math.round(Math.max(high, D.xhi ?? high));
+      const natural = D.natural != null ? Math.round(D.natural) : Math.round((low + high) / 2);
       const ranked = voiceTypes(low, high, speak), t = ranked[0];
       const zlo = high - low >= 9 ? low + 2 : low, zhi = high - low >= 9 ? high - 3 : high;
-      store.profile = { low, high, speak, type: t.n, zlo, zhi, at: Date.now(), vowel: store.profile && store.profile.vowel };
+      store.profile = { low, high, speak, natural, xlo, xhi, type: t.n, zlo, zhi, at: Date.now(), vowel: store.profile && store.profile.vowel };
       labSave('range', 100, { type: t.n }); renderLab();
-      const head = el('p', 'cheer-big', `You sound like a ${t.n}.`);
-      const stats = statRow([['Your range', nameOf(low) + ' – ' + nameOf(high)], ['Span', ((high - low) / 12).toFixed(1) + ' octaves'], ['Speaking pitch', speak != null ? Math.round(m2f(speak)) + ' Hz (' + nameOf(speak) + ')' : 'skipped'], ['Best singing zone', nameOf(zlo) + ' – ' + nameOf(zhi)]]);
-      const fig = el('div', 'fig'); fig.innerHTML = rangeFigure(store.profile);
-      const notes = [{ good: true, title: `${t.n}: typical range ${nameOf(t.lo)} – ${nameOf(t.hi)}`, why: `Your lowest comfortable note and ${speak != null ? 'speaking pitch' : 'range'} match this type best${ranked[1].pen - t.pen < 3 ? '; ' + ranked[1].n + ' is a close second' : ''}. Voice type is a guide, not a box.`, tryThis: `Songs are now pitched to your best zone, ${nameOf(zlo)} to ${nameOf(zhi)}. Your top will rise a few notes with steady practice.` }];
-      if (high - low < 12) notes.push({ title: 'Your range is still compact', why: 'Under an octave is normal for new singers: the voice hasn\'t been asked to stretch yet.', tryThis: 'Do a gentle siren on "ng" (as in "sing") every day, low to high and back. Never push past comfort.' });
-      dShow([head, stats, fig, fixCards(notes)], () => this.start());
+      dShow(voiceResult(store.profile, ranked), () => this.start());
     },
   },
 
@@ -2283,7 +2418,7 @@ const DRILLS = {
 function labTick(dt, muted) {
   if (!D.id || D.kind !== 'drill' || $('#labStage').offsetParent === null) return;
   DRILLS[D.id].tick(dt, muted);
-  if (!(uiTick & 1)) drawLane(DRILLS[D.id].lane());
+  if (!(uiTick & 1)) { const o = DRILLS[D.id].lane(); if (o.ladder) drawLadder(); else drawLane(o); }
 }
 $('#lsBack').onclick = closeLab;
 // ---------- Levels ----------
@@ -2299,9 +2434,9 @@ const LEVELS = [
     lessons: [
       { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
         pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'You already sing ' + g.join(', ') + ' well.' : 'You sang it through.'; } },
+      { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
       { title: 'Find your pure notes', kind: 'find', goal: 'Find 3 notes that ring pure', pass: () => store.discoveries.length >= 3,
         won: () => [...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ') + ' ring pure.' },
-      { title: 'Your voice type', kind: 'lab', lab: 'range', goal: 'Finish the range test', pass: () => !!store.profile, won: () => 'You sound like a ' + store.profile.type + '.' },
       { title: 'Hold a steady note', kind: 'lab', lab: 'hold', goal: '40% pure and steady', pass: () => labBestOf('hold') >= 40, won: () => 'Best: ' + labBestOf('hold') + '%.' },
       { title: 'Match a note', kind: 'lab', lab: 'match', goal: 'Score 50 or more', pass: () => labBestOf('match') >= 50, won: () => 'Best score: ' + labBestOf('match') + '.' },
       { title: 'Your first song', kind: 'song', songs: ['row', 'mary'], goal: 'Sing Row, Row or Mary through once', pass: () => runsOf(['row', 'mary']).length > 0, won: () => 'Your first song is done!' },
@@ -2406,7 +2541,7 @@ function renderPath() {
   if (fresh) {
     cur.append(el('span', 'label', 'Welcome'), el('h2', '', 'Everyone has a pure note. Let\'s find yours.'),
       el('p', 'lv-intro', 'Sing Do-Re-Mi along with the app. In about a minute you\'ll see which notes you already sing well.'));
-    cta.append(btn('♪ Let\'s sing Do-Re-Mi', 'primary', () => startLesson(L.lessons[0])), btn('Just hum instead', 'small', () => startLesson(LEVELS[0].lessons[1])));
+    cta.append(btn('♪ Let\'s sing Do-Re-Mi', 'primary', () => startLesson(L.lessons[0])), btn('Just hum instead', 'small', () => startLesson(LEVELS[0].lessons.find(x => x.kind === 'find'))));
     cur.append(cta, el('p', 'fine', 'No experience needed · headphones help · nothing is recorded or uploaded'));
   } else if (next) {
     const last = [...L.lessons].reverse().find(x => x.pass() && x.won);

@@ -91,10 +91,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('pure-notes lesson lights up the keyboard', async page => {
     await voice(page);
-    await page.evaluate(() => startLesson(LEVELS[0].lessons[1])); await page.waitForTimeout(300);
+    await page.evaluate(() => startLesson(LEVELS[0].lessons.find(x => x.kind === 'find'))); await page.waitForTimeout(300);
     for (const m of [48, 52, 55]) { await page.evaluate(m => { V.on = true; V.m = m; }, m); await page.waitForTimeout(2200); await page.evaluate(() => { V.on = false; }); await page.waitForTimeout(400); }
     await page.waitForTimeout(800);
-    const s = await page.evaluate(() => ({ found: store.discoveries.length, done: store.lessons.includes('1.2'), lit: document.querySelectorAll('#kbd rect[fill="var(--pure)"]').length, lv: level() }));
+    const s = await page.evaluate(() => ({ found: store.discoveries.length, done: store.lessons.includes('1.3'), lit: document.querySelectorAll('#kbd rect[fill="var(--pure)"]').length, lv: level() }));
     expect(s.found >= 3 && s.done && s.lit >= 3 && s.lv === 1, JSON.stringify(s));
   });
 
@@ -142,17 +142,24 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(flips <= 2, 'voiced flipped ' + flips + ' times');
   });
 
-  await test('range test finds a voice type', async page => {
-    await voice(page); await setLevel(page, 2);
-    await page.evaluate(() => openLab('range')); await page.click('#dBtns >> text=Start');
+  await test('Find your voice: 5 steps, voice type, famous voices, songs that fit', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.discoveries = [43, 45, 47, 48, 50, 52].map(m => ({ midi: m, purity: 90, amps: [1], at: 0 })); });
+    await page.evaluate(() => openLab('range')); await page.click("#dBtns >> text=Let's go");
     await page.evaluate(() => { V.on = true; window._s = setInterval(() => { V.m = 46 + Math.sin(performance.now() / 300) * 2; }, 50); });
-    await page.waitForFunction(() => D.phase === 'low', null, { timeout: 15000 });
-    await page.evaluate(() => { clearInterval(_s); V.m = 41; }); await page.waitForTimeout(1500);
-    await page.click("#dBtns >> text=That's my lowest");
-    await page.evaluate(() => { V.m = 63; }); await page.waitForTimeout(1500);
-    await page.click("#dBtns >> text=That's my highest"); await page.waitForTimeout(400);
-    const s = await page.evaluate(() => store.profile);
-    expect(s && s.type === 'Bass' && s.low === 41 && s.high === 63, JSON.stringify(s));
+    await page.waitForFunction(() => D.phase === 'natural', null, { timeout: 15000 });
+    await page.evaluate(() => { clearInterval(_s); V.m = 48; });
+    await page.waitForFunction(() => D.phase === 'low', null, { timeout: 10000 });
+    await page.evaluate(() => { const t0 = performance.now(); window._s = setInterval(() => { V.m = Math.max(41, 48 - (performance.now() - t0) / 250); }, 30); });
+    await page.waitForFunction(() => D.phase === 'high', null, { timeout: 20000 });
+    await page.evaluate(() => { clearInterval(_s); V.m = 63; });
+    await page.waitForFunction(() => D.phase === 'stretch', null, { timeout: 20000 });
+    await page.evaluate(() => { const t0 = performance.now(); window._s = setInterval(() => { const e = (performance.now() - t0) / 1000; V.m = e < 1 ? 38 : e < 6 ? 38 + (e - 1) * 6 : 68; }, 30); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 20000 }); await page.evaluate(() => clearInterval(_s));
+    const s = await page.evaluate(() => ({ p: store.profile, text: $('#dResult').textContent, fits: document.querySelectorAll('#dResult .fit-row').length }));
+    expect(s.p && s.p.type === 'Bass' && s.p.low === 41 && s.p.high === 63 && s.p.natural === 48, JSON.stringify(s.p));
+    expect(s.p.xlo <= 39 && s.p.xhi >= 67, 'extremes ' + s.p.xlo + '–' + s.p.xhi);
+    expect(/Johnny Cash/.test(s.text) && /Ring of Fire/.test(s.text) && s.fits === 3, 'result missing artists or song fits');
   });
 
   await test('pitch match spots a flat singer', async page => {
