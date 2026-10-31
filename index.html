@@ -157,6 +157,21 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .toggle input:checked + .switch::after { left: 19px; }
 .keybox { font: 600 0.95rem/1 var(--mono); min-width: 7.5em; text-align: center; }
 
+.lane span b { font-family: var(--display); margin-right: 4px; }
+.report { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 18px; }
+.report-top { display: flex; flex-wrap: wrap; gap: 28px; align-items: end; }
+.score { font: 700 3.6rem/1 var(--display); color: var(--pure); font-variant-numeric: tabular-nums; }
+.score small { font-size: 1.2rem; color: var(--muted); font-weight: 500; }
+.rows { display: grid; gap: 8px; }
+.rrow { display: grid; grid-template-columns: 6.2em minmax(0, 1fr) 2.4em 4.2em; gap: 10px; align-items: center; font-size: 0.9rem; }
+.rrow .nm b { font-family: var(--display); margin-right: 6px; }
+.rrow .nm span, .rrow .ct { font-family: var(--mono); color: var(--muted); font-size: 0.8rem; }
+.rrow .pv { font: 600 0.95rem/1 var(--mono); text-align: right; }
+.rbar { position: relative; height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; }
+.rbar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 6px; }
+.rbar i.pure { background: var(--pure); }
+.rbar::after { content: ""; position: absolute; left: 72%; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .35; }
+.tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; max-width: 62ch; }
 details { border-top: 1px solid var(--line); padding-top: 14px; }
 summary { cursor: pointer; font: 700 1rem/1.3 var(--display); }
 details .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 12px; }
@@ -267,7 +282,7 @@ details b { color: var(--ink); }
   <div class="card">
     <div class="card-head guide-head">
       <div><span class="label">Guided session · about 10 minutes</span><h2>Start here</h2></div>
-      <div class="row"><span class="demo-flag" id="demoFlag" hidden>Demo running</span><button id="gDemo" class="small">Watch a guided demo</button><button id="gRestart" class="small">Start over</button></div>
+      <div class="row"><span class="demo-flag" id="demoFlag" hidden>Demo running</span><button id="gScale" class="small">Practice Do-Re-Mi</button><button id="gDemo" class="small">Watch a guided demo</button><button id="gRestart" class="small">Start over</button></div>
     </div>
     <ol class="stepper" id="stepper"></ol>
     <div class="step">
@@ -371,6 +386,7 @@ details b { color: var(--ink); }
       <div class="target">
         <div class="label">Sing this note</div>
         <div id="tgtName" class="big">—</div>
+        <div id="tgtNote" class="sub"></div>
         <div id="tgtHint" class="hint">Start listening to begin</div>
         <div class="hold" aria-hidden="true"><div id="holdFill"></div></div>
         <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
@@ -393,6 +409,7 @@ details b { color: var(--ink); }
         </div>
       </div>
     </div>
+    <div class="report" id="report" hidden></div>
   </div>
 </section>
 
@@ -919,23 +936,27 @@ $('#btnReset').onclick = () => {
 // ---------- sing ----------
 // Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
 const SONGS = [
+  { id: 'doremi', name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
   { id: 'hum', name: 'Five-note hum', kind: 'Warm-up', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
   { id: 'arp', name: 'Major arpeggio', kind: 'Warm-up', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
   { id: 'twinkle', name: 'Twinkle, Twinkle', kind: 'Song', notes: [[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2]] },
   { id: 'ode', name: 'Ode to Joy', kind: 'Song', notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
-const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], seq: [] };
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [] };
+const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
+const sylOf = m => SOLF[(((m - G.shift) % 12) + 12) % 12];
 
 function zoneCenter() { const z = strongZone(); return z ? (z.lo + z.hi) / 2 : 55; }
 function autoShift(song) {
   const offs = song.notes.map(n => n[0]);
-  return Math.round(zoneCenter() - (Math.min(...offs) + Math.max(...offs)) / 2);
+  const k = Math.round(zoneCenter() - (Math.min(...offs) + Math.max(...offs)) / 2);
+  return isBlack(k) ? k - 1 : k; // prefer a plain key: Do on C, D, E, F, G, A or B
 }
 function loadSong(song, keepShift = false) {
   G.song = song; if (!keepShift) G.shift = autoShift(song);
   G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b }));
-  G.idx = 0; G.hold = 0; G.hits = [];
+  G.idx = 0; G.hold = 0; G.hits = []; G.res = []; G.acc = null;
   renderSongs(); renderSing();
 }
 function renderSongs() {
@@ -950,11 +971,13 @@ function singActive() { return !$('#tab-sing').hidden || (!$('#tab-start').hidde
 function singTarget() { return (!singActive() || G.idx >= G.seq.length) ? null : G.seq[G.idx].m; }
 function renderSing() {
   const lane = $('#lane'); lane.textContent = '';
-  G.seq.forEach((n, i) => { const s = document.createElement('span'); s.textContent = nameOf(n.m); s.className = i < G.idx ? 'done' : i === G.idx ? 'now' : ''; lane.appendChild(s); });
+  G.seq.forEach((n, i) => { const s = document.createElement('span'), b = document.createElement('b'); b.textContent = sylOf(n.m); s.append(b, nameOf(n.m)); s.className = i < G.idx ? 'done' : i === G.idx ? 'now' : ''; lane.appendChild(s); });
   const cur = lane.children[G.idx]; if (cur) lane.scrollLeft = cur.offsetLeft - lane.clientWidth / 3;
-  $('#keyTxt').textContent = 'Key of ' + pcOf(G.shift);
+  $('#keyTxt').textContent = 'Do = ' + pcOf(G.shift);
   const done = G.idx >= G.seq.length;
-  $('#tgtName').textContent = done ? '✓' : nameOf(G.seq[G.idx].m);
+  $('#tgtName').textContent = done ? '✓' : sylOf(G.seq[G.idx].m);
+  $('#tgtNote').textContent = done ? '' : nameOf(G.seq[G.idx].m) + ' · ' + m2f(G.seq[G.idx].m).toFixed(0) + ' Hz';
+  renderReport();
   if (done) {
     const avg = G.hits.length ? G.hits.reduce((s, h) => s + h.p, 0) / G.hits.length : 0;
     $('#tgtHint').textContent = 'Finished. Average purity ' + Math.round(avg) + '.'; $('#tgtHint').className = 'hint ok';
@@ -965,20 +988,98 @@ function renderSing() {
 function singStep(dt) {
   if (!singActive() || G.idx >= G.seq.length) return;
   const hint = $('#tgtHint'), tgt = G.seq[G.idx].m;
-  if (!S.voiced) { hint.textContent = 'Sing ' + nameOf(tgt); hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
+  if (!S.voiced) { hint.textContent = 'Sing ' + sylOf(tgt) + ' (' + nameOf(tgt) + ')'; hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
   else {
     let c = (S.midi - tgt) * 100;
     if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
-    if (Math.abs(c) <= 50) { G.hold += dt; hint.textContent = 'On pitch, hold it'; hint.className = 'hint ok'; }
+    if (Math.abs(c) <= 50) {
+      G.hold += dt; hint.textContent = 'On pitch, hold it · purity ' + Math.round(S.purity); hint.className = 'hint ok';
+      const a = G.acc || (G.acc = { p: 0, c: 0, cl: 0, st: 0, fo: 0, w: 0 });
+      a.p += S.purity * dt; a.c += c * dt; a.cl += S.clar * dt; a.st += S.stab * dt; a.fo += S.focus * dt; a.w += dt;
+    }
     else { G.hold = Math.max(0, G.hold - dt * 2); hint.textContent = c < 0 ? 'Go higher ↑' : 'Go lower ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
     G.lastC = c;
   }
-  const need = Math.min(0.6, 0.25 + 0.15 * G.seq[G.idx].b);
+  const need = G.song.hold || Math.min(0.6, 0.25 + 0.15 * G.seq[G.idx].b);
   $('#holdFill').style.width = (100 * clamp(G.hold / need)) + '%';
-  if (G.hold >= need) { G.hits.push({ c: G.lastC || 0, p: S.purity }); G.idx++; G.hold = 0; renderSing(); }
+  if (G.hold >= need) {
+    const a = G.acc, w = a && a.w ? a.w : 1;
+    const r = a ? { m: tgt, p: a.p / w, c: a.c / w, cl: a.cl / w, st: a.st / w, fo: a.fo / w } : { m: tgt, p: S.purity, c: G.lastC || 0 };
+    G.hits.push(r); G.res.push(r); G.acc = null; G.idx++; G.hold = 0;
+    if (G.idx >= G.seq.length) saveRun();
+    renderSing();
+  }
 }
 $('#btnRestart').onclick = () => loadSong(G.song, true);
-$('#btnSkip').onclick = () => { if (G.idx < G.seq.length) { G.idx++; G.hold = 0; renderSing(); } };
+
+// ---------- end-of-song report ----------
+function runAvg() { const sung = G.res.filter(r => !r.skip); return sung.length ? sung.reduce((s, r) => s + r.p, 0) / sung.length : 0; }
+function saveRun() {
+  const sung = G.res.filter(r => !r.skip);
+  if (!store.runs) store.runs = [];
+  store.runs.push({ id: G.song.id, at: Date.now(), avg: Math.round(runAvg()), pure: sung.filter(r => r.p >= 72).length, n: G.seq.length });
+  if (store.runs.length > 60) store.runs.splice(0, store.runs.length - 60);
+  dirty = true;
+}
+const FIX = {
+  cl: 'Some breath or rasp got mixed in. Sing it softer, closer to a hum, with lips gently rounded on "oo".',
+  st: 'The pitch wavered. Breathe low and let a slow, even stream of air carry the note.',
+  fo: 'The sound was a bit noisy around the tone. Relax your jaw and feel the buzz behind your teeth and nose.',
+};
+function renderReport() {
+  const box = $('#report');
+  if (G.idx < G.seq.length || !G.res.length) { box.hidden = true; return; }
+  box.hidden = false; box.textContent = '';
+  const sung = G.res.filter(r => !r.skip), avg = Math.round(runAvg()), pure = sung.filter(r => r.p >= 72).length;
+  const runs = (store.runs || []).filter(r => r.id === G.song.id), prev = runs.length > 1 ? runs[runs.length - 2] : null;
+  const best = Math.max(...runs.map(r => r.avg));
+  const top = document.createElement('div'); top.className = 'report-top';
+  const sc = document.createElement('div');
+  sc.innerHTML = '<div class="label">Your purity score</div><div class="score"><span></span><small> / 100</small></div>';
+  sc.querySelector('.score span').textContent = avg; top.appendChild(sc);
+  const stat = (l, v) => { const d = document.createElement('div'); d.className = 'stat'; const a = document.createElement('span'); a.className = 'label'; a.textContent = l; const b = document.createElement('span'); b.className = 'val'; b.textContent = v; d.append(a, b); top.appendChild(d); };
+  stat('Pure notes (72+)', pure + ' of ' + G.seq.length);
+  stat('Pitch', sung.length ? 'avg ' + Math.round(sung.reduce((s, r) => s + Math.abs(r.c), 0) / sung.length) + '¢ off' : '–');
+  stat('Points to 100', String(100 - avg));
+  if (prev) stat('Last time', prev.avg + (avg >= prev.avg ? '  (+' : '  (') + (avg - prev.avg) + ')');
+  if (runs.length > 1) stat('Your best', String(best));
+  box.appendChild(top);
+  const rows = document.createElement('div'); rows.className = 'rows';
+  for (const r of G.res) {
+    const row = document.createElement('div'); row.className = 'rrow';
+    row.innerHTML = '<span class="nm"><b></b><span></span></span><span class="rbar"><i></i></span><span class="pv"></span><span class="ct"></span>';
+    row.querySelector('b').textContent = sylOf(r.m); row.querySelector('.nm span').textContent = nameOf(r.m);
+    const i = row.querySelector('i');
+    if (r.skip) { row.querySelector('.pv').textContent = '–'; row.querySelector('.ct').textContent = 'skipped'; }
+    else {
+      i.style.width = Math.round(r.p) + '%'; if (r.p >= 72) i.className = 'pure';
+      row.querySelector('.pv').textContent = Math.round(r.p);
+      row.querySelector('.ct').textContent = (r.c > 0 ? '+' : '') + Math.round(r.c) + '¢';
+    }
+    rows.appendChild(row);
+  }
+  box.appendChild(rows);
+  const tip = document.createElement('p'); tip.className = 'tip';
+  if (sung.length) {
+    const hi = sung.reduce((a, b) => b.p > a.p ? b : a), lo = sung.reduce((a, b) => b.p < a.p ? b : a);
+    if (lo.p >= 85) tip.textContent = 'Every note was crystal pure. Try the next key up with the + button, or move on to a song.';
+    else {
+      const weak = lo.cl != null ? [['cl', lo.cl], ['st', lo.st], ['fo', lo.fo]].sort((a, b) => a[1] - b[1])[0][0] : 'cl';
+      tip.textContent = 'Purest: ' + sylOf(hi.m) + ' (' + Math.round(hi.p) + '). Work on ' + sylOf(lo.m) + ' (' + Math.round(lo.p) + '): ' + FIX[weak] + ' Tip: sing ' + sylOf(hi.m) + ' first, then slide to ' + sylOf(lo.m) + ' keeping the same feeling.';
+    }
+  } else tip.textContent = 'No notes were sung this time.';
+  box.appendChild(tip);
+  const row = document.createElement('div'); row.className = 'row';
+  const again = document.createElement('button'); again.className = 'primary'; again.textContent = 'Sing it again'; again.onclick = () => loadSong(G.song, true);
+  row.appendChild(again);
+  if (sung.length) {
+    const lo = sung.reduce((a, b) => b.p < a.p ? b : a);
+    const hear = document.createElement('button'); hear.className = 'small'; hear.textContent = 'Hear ' + sylOf(lo.m) + ' (' + nameOf(lo.m) + ')';
+    hear.onclick = async () => { await ensureAudio(); playTone(lo.m, 1.4, myTimbre(lo.m)); }; row.appendChild(hear);
+  }
+  box.appendChild(row);
+}
+$('#btnSkip').onclick = () => { if (G.idx < G.seq.length) { G.res.push({ m: G.seq[G.idx].m, skip: true }); G.acc = null; G.idx++; G.hold = 0; if (G.idx >= G.seq.length) saveRun(); renderSing(); } };
 $('#kUp').onclick = () => { G.shift++; loadSong(G.song, true); };
 $('#kDown').onclick = () => { G.shift--; loadSong(G.song, true); };
 $('#kAuto').onclick = () => loadSong(G.song);
@@ -1099,7 +1200,7 @@ const STEPS = [
     how: ['Look at the big note name and sing it. Tap <b>Hear this note</b> if you\'re unsure.', 'Follow the arrows, <b>Go higher</b> or <b>Go lower</b>, until it says <b>On pitch</b>.', 'Hold each note until the green bar fills. The next note lights up automatically.'],
     why: 'This short scale has already been moved into your strongest zone, so it should feel easy. After this, try the songs in the Sing tab.',
     goal: 'Sing all 9 notes of the Five-note hum.',
-    enter: () => { loadSong(SONGS[0]); placeSingCard(true); },
+    enter: () => { loadSong(SONGS.find(x => x.id === 'hum')); placeSingCard(true); },
     leave: () => placeSingCard(false),
     tick: () => G.seq.length ? G.idx / G.seq.length : 0,
     live: () => '',
@@ -1181,6 +1282,7 @@ function renderGuide() {
 }
 $('#sNext').onclick = () => goStep(guide.step + 1);
 $('#sSkip').onclick = () => goStep(guide.step >= STEPS.length ? 1 : guide.step + 1);
+$('#gScale').onclick = () => { $('#t-sing').click(); loadSong(SONGS.find(x => x.id === 'doremi')); };
 $('#gRestart').onclick = () => { if (gDemo) return; guide.done = []; goStep(0); };
 
 // Guided demo: a synthetic singer that does what each step asks, so you can watch the feedback and confirmations.
