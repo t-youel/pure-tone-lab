@@ -273,7 +273,7 @@ details b { color: var(--ink); }
 .lv-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .lv-dots { display: flex; gap: 5px; }
 .lv-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
-.lv-dots span.done { background: var(--pure); } .lv-dots span.now { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.lv-dots span.d-done { background: var(--pure); } .lv-dots span.d-now { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 #lvCurrent h2 { font-size: 1.7rem; }
 .lv-intro { font-size: 1.05rem; max-width: 56ch; }
 .lv-goal { font-size: 0.95rem; } .lv-goal b { color: var(--accent); }
@@ -281,7 +281,7 @@ details b { color: var(--ink); }
 .lv-list { display: grid; gap: 6px; }
 .lv-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }
 .lv-row .lv-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 0.9rem var(--mono); background: var(--line); }
-.lv-row.done .lv-num { background: var(--pure); color: var(--surface); } .lv-row.now { border-color: var(--accent); } .lv-row.now .lv-num { background: var(--accent); color: var(--accent-ink); }
+.lv-row.is-done .lv-num { background: var(--pure); color: var(--surface); } .lv-row.now { border-color: var(--accent); } .lv-row.now .lv-num { background: var(--accent); color: var(--accent-ink); }
 .lv-row.locked { opacity: .55; }
 .lv-txt { display: grid; gap: 2px; min-width: 0; } .lv-txt .muted { font-size: 0.85rem; }
 .find { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; }
@@ -305,12 +305,27 @@ details b { color: var(--ink); }
 .lessons { display: grid; gap: 6px; }
 .lesson { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 .lesson .ls-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 0.85rem var(--mono); color: var(--muted); border: 1.5px solid var(--line); }
-.lesson.done .ls-ic { background: var(--pure); border-color: var(--pure); color: var(--surface); }
+.lesson.is-done .ls-ic { background: var(--pure); border-color: var(--pure); color: var(--surface); }
 .lesson.next { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
 .ls-txt { display: grid; gap: 1px; min-width: 0; } .ls-txt .muted { font-size: 0.84rem; }
 .beat-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--line); display: inline-block; transition: background .05s; flex: none; }
 .beat-dot.on { background: var(--pure); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pure) 30%, transparent); }
 #btnMetro[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.hero { padding: 26px 26px 22px; gap: 14px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--surface)), color-mix(in srgb, var(--pure) 12%, var(--surface))); }
+.hero h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); max-width: 20ch; }
+.hero .lv-intro { font-size: 1.1rem; max-width: 46ch; }
+.hero .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.hero .cta .primary { font-size: 1.15rem; padding: 15px 26px; }
+.hero .fine { font-size: 0.85rem; color: var(--muted); }
+.hero-wave { position: absolute; right: -10px; bottom: -6px; width: 46%; max-width: 420px; height: 120px; opacity: .35; pointer-events: none; overflow: hidden; }
+.hero-wave svg { width: 200%; height: 100%; animation: wave 6s linear infinite; }
+@keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .hero-wave svg { animation: none; } }
+.path-more summary { cursor: pointer; font: 700 1rem var(--display); }
+.path-more[open] summary { margin-bottom: 10px; }
+.path-more { border-top: 1px solid var(--line); }
+body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .status, body.fresh.idle #btnMic { display: none; }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -366,7 +381,7 @@ details b { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
-<body>
+<body class="idle fresh">
 <div class="wrap">
 
 <header class="top">
@@ -381,18 +396,18 @@ details b { color: var(--ink); }
     </div>
   </div>
   <div class="controls">
-    <button id="btnMic" class="primary">Start listening</button>
+    <button id="btnMic" class="primary">Turn on mic</button>
     <button id="lvlBadge" class="lvl-badge">Level 1</button>
     <button id="btnStop" hidden>Stop</button>
   </div>
 </header>
 
-<div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span><button id="btnHelp" class="linkish" hidden>What do these mean?</button></div>
+<div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Mic is off. It turns on when you start a lesson.</span><button id="btnHelp" class="linkish" hidden>What do these mean?</button></div>
 
 <section class="live" aria-live="off" data-min="2">
   <div class="cell" data-min="3">
     <div class="label">Note</div>
-    <div class="cell-help"><p>Which note you're singing, like <b>A3</b>. The needle shows if you're a little flat (left) or sharp (right); centered means in tune. Below it: how loud you are, any vibrato, and how long you've held the note.</p><button class="primary small" data-start>Start listening</button></div>
+    <div class="cell-help"><p>Which note you're singing, like <b>A3</b>. The needle shows if you're a little flat (left) or sharp (right); centered means in tune. Below it: how loud you are, any vibrato, and how long you've held the note.</p><button class="primary small" data-start>Turn on mic</button></div>
     <div class="note-row"><div id="noteName" class="big">—</div><div id="noteHz" class="sub">— Hz</div></div>
     <div class="tuner"><div id="needle" class="needle"></div></div>
     <div class="tuner-scale"><span>−50¢ flat</span><span id="centsTxt" class="mono">0¢</span><span>sharp +50¢</span></div>
@@ -436,10 +451,10 @@ details b { color: var(--ink); }
 
 <!-- YOUR PATH -->
 <section class="panel" id="tab-path">
-  <div class="card" id="lvCurrent"></div>
+  <div class="card hero" id="lvCurrent"></div>
   <div class="card" id="findCard" hidden></div>
-  <div class="lv-list" id="lvList"></div>
-  <div class="row"><button id="btnUnlockAll" class="small">I'm experienced: unlock every level</button></div>
+  <details class="card path-more" id="lvLessons"><summary id="lvLessonsSum">Your lessons</summary><div class="lessons" id="lessonList"></div></details>
+  <details class="card path-more"><summary>What's ahead: 5 levels</summary><div class="lv-list" id="lvList"></div><div class="row"><button id="btnUnlockAll" class="small">I'm experienced: unlock every level</button></div></details>
 </section>
 
 <!-- START HERE (older guided session, kept for its demo) -->
@@ -585,7 +600,7 @@ details b { color: var(--ink); }
         <div class="label">Sing this</div>
         <div id="tgtName" class="big">—</div>
         <div id="tgtNote" class="sub"></div>
-        <div id="tgtHint" class="hint">Start listening to begin</div>
+        <div id="tgtHint" class="hint">Tap ▶ Sing to begin</div>
         <div class="hold" aria-hidden="true"><div id="holdFill"></div></div>
         <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
         <div id="cheer" class="cheer" aria-live="polite"></div>
@@ -603,11 +618,11 @@ details b { color: var(--ink); }
       <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
-      <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
-      <span id="keyTxt" class="keybox">—</span>
-      <button id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
-      <button id="kAuto" class="small" title="Move the song into your best range">Fit</button>
-      <label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
+      <button data-min="2" id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
+      <span data-min="2" id="keyTxt" class="keybox">—</span>
+      <button data-min="2" id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
+      <button data-min="2" id="kAuto" class="small" title="Move the song into your best range">Fit</button>
+      <label data-min="2" class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
     </div>
   </div>
 </section>
@@ -714,7 +729,8 @@ function setMode(m, msg) {
   $('.live').classList.toggle('show-help', liveHelp);
   $('#btnHelp').textContent = liveHelp ? 'Show the meters' : 'What do these mean?';
   if (m === 'idle') { S.voiced = false; S.quietFor = 0; S.micPeak = 0; updateLive(0); updateLive(0); }
-  $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
+  $('#btnMic').textContent = m === 'mic' ? 'Mic on' : 'Turn on mic';
+  document.body.classList.toggle('idle', m === 'idle');
   $('#btnMic').disabled = m === 'mic';
   renderGuide();
 }
@@ -727,7 +743,7 @@ async function startMic() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   } catch (e) {
-    setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then press Start listening again.'); return;
+    setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then tap Turn on mic again.'); return;
   }
   const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes.push(src);
   S.micPeak = 0; S.quietFor = 0;
@@ -738,7 +754,7 @@ async function startMic() {
     if (mode !== 'mic' || S.micPeak > 0) return;
     await rebuildAudio(); S.micPeak = 0;
     setMode('mic', ac.state === 'running' ? LISTEN_MSG : 'Tap anywhere on the page to switch the sound meter on.');
-    micWatch = setTimeout(() => { if (mode === 'mic' && S.micPeak === 0) setMode('mic', 'The microphone is sending no sound. Close other apps using the mic, reload this page, and tap Start listening again.'); }, 2500);
+    micWatch = setTimeout(() => { if (mode === 'mic' && S.micPeak === 0) setMode('mic', 'The microphone is sending no sound. Close other apps using the mic, reload this page, and tap Turn on mic again.'); }, 2500);
   }, 1500);
 }
 
@@ -1164,7 +1180,7 @@ function renderVoice() {
   const zb = $('#zoneBox'); zb.textContent = '';
   const stat = (label, val) => { const s = document.createElement('div'); s.className = 'stat'; s.innerHTML = `<span class="label"></span><span class="val"></span>`; s.children[0].textContent = label; s.children[1].textContent = val; zb.appendChild(s); };
   const sung = Object.keys(store.notes).map(Number).filter(m => store.notes[m].sec > 0.3).sort((a, b) => a - b);
-  if (!sung.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nothing recorded yet. Press Start listening and sing a slow siren from your lowest comfortable note to your highest, then hold a few notes along the way.'; zb.appendChild(p); }
+  if (!sung.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nothing recorded yet. Turn on the mic and sing a slow siren from your lowest comfortable note to your highest, then hold a few notes along the way.'; zb.appendChild(p); }
   else {
     stat('Range heard', nameOf(sung[0]) + ' – ' + nameOf(sung[sung.length - 1]));
     if (zone) stat('Strongest zone', nameOf(zone.lo) + ' – ' + nameOf(zone.hi));
@@ -1938,8 +1954,9 @@ function renderLab() {
     grid.appendChild(b);
   }
 }
-function openLab(id) {
+function openLab(id, fromPath) {
   const L = LAB.find(x => x.id === id); if (!L || level() < (LAB_LEVEL[id] || 1)) return;
+  D.fromPath = !!fromPath; $('#lsBack').textContent = fromPath ? '← Back to your path' : '← All exercises';
   if ($('#tab-lab').hidden) { $('#t-lab').click(); }
   D.id = id; D.kind = L.kind;
   $('#labHome').hidden = true; $('#labStage').hidden = false;
@@ -1953,7 +1970,8 @@ function openLab(id) {
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
 function closeLab() {
-  D.id = null; D.kind = null; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
+  const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
+  if (back) $('#t-path').click();
 }
 
 // drill UI helpers
@@ -1974,7 +1992,7 @@ function dShow(nodes, again) {
   dSet({ step: 'Finished', prompt: 'Results ✓', sub: 'Your results and what to work on are on the right. Each try is saved, so you can watch your score grow.', live: '', prog: -1 });
   for (const n of nodes) box.appendChild(n);
   dBtns([{ label: 'Try again', primary: true, fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } },
-    { label: 'Take it to a song →', fn: () => { closeLab(); $('#t-sing').click(); } }, { label: '← All exercises', fn: closeLab }]);
+    { label: 'Take it to a song →', fn: () => { closeLab(); $('#t-sing').click(); } }, { label: D.fromPath ? '← Back to your path' : '← All exercises', fn: closeLab }]);
 }
 function statRow(pairs) { const d = el('div', 'report-top'); for (const [l, v, big] of pairs) { const s = el('div', 'stat'); s.append(el('span', 'label', l), el('span', big ? 'score' : 'val', v)); d.appendChild(s); } return d; }
 function fixCards(items) {
@@ -2366,42 +2384,64 @@ $('#celStay').onclick = () => { $('#celebrate').hidden = true; };
 let findOpen = false;
 function startLesson(x) {
   if (x.kind === 'find') { findOpen = true; $('#t-path').click(); renderPath(); ensureListening(); $('#findCard').scrollIntoView({ block: 'nearest' }); }
-  else if (x.kind === 'lab') openLab(x.lab);
+  else if (x.kind === 'lab') openLab(x.lab, true);
   else if (x.kind === 'song') {
     const ids = x.songs.filter(id => level() >= (SONG_LEVEL[id] || 1) || id === 'doremi');
-    if (ids[0] === 'doremi') { openLab('scale'); return; }
+    if (ids[0] === 'doremi') { openLab('scale', true); ensureListening(); return; }
     if (ids[0] === 'gen') { $('#t-sing').click(); $('#btnGen').click(); return; }
     $('#t-sing').click(); loadSong(SONGS.find(s => s.id === ids[0]));
   } else $('#t-path').click();
 }
 
+const WAVE = '<div class="hero-wave" aria-hidden="true"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0 60 Q 50 10 100 60 T 200 60 T 300 60 T 400 60 T 500 60 T 600 60 T 700 60 T 800 60" fill="none" stroke="var(--accent)" stroke-width="5"/><path d="M0 60 Q 50 95 100 60 T 200 60 T 300 60 T 400 60 T 500 60 T 600 60 T 700 60 T 800 60" fill="none" stroke="var(--pure)" stroke-width="4"/></svg></div>';
 function renderPath() {
   const lv = level(), cur = $('#lvCurrent'), L = LEVELS[lv - 1];
-  cur.textContent = '';
-  const head = el('div', 'lv-head');
-  const dots = el('div', 'lv-dots'); LEVELS.forEach(x => dots.appendChild(el('span', x.n < lv ? 'done' : x.n === lv ? 'now' : '')));
+  const fresh = !(store.lessons || []).length;
+  document.body.classList.toggle('fresh', fresh);
   const doneN = L.lessons.filter(x => x.pass()).length;
-  head.append(el('span', 'label', 'Level ' + lv + ' of ' + LEVELS.length), dots, el('span', 'label', doneN + ' of ' + L.lessons.length + ' lessons done'));
-  cur.append(head, el('h2', '', L.title), el('p', 'lv-intro', L.intro));
-  const list = el('div', 'lessons');
-  const next = L.lessons.find(x => !x.pass() && x.kind !== 'days');
+  const next = L.lessons.find(x => !x.pass() && x.kind !== 'days'), days = L.lessons.find(x => x.kind === 'days');
+  cur.textContent = ''; cur.insertAdjacentHTML('beforeend', WAVE);
+  const btn = (label, cls, fn) => { const b = el('button', cls, label); b.onclick = fn; return b; };
+  const cta = el('div', 'cta');
+  if (fresh) {
+    cur.append(el('span', 'label', 'Welcome'), el('h2', '', 'Everyone has a pure note. Let\'s find yours.'),
+      el('p', 'lv-intro', 'Sing Do-Re-Mi along with the app. In about a minute you\'ll see which notes you already sing well.'));
+    cta.append(btn('♪ Let\'s sing Do-Re-Mi', 'primary', () => startLesson(L.lessons[0])), btn('Just hum instead', 'small', () => startLesson(LEVELS[0].lessons[1])));
+    cur.append(cta, el('p', 'fine', 'No experience needed · headphones help · nothing is recorded or uploaded'));
+  } else if (next) {
+    const last = [...L.lessons].reverse().find(x => x.pass() && x.won);
+    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title + ' · ' + doneN + ' of ' + L.lessons.length + ' done'), el('h2', '', 'Next: ' + next.title),
+      el('p', 'lv-intro', (last ? last.won() + ' ' : '') + 'Goal: ' + next.goal.charAt(0).toLowerCase() + next.goal.slice(1) + '.'));
+    cta.append(btn('Let\'s go →', 'primary', () => startLesson(next)));
+    cur.appendChild(cta);
+  } else if (days && !days.pass()) {
+    const left = days.need - daysPractised();
+    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title), el('h2', '', 'Lessons done. Now let it settle.'),
+      el('p', 'lv-intro', 'Come back on ' + left + ' more day' + (left > 1 ? 's' : '') + ' to finish Level ' + lv + '. A minute or two of singing counts. Voices grow between sessions, not just during them.'));
+    cta.append(btn('Sing a song', 'primary', () => $('#t-sing').click()), btn('Practise in the Lab', 'small', () => $('#t-lab').click()));
+    cur.appendChild(cta);
+  } else {
+    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title), el('h2', '', 'Everything is open.'), el('p', 'lv-intro', 'Keep your best scores climbing in the Lab and in songs.'));
+  }
+  // lessons checklist, folded
+  $('#lvLessonsSum').textContent = 'Level ' + lv + ' lessons · ' + doneN + ' of ' + L.lessons.length + ' done';
+  const list = $('#lessonList'); list.textContent = '';
   for (const x of L.lessons) {
-    const ok = x.pass(), row = el('div', 'lesson' + (ok ? ' done' : x === next ? ' next' : ''));
+    const ok = x.pass(), row = el('div', 'lesson' + (ok ? ' is-done' : x === next ? ' next' : ''));
     row.append(el('span', 'ls-ic', ok ? '✓' : x.kind === 'days' ? '◷' : '○'));
     const t = el('div', 'ls-txt');
-    t.append(el('b', '', x.title), el('span', 'muted', ok && x.won ? x.won() : x.kind === 'days' ? daysPractised() + ' of ' + x.need + ' days so far. ' + x.goal + '.' : x.goal));
+    t.append(el('b', '', x.title), el('span', 'muted', ok && x.won ? x.won() : x.kind === 'days' ? daysPractised() + ' of ' + x.need + ' days so far' : x.goal));
     row.appendChild(t);
-    if (x.kind !== 'days') { const b = el('button', x === next ? 'primary small' : 'small', ok ? 'Again' : x === next ? 'Start →' : 'Start'); b.onclick = () => startLesson(x); row.appendChild(b); }
+    if (x.kind !== 'days') row.appendChild(btn(ok ? 'Again' : 'Start', x === next ? 'primary small' : 'small', () => startLesson(x)));
     list.appendChild(row);
   }
-  cur.appendChild(list);
   const fc = $('#findCard'); fc.textContent = ''; fc.hidden = !findOpen;
-  if (findOpen) { const h = el('div', 'card-head'); const close = el('button', 'small', 'Close'); close.onclick = () => { findOpen = false; renderPath(); }; h.append(el('h3', '', 'Find your pure notes'), close); fc.append(h, el('p', 'lv-intro', 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.'), findUI()); }
+  if (findOpen) { const h = el('div', 'card-head'); h.append(el('h3', '', 'Find your pure notes'), btn('Close', 'small', () => { findOpen = false; renderPath(); })); fc.append(h, el('p', 'lv-intro', 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.'), findUI()); }
   const ll = $('#lvList'); ll.textContent = '';
   for (const x of LEVELS) {
-    const row = el('div', 'lv-row' + (x.n < lv ? ' done' : x.n === lv ? ' now' : ' locked'));
+    const row = el('div', 'lv-row' + (x.n < lv ? ' is-done' : x.n === lv ? ' now' : ' locked'));
     row.append(el('span', 'lv-num', x.n < lv ? '✓' : String(x.n)));
-    const t = el('div', 'lv-txt'); t.append(el('b', '', 'Level ' + x.n + ' · ' + x.title), el('span', 'muted', x.n > lv ? 'Locked · ' + x.intro : x.n === lv ? 'You are here' : 'Complete')); row.appendChild(t);
+    const t = el('div', 'lv-txt'); t.append(el('b', '', 'Level ' + x.n + ' · ' + x.title), el('span', 'muted', x.n > lv ? x.intro : x.n === lv ? 'You are here' : 'Complete')); row.appendChild(t);
     ll.appendChild(row);
   }
 }
@@ -2478,6 +2518,7 @@ loadSong(SONGS.find(x => x.id === "row"));
 renderLab();
 goStep(Math.min(guide.step, STEPS.length));
 G.metro = !!(store.settings && store.settings.metro); $('#btnMetro').setAttribute('aria-pressed', G.metro);
+if (!store.lv2) { store.level = 1; store.lv2 = true; save(); }
 applyLevel();
 checkLevel(true);
 requestAnimationFrame(frame);

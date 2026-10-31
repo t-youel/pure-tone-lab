@@ -38,7 +38,8 @@ async function voice(page) {
     }, 25);
   });
 }
-const setLevel = (page, n) => page.evaluate(n => { store.level = n; save(); applyLevel(); }, n);
+const setLevel = (page, n) => page.evaluate(n => { store.level = n; if (!store.lessons || !store.lessons.length) store.lessons = ['1.0']; save(); applyLevel(); }, n);
+const tab = (page, id) => page.evaluate(id => $(id).click(), id);
 
 async function test(name, fn) {
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -55,16 +56,27 @@ async function test(name, fn) {
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
 (async () => {
-  await test('starts simple: Level 1 lessons, Do-Re-Mi first, no meters', async page => {
-    const s = await page.evaluate(() => ({ lv: $('#lvlBadge').textContent, live: $('.live').hidden, next: document.querySelector('.lesson.next b')?.textContent, n: document.querySelectorAll('.lesson').length }));
-    expect(s.lv.startsWith('Level 1'), 'badge: ' + s.lv);
-    expect(s.live, 'meters should be hidden at level 1');
-    expect(s.next === 'Sing Do-Re-Mi' && s.n === 7, JSON.stringify(s));
+  await test('welcome screen: one friendly invitation, nothing else', async page => {
+    const s = await page.evaluate(() => {
+      const vis = e => !!e && e.offsetParent !== null;
+      return { cta: [...document.querySelectorAll('#lvCurrent button')].map(b => b.textContent), h: $('#lvCurrent h2').textContent,
+        tabs: vis($('.tabs')), badge: vis($('#lvlBadge')), mic: vis($('#btnMic')), meters: vis($('.live')), status: vis($('.status')), more: vis($('.path-more')) };
+    });
+    expect(/pure note/.test(s.h) && s.cta[0] === "♪ Let's sing Do-Re-Mi", JSON.stringify(s));
+    expect(!s.tabs && !s.badge && !s.mic && !s.meters && !s.status && !s.more, 'too much on the welcome screen: ' + JSON.stringify(s));
+  });
+
+  await test('Level 1 checklist starts with Do-Re-Mi; no giant level dots', async page => {
+    const s = await page.evaluate(() => ({ lv: $('#lvlBadge').textContent, next: document.querySelector('.lesson.next b')?.textContent, n: document.querySelectorAll('.lesson').length, live: $('.live').hidden }));
+    expect(s.lv.startsWith('Level 1') && s.next === 'Sing Do-Re-Mi' && s.n === 7 && s.live, JSON.stringify(s));
+    await setLevel(page, 3);
+    const big = await page.evaluate(() => Math.max(0, ...[...document.querySelectorAll('.lv-num, .ls-ic')].map(e => e.getBoundingClientRect().width)));
+    expect(big <= 34, 'markers too big: ' + big);
   });
 
   await test('first lesson: Do-Re-Mi with words, then "you already sing … well"', async page => {
     await voice(page);
-    await page.click('.lesson.next button'); await page.waitForTimeout(400);
+    await page.click("#lvCurrent >> text=Let's sing Do-Re-Mi"); await page.waitForTimeout(400);
     const words = await page.evaluate(() => [D.id, G.song.id, [...document.querySelectorAll('#staff .lyr')].map(t => t.textContent).join(' ')]);
     expect(words[0] === 'scale' && /Do Re Mi Fa So La Ti Do/.test(words[2]), JSON.stringify(words));
     await page.evaluate(() => { window.badNotes = [5, 6]; setInterval(() => { const tg = G.seq[G.idx]; V.on = G.run === 'singing'; if (tg) V.m = tg.m + (badNotes.includes(G.idx) ? 1.2 : 0); }, 25); });
@@ -72,6 +84,9 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(1800);
     const s = await page.evaluate(() => ({ head: document.querySelector('.cheer-big').textContent, done: (store.lessons || []).includes('1.1') }));
     expect(/You already sing Do, Re, Mi, Fa, So/.test(s.head) && s.done, JSON.stringify(s));
+    await page.click('#lsBack'); await page.waitForTimeout(300);
+    const after = await page.evaluate(() => ({ tabs: $('.tabs').offsetParent !== null, h: $('#lvCurrent h2').textContent }));
+    expect(after.tabs && /^Next: /.test(after.h), JSON.stringify(after));
   });
 
   await test('pure-notes lesson lights up the keyboard', async page => {
@@ -109,7 +124,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('tempo buttons always apply, even mid-song', async page => {
     await voice(page); await setLevel(page, 10);
-    await page.click('#t-sing');
+    await tab(page, '#t-sing');
     await page.click('[data-tempo="normal"]');
     let s = await page.evaluate(() => [G.tempo, document.querySelector('[data-tempo="normal"]').getAttribute('aria-pressed')]);
     expect(s[0] === 'normal' && s[1] === 'true', 'normal not applied: ' + s);
@@ -161,7 +176,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('metronome ticks through the song; starting note plays first', async page => {
     await voice(page);
-    await page.click('#t-sing');
+    await tab(page, '#t-sing');
     await page.evaluate(() => { window.played = []; const pt = playTone; playTone = (m, ...r) => { played.push(m); return pt(m, ...r); }; $('#btnRef').click(); });
     await page.waitForTimeout(200);
     const first = await page.evaluate(() => [played[0], G.seq[0].m]);
@@ -176,7 +191,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('song feedback links to the right Lab exercise', async page => {
     await voice(page); await setLevel(page, 10);
-    await page.click('#t-sing'); await page.click('[data-tempo="normal"]');
+    await tab(page, '#t-sing'); await page.click('[data-tempo="normal"]');
     await page.evaluate(() => { V.follow = true; V.off = -0.35; });
     await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
@@ -209,7 +224,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('Sing screen fits an iPad screen; phone has no sideways scroll', async (page, browser) => {
     await voice(page); await setLevel(page, 10);
-    await page.click('#t-sing'); await page.evaluate(() => scrollTo(0, 0));
+    await tab(page, '#t-sing'); await page.evaluate(() => scrollTo(0, 0));
     const h = await page.evaluate(() => document.documentElement.scrollHeight);
     expect(h <= 770, 'iPad page height ' + h);
     const phone = await open(browser, { width: 400, height: 860 });
