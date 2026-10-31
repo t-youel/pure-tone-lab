@@ -59,6 +59,8 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 button.small { padding: 7px 12px; font-size: 0.85rem; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 .status { font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.status.warn { color: var(--warn); font-weight: 700; }
+body.fresh .status.warn { display: flex !important; }
 .linkish { border: 0; background: none; padding: 2px 0; margin-left: auto; color: var(--accent); font: 600 0.85rem var(--body); text-decoration: underline; cursor: pointer; flex: none; border-radius: 4px; }
 .cell-help { display: none; font-size: 0.82rem; line-height: 1.38; color: var(--ink); }
 .cell-help p { margin: 0 0 8px; }
@@ -707,7 +709,17 @@ async function ensureAudio() {
 }
 const LISTEN_MSG = 'Listening. Hum or sing any note; quiet and relaxed works best. Use headphones when you play reference tones.';
 // iPad Safari can hand a page a silent microphone, or pause its audio. Any tap wakes it again.
+let micLostFlag = false;
+function micLost() {
+  if (mode !== 'mic' || micLostFlag) return;
+  micLostFlag = true;
+  stopSources();
+  setMode('idle', 'The microphone was switched off. Tap anywhere to switch it back on.');
+  $('.status').classList.add('warn');
+  toast('Microphone switched off. Tap anywhere to turn it back on.');
+}
 document.addEventListener('pointerdown', () => {
+  if (micLostFlag) { micLostFlag = false; startMic(); return; }
   if (ac && ac.state !== 'running' && mode !== 'idle') ac.resume().then(() => { if (mode === 'mic') setMode('mic', LISTEN_MSG); }).catch(() => {});
 });
 async function rebuildAudio() {
@@ -752,6 +764,9 @@ async function startMic() {
     setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then tap Turn on mic again.'); return;
   }
   const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes.push(src);
+  micLostFlag = false; $('.status').classList.remove('warn');
+  const track = stream.getAudioTracks()[0];
+  if (track) { track.addEventListener('ended', () => micLost()); track.addEventListener('mute', () => micLost()); }
   S.micPeak = 0; S.quietFor = 0;
   setMode('mic', LISTEN_MSG);
   // A real microphone always picks up a little room noise. Perfect digital silence means the feed is stuck: rebuild the audio engine once.
@@ -1977,7 +1992,7 @@ function openLab(id, fromPath) {
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
 function closeLab() {
-  D.run = null; try { speechSynthesis.cancel(); } catch (e) {}
+  D.run = null;
   const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
   if (back) $('#t-path').click();
 }
@@ -2085,14 +2100,11 @@ function rangeFigure(p) {
 
 // Spoken prompts (so the singer can close their eyes), short waits, and a sample siren glide.
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function say(text) {
-  return new Promise(res => {
-    const ss = window.speechSynthesis, on = !(store.settings && store.settings.speak === false);
-    if (!ss || !on || typeof SpeechSynthesisUtterance === 'undefined') { setTimeout(res, 500 + text.length * 25); return; }
-    let done = false; const end = () => { if (done) return; done = true; refUntil = now() + 0.3; res(); };
-    try { ss.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1; u.onend = end; u.onerror = end; refUntil = now() + 30; ss.speak(u); } catch (e) { end(); }
-    setTimeout(end, 2500 + text.length * 80);
-  });
+// Step chimes: falling for low, rising for high, a single ding otherwise. Short, so listening starts right away.
+function chime(k) {
+  if (!ac) return;
+  const n = k === 'low' ? [79, 72] : k === 'high' ? [72, 79] : [79];
+  n.forEach((m, i) => playTone(m, 0.14, PURE, i * 0.13));
 }
 function glide() {
   if (!ac) return;
@@ -2218,15 +2230,10 @@ const DRILLS = {
     ],
     lane: () => ({ ladder: true }),
     start() {
-      speechSynthesis && speechSynthesis.cancel && speechSynthesis.cancel();
       Object.assign(D, { phase: 'intro', si: 0, low: null, high: null, natural: null, speak: [], samples: [], all: [], xlo: null, xhi: null, flash: '', flashT: 0, cue: '', run: null, tries: {} });
       $('#lane').classList.add('tall');
-      dSet({ step: 'Find your voice · 5 quick steps · about a minute', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. I\'ll say each step out loud and count you in, so you can close your eyes.', live: '', prog: -1 });
-      dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.run(0); } }, this.voiceBtn()]);
-    },
-    voiceBtn() {
-      const on = !(store.settings && store.settings.speak === false);
-      return { label: on ? '🔈 Spoken prompts: on' : '🔇 Spoken prompts: off', fn: () => { if (!store.settings) store.settings = {}; store.settings.speak = !on; dirty = true; this.start(); } };
+      dSet({ step: 'Find your voice · 5 quick steps · about a minute', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. Each step starts with a chime and waits for you: take your time.', live: '', prog: -1 });
+      dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.run(0); } }]);
     },
     async run(from) {
       const id = D.run = {}; const alive = () => D.run === id && D.id === 'range';
@@ -2234,30 +2241,31 @@ const DRILLS = {
       if (alive()) this.finish();
     },
     controls(i) {
-      dBtns([{ label: 'Pause', fn: () => { D.run = null; speechSynthesis && speechSynthesis.cancel(); D.phase = 'paused'; dSet({ live: 'Paused.', prog: -1 }); dBtns([{ label: 'Resume this step', primary: true, fn: () => this.run(i) }, { label: 'Skip it', fn: () => this.run(i + 1) }]); } },
+      dBtns([{ label: 'Pause', fn: () => { D.run = null; D.phase = 'paused'; dSet({ live: 'Paused.', prog: -1 }); dBtns([{ label: 'Resume this step', primary: true, fn: () => this.run(i) }, { label: 'Skip it', fn: () => this.run(i + 1) }]); } },
         { label: 'Redo this step', fn: () => this.run(i) }, { label: 'Skip', fn: () => this.run(i + 1) }]);
     },
     async step(i, alive) {
       const st = this.steps[i];
-      Object.assign(D, { si: i, phase: 'intro', samples: [], cue: st.cue });
-      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: 'Get ready…', prog: -1 });
+      Object.assign(D, { si: i, phase: 'cue', samples: [], cue: st.cue, started: null, nudged: false });
+      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: st.k === 'stretch' ? 'Listen: weeee…' : '', prog: 0 });
       this.controls(i);
-      await say(st.say); if (!alive()) return;
-      if (st.k === 'stretch') { dSet({ live: 'Listen: weeee…' }); glide(); await wait(2300); if (!alive()) return; }
-      for (let k = 3; k >= 1; k--) { dSet({ live: 'Starting in ' + k + '…' }); click(0, k === 3); await wait(650); if (!alive()) return; }
-      D.phase = st.k; D.t0 = now(); dSet({ live: st.k === 'speak' ? 'Go ahead, I\'m listening…' : 'Go! I\'m listening…', prog: 0 });
-      while (now() - D.t0 < st.secs) { await wait(100); if (!alive()) return; dSet({ prog: (now() - D.t0) / st.secs }); }
-      const r = this.evaluate(st.k);
-      if (!r.ok && !D.tries[st.k]) {
-        D.tries[st.k] = true; D.phase = 'intro';
-        dSet({ prompt: 'Once more', live: 'I didn\'t hear much. A little louder this time.', prog: -1 });
-        await say('I didn\'t quite hear that. Let\'s try once more, a little louder.'); return alive();
+      chime(st.k);
+      if (st.k === 'stretch') { glide(); await wait(2200); } else await wait(450);
+      if (!alive()) return;
+      // Listen straight away; the step's timer only starts once the singer starts.
+      D.phase = st.k; D.t0 = now();
+      dSet({ live: st.k === 'speak' ? 'Go ahead, whenever you\'re ready.' : st.k === 'stretch' ? 'Your turn: weeee!' : 'Whenever you\'re ready.' });
+      while (D.started == null || now() - D.started < st.secs) {
+        await wait(100); if (!alive()) return;
+        if (D.started != null) dSet({ prog: (now() - D.started) / st.secs });
+        else if (!D.nudged && now() - D.t0 > 8) { D.nudged = true; dSet({ live: mode === 'idle' ? 'The mic is off. Tap anywhere to switch it back on.' : 'I can\'t hear you yet. Hum a little louder; the green bar at the top should move.' }); }
       }
+      const r = this.evaluate(st.k);
+      if (!r.ok && !D.tries[st.k]) { D.tries[st.k] = true; dSet({ prompt: 'Once more', live: 'That was very short. Keep going a little longer this time.' }); await wait(1200); return alive(); }
       D.phase = 'got'; D.cue = '✓';
       if (r.ok) this.flash(r.short);
-      dSet({ prompt: r.ok ? r.text : 'Skipped', live: r.ok ? '' : 'No problem, we\'ll work with the rest.', prog: -1 });
-      playTone(76, 0.12, PURE); playTone(81, 0.18, PURE, 0.12);
-      await say(r.ok ? r.say : 'No problem.'); await wait(500);
+      dSet({ prompt: r.ok ? r.text : 'Skipped', live: r.ok ? '' : 'No problem, we\'ll work with the rest.', prog: 1 });
+      await wait(1000);
       return false;
     },
     pct(a, p) { const s = [...a].sort((x, y) => x - y); return s[Math.max(0, Math.min(s.length - 1, Math.round(p * (s.length - 1))))]; },
@@ -2273,7 +2281,9 @@ const DRILLS = {
     },
     tick(dt, muted) {
       if (muted || !this.steps.some(s => s.k === D.phase) || !S.voiced) return;
-      const t = now(); if (t - D.t0 < 0.5) return;
+      const t = now();
+      if (D.started == null) { D.started = t; dSet({ live: 'I hear you!' }); }
+      if (t - D.started < 0.4) return;
       D.samples.push({ t, m: S.midi }); if (D.phase !== 'speak') D.all.push(S.midi);
       const m = D.samples.map(s => s.m);
       if (m.length < 20) return;
@@ -2312,7 +2322,6 @@ const DRILLS = {
       labSave('range', 100, { type: t.n }); renderLab();
       const nodes = voiceResult(store.profile, ranked);
       if (high - low < 5) nodes.splice(2, 0, fixCards([{ good: true, title: 'A cozy range today: ' + nameOf(low) + ' to ' + nameOf(high), why: 'That\'s completely normal for a first try. Voices open up as they warm up and get used to being used.', tryThis: 'Do a gentle siren on "ng" a few times a day, and try this test again in a week. Most people find several more notes.' }]));
-      say('You\'re a ' + t.n + '!');
       dShow(nodes, () => this.start());
     },
   },

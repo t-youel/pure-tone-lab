@@ -42,7 +42,7 @@ const setLevel = (page, n) => page.evaluate(n => { store.level = n; if (!store.l
 const tab = (page, id) => page.evaluate(id => $(id).click(), id);
 
 async function test(name, fn) {
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   const t0 = Date.now();
   try {
     const page = await open(browser);
@@ -162,6 +162,23 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.p && s.p.type === 'Bass' && Math.abs(s.p.low - 41) <= 1 && Math.abs(s.p.high - 63) <= 1 && s.p.natural === 48, JSON.stringify(s.p));
     expect(s.p.xlo <= 39 && s.p.xhi >= 67, 'extremes ' + s.p.xlo + '–' + s.p.xhi);
     expect(/Johnny Cash/.test(s.text) && /Ring of Fire/.test(s.text) && s.fits === 3, 'result missing artists or song fits');
+  });
+
+  await test('Find your voice moves briskly: no countdowns, done in well under a minute', async page => {
+    const t0 = Date.now();
+    await voiceTest(page, { speak: 1, natural: 50, low: [50, 43], high: 60, stretch: [41, 64] });
+    const secs = (Date.now() - t0) / 1000;
+    expect(secs < 50, 'took ' + secs.toFixed(0) + ' s');
+  });
+
+  await test('if the mic gets switched off, the app says so and reconnects on the next tap', async page => {
+    await page.evaluate(() => startMic()); await page.waitForTimeout(800);
+    expect(await page.evaluate(() => mode) === 'mic', 'mic did not start');
+    await page.evaluate(() => stream.getAudioTracks()[0].dispatchEvent(new Event('ended'))); await page.waitForTimeout(200);
+    const s = await page.evaluate(() => ({ mode, status: $('#status').textContent, warn: $('.status').classList.contains('warn'), shown: $('.status').offsetParent !== null }));
+    expect(s.mode === 'idle' && /switched off/.test(s.status) && s.warn && s.shown, JSON.stringify(s));
+    await page.mouse.click(600, 400); await page.waitForTimeout(800);
+    expect(await page.evaluate(() => mode) === 'mic', 'did not reconnect after a tap');
   });
 
   await test('Find your voice is forgiving: low and high mixed up still gives a result', async page => {
