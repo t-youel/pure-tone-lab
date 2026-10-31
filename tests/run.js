@@ -370,6 +370,19 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.f > .9 && s.ok === 3 && !s.tone, JSON.stringify(s));
   });
 
+  await test('coach: tap a step to jump to it; tempo buttons work in coach mode; controls sit above the music', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { store.coach = { row: { rung: 5, fails: 0, v: 2 } }; setCoach(true); });
+    const t0 = await page.evaluate(() => ({ tempo: G.tempo, above: $('#btnSing').getBoundingClientRect().bottom < $('#staff').getBoundingClientRect().top && $('#btnGuide').getBoundingClientRect().bottom < $('#coachBar').getBoundingClientRect().top }));
+    await page.click('[data-tempo="normal"]');
+    const t1 = await page.evaluate(() => ({ rung: CO.rung, tempo: G.tempo, saved: store.coach.row.rung }));
+    await page.click('[data-tempo="medium"]');
+    const t2 = await page.evaluate(() => ({ rung: CO.rung, tempo: G.tempo }));
+    await page.click('#coachBar .rung >> text=Echo 3 notes');
+    const t3 = await page.evaluate(() => ({ rung: CO.rung, n: G.seq.length }));
+    expect(t0.tempo === 'vslow' && t0.above && t1.rung === 7 && t1.tempo === 'normal' && t1.saved === 7 && t2.rung === 6 && t2.tempo === 'medium' && t3.rung === 1 && t3.n === 3, JSON.stringify({ t0, t1, t2, t3 }));
+  });
+
   await test("pitch match's trickiest notes open Steady hold on that note", async page => {
     await page.evaluate(() => { openLab('match'); D.rounds = [{ m: 52, c: 55, pts: 45, rem: 0 }, { m: 48, c: 5, pts: 95, rem: 0, locked: true }]; D.n = 2; DRILLS.match.finish(); });
     await page.click('#dResult >> text=Hold E3');

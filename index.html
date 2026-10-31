@@ -236,7 +236,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .line-nav { display: flex; justify-content: space-between; font: 0.75rem/1 var(--mono); color: var(--muted); }
 #singCard.is-done .sing-main { grid-template-columns: 1fr; }
 #singCard.is-done .target { display: none; }
-.sing-controls { border-top: 1px solid var(--line); padding-top: 10px; }
+.sing-controls { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .sing-controls .sep { flex: 1; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 6px; max-height: 76px; overflow-y: auto; padding-right: 2px; }
 .tile { border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px 0; display: grid; gap: 1px; text-align: center; min-height: 68px; overflow: clip; }
@@ -404,8 +404,10 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 .coach-bar .ch-msg { font-size: 0.92rem; }
 .rungs { display: flex; gap: 4px; flex-wrap: wrap; }
 .rung { font: 600 0.72rem var(--body); padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.rung { background: none; cursor: pointer; min-height: 0; } .rung:hover { border-color: var(--accent); color: var(--accent); }
+.coach-bar .ch-tip { font-size: 0.78rem; }
 .rung.done { border-color: var(--good); color: var(--good); } .rung.now { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-#btnCoach[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+#btnCoach[aria-pressed="true"], #btnGuide[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .coach-offer { border: 2px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .drill.is-finished { grid-template-columns: 1fr; }
 .drill.is-finished #dPrompt, .drill.is-finished #dSub, .drill.is-finished #dBar, .drill.is-finished #dLive, .drill.is-finished #dExtra { display: none; }
@@ -702,6 +704,21 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <div class="song-bar"><h2>Sing</h2><div class="songs" id="songs"></div><button id="btnWarm" class="small" style="flex:none">🔥 Warm up first</button><button id="btnGen" class="small" style="flex:none">+ New melody from my pure notes</button></div>
   </div>
   <div class="card" id="singCard">
+    <div class="row sing-controls">
+      <button id="btnSing" class="primary small">▶ Sing</button>
+      <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
+      <button id="btnRef" class="small">Starting note</button>
+      <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
+      <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
+      <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
+      <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
+      <span class="sep"></span>
+      <button data-min="2" id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
+      <span data-min="2" id="keyTxt" class="keybox">—</span>
+      <button data-min="2" id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
+      <button data-min="2" id="kAuto" class="small" title="Move the song into your best range">Fit</button>
+      <label data-min="2" class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
+    </div>
     <div class="coach-bar" id="coachBar" hidden></div>
     <div class="sing-main">
       <div class="sheet">
@@ -721,21 +738,6 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       </div>
       <div class="focus" id="focus" role="img" aria-label="Close-up of the current note"></div>
       </div>
-    </div>
-    <div class="row sing-controls">
-      <button id="btnSing" class="primary small">▶ Sing</button>
-      <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
-      <button id="btnRef" class="small">Starting note</button>
-      <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
-      <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
-      <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
-      <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
-      <span class="sep"></span>
-      <button data-min="2" id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
-      <span data-min="2" id="keyTxt" class="keybox">—</span>
-      <button data-min="2" id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
-      <button data-min="2" id="kAuto" class="small" title="Move the song into your best range">Fit</button>
-      <label data-min="2" class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
     </div>
   </div>
 </section>
@@ -1556,7 +1558,7 @@ function coachTrim() {
   const r = RUNGS[CO.rung], full = G.seq.length;
   G.fullLen = full;
   if (r.size < full) { G.seq = G.seq.slice(0, r.size); G.lines = G.lines.filter(([a]) => a < r.size).map(([a, b]) => [a, Math.min(b, r.size - 1)]); }
-  if (r.k === 'flow') G.tempo = r.tempo;
+  if (r.k === 'flow') G.tempo = CO.tempo || r.tempo;
 }
 function renderCoach() {
   const bar = $('#coachBar'); if (!bar) return;
@@ -1564,15 +1566,30 @@ function renderCoach() {
   bar.textContent = '';
   const n = G.fullLen || G.seq.length, r = RUNGS[CO.rung];
   const head = el('div', 'ch-head'); head.append(el('b', '', '🛟 Coach · step ' + (CO.rung + 1) + ' of ' + RUNGS.length + ': ' + rungLabel(CO.rung, n)), el('span', 'muted', r.desc)); bar.appendChild(head);
-  const rungs = el('div', 'rungs'); RUNGS.forEach((x, i) => rungs.appendChild(el('span', 'rung' + (i < CO.rung ? ' done' : i === CO.rung ? ' now' : ''), (i < CO.rung ? '✓ ' : '') + rungLabel(i, n)))); bar.appendChild(rungs);
+  const rungs = el('div', 'rungs');
+  RUNGS.forEach((x, i) => { const b = el('button', 'rung' + (i < CO.rung ? ' done' : i === CO.rung ? ' now' : ''), (i < CO.rung ? '✓ ' : '') + rungLabel(i, n)); b.type = 'button'; b.title = 'Go to this step'; b.onclick = () => coachJump(i); rungs.appendChild(b); });
+  bar.appendChild(rungs); bar.appendChild(el('span', 'muted ch-tip', 'Tap any step to jump to it.'));
   if (CO.msg && G.run !== 'done') bar.appendChild(el('p', 'ch-msg', CO.msg));
 }
+function coachJump(i, tempo) {
+  if (G.run === 'echo' || G.run === 'singing' || G.run === 'countin') { guideOff(); stopTicks(); G.run = 'ready'; }
+  CO.rung = i; CO.fails = 0; CO.tempo = tempo || null; coachSave();
+  CO.msg = 'Step ' + (i + 1) + ': ' + RUNGS[i].label + (tempo && tempo !== RUNGS[i].tempo ? ' (' + TEMPO_NAME[tempo] + ')' : '') + '. Tap ▶ Sing to start.';
+  loadSong(G.song, true);
+}
+const TEMPO_NAME = { vslow: 'very slow', slow: 'slow', medium: 'medium', normal: 'normal speed' };
 function setCoach(on) {
   CO.on = on;
+  CO.tempo = null;
   if (on) { const rec = coachRec(G.song.id); CO.rung = rec.rung; CO.fails = rec.fails; CO.msg = 'The coach breaks the tune into small steps. Tap ▶ Sing to start.'; }
   loadSong(G.song, true);
 }
 function coachAfter(st) {
+  const was = CO.rung;
+  coachAfter2(st);
+  if (CO.rung !== was) CO.tempo = null;
+}
+function coachAfter2(st) {
   const ratio = st.monotone ? 0 : st.ok / st.n, pc = Math.round(ratio * 100), n = G.fullLen || st.n;
   if (ratio >= 0.8) {
     CO.fails = 0;
@@ -1739,6 +1756,7 @@ function finishRun() {
 }
 $('#btnSing').onclick = startRun;
 document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
+  if (CO.on) { const t = b.dataset.tempo, k = RUNGS.findIndex(r => r.k === 'flow' && r.tempo === (t === 'medium' ? 'slow' : t)); coachJump(k, t); toast('Coach: ' + rungLabel(k, G.fullLen || G.seq.length) + (t === 'medium' ? ' at medium speed' : '') + '. Tap ▶ Sing.'); return; }
   const was = G.run === 'singing' || G.run === 'countin';
   G.tempo = b.dataset.tempo;
   if (was) { stopTicks(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; toast('Tempo: ' + b.textContent + '. Tap Sing to start again.'); }
