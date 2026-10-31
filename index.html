@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pure Tone Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a "lab bench" — a live readout strip that never leaves the screen, three work tabs beneath it. */
+:root {
+  --bg: #f1f2f7; --surface: #ffffff; --ink: #1a1c2c; --muted: #646a85; --line: #d9dce8;
+  --accent: #3a3fb4; --accent-ink: #ffffff; --pure: #c98a06; --good: #1f8a5c; --warn: #c2512f;
+  --spec0: #f1f2f7; --spec1: #5a5fd0; --spec2: #e8a317;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0f1d; --surface: #171930; --ink: #e8e9f5; --muted: #9196b6; --line: #2a2d4a;
+  --accent: #8d91f7; --accent-ink: #0e0f1d; --pure: #f2c14e; --good: #4fc58f; --warn: #ec8a68;
+  --spec0: #0e0f1d; --spec1: #4b4fc4; --spec2: #f2c14e; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e0f1d; --surface: #171930; --ink: #e8e9f5; --muted: #9196b6; --line: #2a2d4a;
+  --accent: #8d91f7; --accent-ink: #0e0f1d; --pure: #f2c14e; --good: #4fc58f; --warn: #ec8a68;
+  --spec0: #0e0f1d; --spec1: #4b4fc4; --spec2: #f2c14e; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+.label { font: 600 0.72rem/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+.brand { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.brand svg { flex: none; }
+.brand p { color: var(--muted); max-width: 46ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+button, .btn { font: 600 0.95rem/1 var(--body); border-radius: 999px; padding: 11px 18px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; gap: 8px; }
+button:hover, .btn:hover { border-color: var(--accent); }
+button:focus-visible, .btn:focus-visible, input:focus-visible + .switch { outline: 3px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.small { padding: 7px 12px; font-size: 0.85rem; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+.status { font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+.dot.on { background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 25%, transparent); }
+
+/* live strip */
+.live { display: grid; grid-template-columns: 1.05fr 1.1fr 1.1fr 1.2fr; gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.cell { background: var(--surface); padding: 16px 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.big { font: 700 2.9rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.sub { font: 400 0.85rem/1 var(--mono); color: var(--muted); }
+.note-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tuner { position: relative; height: 10px; border-radius: 6px; background:
+  linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--good) 70%, var(--surface)) 40%, var(--good) 50%, color-mix(in srgb, var(--good) 70%, var(--surface)) 60%, var(--warn)); opacity: .85; }
+.needle { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--ink); left: 50%; transition: left .08s linear; }
+.tuner-scale { display: flex; justify-content: space-between; font: 0.72rem/1 var(--mono); color: var(--muted); }
+.purity-row { display: flex; align-items: baseline; gap: 10px; }
+.purity-row .big { color: var(--pure); }
+.grade { font: 600 0.85rem/1.2 var(--body); color: var(--muted); }
+.meters { display: grid; gap: 7px; }
+.meter { display: grid; grid-template-columns: 9.5em 1fr 2.2em; align-items: center; gap: 8px; font-size: 0.82rem; }
+.meter .bar { height: 7px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.meter .fill { height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .12s; }
+.meter .v { font: 0.78rem/1 var(--mono); text-align: right; color: var(--muted); }
+.tone-name { font: 700 1.15rem/1.2 var(--display); }
+.hbars { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; height: 64px; align-items: end; }
+.hbars div { background: var(--accent); border-radius: 3px 3px 0 0; height: 2%; transition: height .1s; }
+.hbars div:first-child { background: var(--pure); }
+.hlabels { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; font: 0.68rem/1 var(--mono); color: var(--muted); text-align: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 0.85rem; display: inline-flex; gap: 6px; align-items: baseline; }
+.chip b { font-family: var(--mono); }
+.chip.main { border-color: var(--pure); }
+.chip.over { border-color: var(--accent); }
+.chip small { color: var(--muted); }
+.coach { font-size: 0.93rem; line-height: 1.45; }
+
+/* tabs */
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { border: 0; border-radius: 10px 10px 0 0; background: transparent; color: var(--muted); padding: 12px 16px; border-bottom: 3px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.panel { display: grid; gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+canvas { display: block; width: 100%; border-radius: 8px; }
+#spec { height: 230px; }
+#trail { height: 230px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+/* range map */
+.range-scroll { overflow-x: auto; padding-bottom: 6px; }
+.range { display: grid; grid-auto-flow: column; grid-auto-columns: 20px; gap: 2px; align-items: end; height: 170px; width: max-content; }
+.range .col { display: grid; grid-template-rows: 1fr auto; height: 100%; gap: 4px; }
+.range .barwrap { display: flex; align-items: end; }
+.range .b { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; background: var(--line); }
+.range .k { font: 0.62rem/1 var(--mono); color: var(--muted); text-align: center; height: 12px; }
+.range .col.black .k { color: transparent; }
+.range .col.zone .k { color: var(--pure); font-weight: 600; }
+.range .col.zone { background: color-mix(in srgb, var(--pure) 12%, transparent); border-radius: 4px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); align-items: center; }
+.swatch { display: inline-block; width: 28px; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 6px; background: linear-gradient(90deg, var(--line), var(--accent), var(--pure)); }
+.zone-box { display: flex; gap: 22px; flex-wrap: wrap; }
+.stat { display: grid; gap: 4px; }
+.stat .val { font: 700 1.5rem/1 var(--display); }
+
+.disc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.disc { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.disc .top-line { display: flex; justify-content: space-between; align-items: baseline; }
+.disc .n { font: 700 1.5rem/1 var(--display); }
+.disc .p { font: 600 0.9rem/1 var(--mono); color: var(--pure); }
+.mini { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 30px; align-items: end; }
+.mini div { background: var(--accent); border-radius: 2px 2px 0 0; min-height: 1px; }
+.mini div:first-child { background: var(--pure); }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; }
+
+/* sing */
+.songs { display: flex; flex-wrap: wrap; gap: 8px; }
+.songs button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.sing-main { display: grid; grid-template-columns: minmax(0, 280px) 1fr; gap: 18px; align-items: center; }
+.target { display: grid; gap: 6px; justify-items: start; }
+.target .big { font-size: 4rem; }
+.hint { font: 700 1.1rem/1.2 var(--display); }
+.hint.ok { color: var(--good); }
+.hint.up, .hint.down { color: var(--warn); }
+.hold { height: 8px; width: 100%; background: var(--line); border-radius: 4px; overflow: hidden; }
+.hold div { height: 100%; width: 0; background: var(--good); }
+.lane { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; }
+.lane span { flex: none; font: 600 0.85rem/1 var(--mono); padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); }
+.lane span.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--line)); }
+.lane span.now { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.92rem; }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch { width: 38px; height: 22px; border-radius: 11px; background: var(--line); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: left .15s; }
+.toggle input:checked + .switch { background: var(--accent); }
+.toggle input:checked + .switch::after { left: 19px; }
+.keybox { font: 600 0.95rem/1 var(--mono); min-width: 7.5em; text-align: center; }
+
+details { border-top: 1px solid var(--line); padding-top: 14px; }
+summary { cursor: pointer; font: 700 1rem/1.3 var(--display); }
+details .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 12px; }
+details p { color: var(--muted); font-size: 0.93rem; max-width: 62ch; }
+details b { color: var(--ink); }
+
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 140%);
+  background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 999px; font-weight: 600; transition: transform .25s; z-index: 20; max-width: calc(100% - 32px); }
+#toast.show { transform: translate(-50%, 0); }
+
+@media (max-width: 980px) { .live { grid-template-columns: 1fr 1fr; position: static; } }
+@media (max-width: 720px) { .two, .sing-main { grid-template-columns: 1fr; } }
+@media (max-width: 460px) { .live { grid-template-columns: 1fr; } .big { font-size: 2.4rem; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+      <rect x="1" y="1" width="42" height="42" rx="12" fill="var(--accent)"/>
+      <path d="M8 22 C11 12, 14 12, 17 22 S23 32, 26 22 S32 12, 36 22" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>Pure Tone Lab</h1>
+      <p>Find the pure sounds your own voice already makes, map where it is strongest, then sing with it.</p>
+    </div>
+  </div>
+  <div class="controls">
+    <button id="btnMic" class="primary">Start listening</button>
+    <button id="btnDemo">Play demo voice</button>
+    <label class="btn" for="fileIn" tabindex="0" id="fileLabel">Analyze a recording</label>
+    <input type="file" id="fileIn" accept="audio/*" hidden>
+    <button id="btnStop" hidden>Stop</button>
+  </div>
+</header>
+
+<div class="status"><span id="dot" class="dot"></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span></div>
+
+<section class="live" aria-live="off">
+  <div class="cell">
+    <div class="label">Note</div>
+    <div class="note-row"><div id="noteName" class="big">—</div><div id="noteHz" class="sub">— Hz</div></div>
+    <div class="tuner"><div id="needle" class="needle"></div></div>
+    <div class="tuner-scale"><span>−50¢ flat</span><span id="centsTxt" class="mono">0¢</span><span>sharp +50¢</span></div>
+  </div>
+  <div class="cell">
+    <div class="label">Purity</div>
+    <div class="purity-row"><div id="purityNum" class="big">—</div><div id="grade" class="grade">silent</div></div>
+    <div class="meters">
+      <div class="meter"><span>Clarity</span><div class="bar"><div class="fill" id="mClar"></div></div><span class="v" id="vClar">–</span></div>
+      <div class="meter"><span>Steadiness</span><div class="bar"><div class="fill" id="mStab"></div></div><span class="v" id="vStab">–</span></div>
+      <div class="meter"><span>Harmonic focus</span><div class="bar"><div class="fill" id="mFocus"></div></div><span class="v" id="vFocus">–</span></div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="label">Tone color</div>
+    <div id="toneName" class="tone-name">—</div>
+    <div class="hbars" id="hbars"></div>
+    <div class="hlabels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+  </div>
+  <div class="cell">
+    <div class="label">Sounding now</div>
+    <div id="chips" class="chips"><span class="chip muted">nothing yet</span></div>
+    <p id="coach" class="coach muted">Hum softly on "mmm" or "oo". Quiet and relaxed beats loud.</p>
+  </div>
+</section>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="t-listen" aria-selected="true" data-tab="listen">Listen</button>
+  <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice map</button>
+  <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">Sing</button>
+</nav>
+
+<!-- LISTEN -->
+<section class="panel" id="tab-listen">
+  <div class="two">
+    <div class="card">
+      <div class="card-head"><h3>Spectrogram</h3><span class="label">60 Hz – 5 kHz · log scale</span></div>
+      <canvas id="spec"></canvas>
+      <p class="muted" style="font-size:.88rem">A pure tone draws clean, evenly spaced horizontal lines. Breath and rasp show up as fog between them. Two independent notes show as two ladders that don't line up.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Pitch trail</h3><span class="label">last 10 s · brighter = purer</span></div>
+      <canvas id="trail"></canvas>
+      <p class="muted" style="font-size:.88rem">Try a slow siren from your lowest comfortable note to your highest. Bright gold stretches are where your voice rings most purely.</p>
+    </div>
+  </div>
+  <div class="card">
+    <details>
+      <summary>How purity is measured</summary>
+      <div class="cols">
+        <p><b>Clarity</b> is how strongly the sound repeats itself, cycle after cycle (normalized autocorrelation). A clean, periodic tone scores near 100. Air, rasp and crackle lower it.</p>
+        <p><b>Steadiness</b> is how still your pitch stays over the last 0.4 seconds, measured in cents. Gentle vibrato is fine; wobble and drift are not.</p>
+        <p><b>Harmonic focus</b> is the share of sound energy that sits exactly on your harmonics, rather than in noise between them. Purity combines all three, 40/30/30.</p>
+        <p><b>Tone color</b> shows how strong each harmonic is. A sine-like "oo" is almost all harmonic 1. Bright vowels like "ee" lift the upper bars. A single towering upper bar means you are overtone singing: two notes at once.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- MY VOICE -->
+<section class="panel" id="tab-voice" hidden>
+  <div class="card">
+    <div class="card-head">
+      <h2>Your range, note by note</h2>
+      <div class="legend"><span><i class="swatch"></i>bar height = time sung · color = average purity</span></div>
+    </div>
+    <div class="zone-box" id="zoneBox"></div>
+    <div class="range-scroll"><div class="range" id="range"></div></div>
+    <p class="muted" style="font-size:.9rem">Every voiced moment counts toward the note it lands on. The highlighted band is your strongest zone: the 9-semitone stretch where you sing most purely and most comfortably. Songs in the Sing tab are moved into this zone automatically.</p>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Pure tones you've found</h2>
+      <span class="label">hold a note 1.2 s at purity 72+ to save it</span>
+    </div>
+    <div class="disc-grid" id="discs"></div>
+    <p class="muted" style="font-size:.9rem">Play rebuilds each sound from your own harmonic fingerprint, so you hear your timbre back as a clean tone. Match it to lock the feeling in.</p>
+  </div>
+  <div class="row">
+    <button id="btnReset" class="small">Clear my voice data</button>
+    <span class="muted" style="font-size:.85rem">Data stays in this browser only.</span>
+  </div>
+</section>
+
+<!-- SING -->
+<section class="panel" id="tab-sing" hidden>
+  <div class="card">
+    <div class="card-head"><h2>Choose something to sing</h2><span class="label" id="songKind"></span></div>
+    <div class="songs" id="songs"></div>
+    <div class="row">
+      <button id="btnGen" class="small">Compose a new melody from my pure notes</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="sing-main">
+      <div class="target">
+        <div class="label">Sing this note</div>
+        <div id="tgtName" class="big">—</div>
+        <div id="tgtHint" class="hint">Start listening to begin</div>
+        <div class="hold" aria-hidden="true"><div id="holdFill"></div></div>
+        <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
+      </div>
+      <div style="display:grid;gap:14px;min-width:0">
+        <div class="lane" id="lane"></div>
+        <div class="row">
+          <button id="btnRef" class="small">Hear this note</button>
+          <button id="btnPlaySong" class="small">Hear the melody</button>
+          <button id="btnRestart" class="small">Restart</button>
+          <button id="btnSkip" class="small">Skip note</button>
+        </div>
+        <div class="row">
+          <span class="label">Key</span>
+          <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
+          <span id="keyTxt" class="keybox">—</span>
+          <button id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
+          <button id="kAuto" class="small">Fit to my zone</button>
+          <label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave counts</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+// ---------- helpers ----------
+const $ = s => document.querySelector(s);
+const NOTE = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const nameOf = m => { const r = Math.round(m); return NOTE[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1); };
+const pcOf = m => NOTE[((Math.round(m) % 12) + 12) % 12];
+const f2m = f => 69 + 12 * Math.log2(f / 440);
+const m2f = m => 440 * Math.pow(2, (m - 69) / 12);
+const isBlack = m => [1,3,6,8,10].includes(((m % 12) + 12) % 12);
+const now = () => performance.now() / 1000;
+const RANGE_LO = 36, RANGE_HI = 84; // C2..C6
+const HN = 10;
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---------- persistence ----------
+const KEY = 'pureToneLab.v1';
+let store = { notes: {}, discoveries: [] };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.notes && s.discoveries) store = s; } catch (e) {}
+let dirty = false;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+setInterval(() => { if (dirty) { dirty = false; save(); renderVoice(); } }, 1500);
+
+// ---------- theme colors for canvases ----------
+let C = {};
+function hex(h) { h = h.trim().replace('#', ''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['bg','surface','ink','muted','line','accent','pure','good','warn','spec0','spec1','spec2']) C[k] = cs.getPropertyValue('--' + k).trim();
+  const a = hex(C.spec0), b = hex(C.spec1), c = hex(C.spec2);
+  C.lut = new Array(256);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255, [p, q, u] = t < 0.55 ? [a, b, t / 0.55] : [b, c, (t - 0.55) / 0.45];
+    C.lut[i] = `rgb(${p.map((v, j) => Math.round(v + (q[j] - v) * u)).join(',')})`;
+  }
+  C.mutedRGB = hex(C.muted); C.pureRGB = hex(C.pure);
+  if (specCtx) { specCtx.fillStyle = C.spec0; specCtx.fillRect(0, 0, spec.width, spec.height); }
+}
+function mixPurity(p) { const t = clamp((p - 40) / 50); return `rgb(${C.mutedRGB.map((v, j) => Math.round(v + (C.pureRGB[j] - v) * t)).join(',')})`; }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTokens);
+new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- audio engine ----------
+let ac = null, analyser, timeBuf, freqDb, nsdf, sq;
+let mode = 'idle', stream = null, liveNodes = [], demoTimer = null;
+let refUntil = 0; // ignore analysis while a reference tone plays
+
+async function ensureAudio() {
+  if (!ac) {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ac.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
+    timeBuf = new Float32Array(analyser.fftSize);
+    freqDb = new Float32Array(analyser.frequencyBinCount);
+    nsdf = new Float32Array(2048); sq = new Float64Array(2049);
+  }
+  if (ac.state === 'suspended') await ac.resume();
+}
+
+function stopSources() {
+  clearTimeout(demoTimer); demoTimer = null;
+  for (const n of liveNodes) { try { n.stop && n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} }
+  liveNodes = [];
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+function setMode(m, msg) {
+  mode = m;
+  $('#dot').classList.toggle('on', m !== 'idle');
+  $('#status').textContent = msg;
+  $('#btnStop').hidden = m === 'idle';
+  $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
+  $('#btnMic').disabled = m === 'mic';
+}
+
+async function startMic() {
+  await ensureAudio(); stopSources();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setMode('idle', 'This browser cannot reach the microphone here. Open the file in Chrome, Edge, Firefox or Safari directly (or from a https:// address).'); return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) {
+    setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then press Start listening again.'); return;
+  }
+  const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes.push(src);
+  setMode('mic', 'Listening. Hum or sing any note; quiet and relaxed works best. Use headphones when you play reference tones.');
+}
+
+function makeWave(amps) {
+  const real = new Float32Array(amps.length + 1), imag = new Float32Array(amps.length + 1);
+  amps.forEach((a, i) => imag[i + 1] = a);
+  return ac.createPeriodicWave(real, imag);
+}
+
+// Demo: a synthetic voice that glides, holds a pure note, gets breathy, overtone-sings, then rests.
+async function startDemo() {
+  await ensureAudio(); stopSources();
+  const out = ac.createGain(); out.gain.value = 0.35; out.connect(ac.destination); out.connect(analyser);
+  const master = ac.createGain(); master.gain.value = 0; master.connect(out);
+  const osc = ac.createOscillator(); osc.setPeriodicWave(makeWave([1, .45, .28, .16, .1, .06, .04, .03])); osc.connect(master);
+  const ov = ac.createOscillator(); ov.type = 'sine'; const ovG = ac.createGain(); ovG.gain.value = 0; ov.connect(ovG); ovG.connect(master);
+  const lfo = ac.createOscillator(); lfo.frequency.value = 5.3; const lfoG = ac.createGain(); lfoG.gain.value = 18; lfo.connect(lfoG); lfoG.connect(osc.detune); lfoG.connect(ov.detune);
+  const nb = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const noise = ac.createBufferSource(); noise.buffer = nb; noise.loop = true;
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.6;
+  const nG = ac.createGain(); nG.gain.value = 0; noise.connect(bp); bp.connect(nG); nG.connect(out);
+  [osc, ov, lfo, noise].forEach(n => n.start()); liveNodes.push(osc, ov, lfo, noise, master, out, ovG, lfoG, nG, bp);
+
+  const cycle = () => {
+    const t = ac.currentTime + 0.05, f = osc.frequency, of = ov.frequency, g = master.gain;
+    const at = (p, v, s) => p.setValueAtTime(v, t + s), ramp = (p, v, s) => p.linearRampToValueAtTime(v, t + s);
+    [f, of, g, ovG.gain, nG.gain].forEach(p => p.cancelScheduledValues(t));
+    at(g, 0, 0); ramp(g, .5, .25);
+    at(f, m2f(48), 0); ramp(f, m2f(67), 3); at(of, m2f(48) * 6, 0); ramp(of, m2f(67) * 6, 3);     // siren
+    ramp(f, m2f(57), 3.3); ramp(of, m2f(57) * 6, 3.3);                                            // pure A3
+    at(f, m2f(57), 5.6); ramp(f, m2f(60), 5.8); at(of, m2f(57) * 6, 5.6); ramp(of, m2f(60) * 6, 5.8);
+    at(nG.gain, 0, 5.6); ramp(nG.gain, .2, 6); at(g, .5, 6); ramp(g, .25, 6.2);                   // breathy C4
+    at(nG.gain, .2, 7.6); ramp(nG.gain, 0, 7.8); at(g, .25, 7.6); ramp(g, .5, 7.8);
+    at(f, m2f(60), 7.8); ramp(f, m2f(55), 8.0); at(of, m2f(60) * 6, 7.8); ramp(of, m2f(55) * 6, 8.0);
+    at(ovG.gain, 0, 8.1); ramp(ovG.gain, .55, 8.5); at(ovG.gain, .55, 10.3); ramp(ovG.gain, 0, 10.5); // overtone singing on G3
+    at(f, m2f(55), 10.4); ramp(f, m2f(62), 10.6); at(of, m2f(55) * 6, 10.4); ramp(of, m2f(62) * 6, 10.6); // pure D4
+    at(g, .5, 12.6); ramp(g, 0, 12.9);
+  };
+  cycle();
+  const loop = () => { demoTimer = setTimeout(() => { cycle(); loop(); }, 13500); }; loop();
+  setMode('demo', 'Demo voice: a siren, a pure A3, a breathy C4, overtone singing on G3, then a pure D4. It loops until you press Stop.');
+}
+
+async function startFile(file) {
+  await ensureAudio(); stopSources();
+  setMode('file', 'Decoding ' + file.name + '…');
+  try {
+    const buf = await ac.decodeAudioData(await file.arrayBuffer());
+    const src = ac.createBufferSource(); src.buffer = buf; src.connect(analyser); src.connect(ac.destination);
+    src.onended = () => { if (liveNodes.includes(src)) { stopSources(); setMode('idle', 'Finished analyzing ' + file.name + '. Your voice map has been updated.'); } };
+    src.start(); liveNodes.push(src);
+    setMode('file', 'Analyzing ' + file.name + ' (' + buf.duration.toFixed(1) + ' s). Everything it hears counts toward your voice map.');
+  } catch (e) { setMode('idle', 'That file could not be decoded. Try a WAV, MP3, M4A or OGG recording.'); }
+}
+
+function playTone(midi, dur = 1.2, amps = null, when = 0) {
+  if (!ac) return;
+  const t = ac.currentTime + 0.03 + when;
+  const o = ac.createOscillator(); o.frequency.value = m2f(midi);
+  o.setPeriodicWave(makeWave(amps || [1, .25, .1, .04]));
+  const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.3, t + .04);
+  g.gain.setValueAtTime(.3, t + dur - .08); g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + .02);
+  refUntil = Math.max(refUntil, now() + when + dur + 0.15);
+}
+
+// ---------- analysis ----------
+// McLeod pitch method: normalized square difference function; the peak value doubles as "clarity".
+function mpm(x, sr) {
+  const n = x.length, minLag = Math.floor(sr / 1300), maxLag = Math.min(Math.floor(sr / 62), n - 1, nsdf.length - 1);
+  sq[0] = 0; for (let i = 0; i < n; i++) sq[i + 1] = sq[i] + x[i] * x[i];
+  for (let t = 0; t <= maxLag; t++) {
+    let acf = 0; for (let i = 0, e = n - t; i < e; i++) acf += x[i] * x[i + t];
+    const m = sq[n - t] + (sq[n] - sq[t]);
+    nsdf[t] = m > 0 ? 2 * acf / m : 0;
+  }
+  const peaks = []; let pos = false, best = -1, bi = -1;
+  for (let t = 1; t <= maxLag; t++) {
+    if (nsdf[t - 1] <= 0 && nsdf[t] > 0) { pos = true; best = -1; bi = -1; }
+    else if (nsdf[t - 1] > 0 && nsdf[t] <= 0 && pos) { if (bi >= minLag) peaks.push(bi); pos = false; }
+    if (pos && nsdf[t] > best) { best = nsdf[t]; bi = t; }
+  }
+  if (pos && bi >= minLag && bi < maxLag) peaks.push(bi);
+  if (!peaks.length) return null;
+  let mx = 0; for (const p of peaks) mx = Math.max(mx, nsdf[p]);
+  const p = peaks.find(p => nsdf[p] >= 0.9 * mx);
+  const a = nsdf[p - 1], b = nsdf[p], c = nsdf[p + 1] ?? b;
+  const den = a - 2 * b + c, shift = den ? (a - c) / (2 * den) : 0;
+  return { freq: sr / (p + shift), clarity: clamp(b - 0.25 * (a - c) * shift) };
+}
+
+// Harmonic focus: how far each harmonic peak stands above the noise in the valley after it, weighted toward the strong harmonics.
+function spectral(f0) {
+  const binHz = ac.sampleRate / analyser.fftSize, N = freqDb.length, hi = Math.min(N - 2, Math.floor(5000 / binHz));
+  const hDb = new Array(HN).fill(-140);
+  for (let h = 1; h <= HN; h++) {
+    const c = Math.round(h * f0 / binHz); if (c > hi) break;
+    let m = -140; for (let b = c - 2; b <= c + 2; b++) if (b >= 1 && freqDb[b] > m) m = freqDb[b]; hDb[h - 1] = m;
+  }
+  const top = Math.max(...hDb); let wsum = 0, fsum = 0;
+  for (let h = 1; h <= HN; h++) {
+    const a = Math.round((h + 0.3) * f0 / binHz), b = Math.round((h + 0.7) * f0 / binHz);
+    if (b > hi || hDb[h - 1] < top - 50) break;
+    const v = []; for (let i = a; i <= Math.max(a, b); i++) v.push(freqDb[i]); v.sort((x, y) => x - y);
+    const valley = Math.max(-120, v[Math.floor(v.length / 2)]);
+    const w = Math.pow(10, (hDb[h - 1] - top) / 40);
+    wsum += w; fsum += w * clamp((hDb[h - 1] - valley - 12) / 33);
+  }
+  return { hDb, focus: wsum ? fsum / wsum : 0 };
+}
+
+// Other notes in the spectrum: boosted single overtones, subharmonics, and tones that don't belong to the main ladder.
+function extras(f0, hDb) {
+  const binHz = ac.sampleRate / analyser.fftSize;
+  const lo = Math.floor(70 / binHz), hi = Math.floor(4000 / binHz);
+  let maxDb = -200; for (let b = lo; b <= hi; b++) if (freqDb[b] > maxDb) maxDb = freqDb[b];
+  const peaks = [];
+  for (let b = lo; b <= hi; b++) { const v = freqDb[b]; if (v > freqDb[b - 1] && v >= freqDb[b + 1] && v > maxDb - 26 && v > -85) peaks.push(b); }
+  peaks.sort((a, b) => freqDb[b] - freqDb[a]);
+  const out = [], maxH = Math.max(...hDb);
+  for (const b of peaks.slice(0, 8)) {
+    const a = freqDb[b - 1], v = freqDb[b], c = freqDb[b + 1], den = a - 2 * v + c;
+    const pf = (b + (den ? (a - c) / (2 * den) : 0)) * binHz, k = pf / f0, n = Math.round(k);
+    if (n >= 1 && Math.abs(1200 * Math.log2(pf / (n * f0))) < 45) {
+      if (n >= 3 && n <= HN - 1 && hDb[n - 1] > hDb[n - 2] + 8 && hDb[n - 1] > hDb[n] + 8 && hDb[n - 1] > maxH - 10)
+        out.push({ kind: 'over', freq: n * f0, n });
+      continue;
+    }
+    const k2 = Math.round(k * 2);
+    if (k2 % 2 === 1 && k < 4 && Math.abs(1200 * Math.log2(pf / (k2 * f0 / 2))) < 45) { if (v > maxDb - 18) out.push({ kind: 'sub', freq: f0 / 2 }); continue; }
+    if (v > maxDb - 16) out.push({ kind: 'sep', freq: pf });
+  }
+  return out;
+}
+
+// ---------- live state ----------
+const S = {
+  purity: 0, clar: 0, stab: 0, focus: 0, midi: null, freq: 0, voiced: false, tone: '', hDb: null,
+  raw: [], recent: [], trail: [], extraScore: new Map(), hold: null, last: now(),
+};
+
+function frame() {
+  requestAnimationFrame(frame);
+  const t = now(), dt = Math.min(0.1, t - S.last); S.last = t;
+  if (!ac || mode === 'idle') return;
+  analyser.getFloatTimeDomainData(timeBuf);
+  analyser.getFloatFrequencyData(freqDb);
+  const x = timeBuf.subarray(timeBuf.length - 2048);
+  let rms = 0; for (let i = 0; i < x.length; i++) rms += x[i] * x[i]; rms = Math.sqrt(rms / x.length);
+  let p = null;
+  if (rms > 0.005) p = mpm(x, ac.sampleRate);
+  const voiced = !!(p && p.clarity > 0.55 && p.freq > 62 && p.freq < 1300);
+  const muted = t < refUntil;
+
+  for (const [k, e] of S.extraScore) { e.s *= 0.85; if (e.s < 0.2) S.extraScore.delete(k); }
+
+  if (voiced) {
+    S.raw.push(f2m(p.freq)); if (S.raw.length > 3) S.raw.shift();
+    const midi = [...S.raw].sort((a, b) => a - b)[Math.floor(S.raw.length / 2)];
+    if (S.recent.length && Math.abs(midi - S.recent[S.recent.length - 1].m) > 0.7) S.recent = []; // a new note starts a fresh steadiness window
+    S.recent.push({ t, m: midi }); while (S.recent.length && S.recent[0].t < t - 0.4) S.recent.shift();
+    let stab = 0.6;
+    if (S.recent.length >= 5) {
+      const mean = S.recent.reduce((s, r) => s + r.m, 0) / S.recent.length;
+      const sd = Math.sqrt(S.recent.reduce((s, r) => s + (r.m - mean) ** 2, 0) / S.recent.length) * 100;
+      stab = clamp(1 - (sd - 6) / 40);
+    }
+    const f0 = m2f(midi), sp = spectral(f0);
+    const clar = clamp((p.clarity - 0.6) / 0.37);
+    const raw = 100 * (0.4 * clar + 0.3 * sp.focus + 0.3 * stab);
+    const a = S.voiced ? 0.2 : 0.5;
+    S.purity += (raw - S.purity) * a; S.clar += (clar - S.clar) * a; S.stab += (stab - S.stab) * a; S.focus += (sp.focus - S.focus) * a;
+    S.midi = midi; S.freq = f0; S.hDb = sp.hDb; S.voiced = true;
+    for (const e of extras(f0, sp.hDb)) {
+      const key = e.kind + Math.round(f2m(e.freq)); const cur = S.extraScore.get(key) || { s: 0 };
+      cur.s += 1; cur.e = e; S.extraScore.set(key, cur);
+    }
+    if (!muted) record(t, dt, midi);
+  } else {
+    S.raw = []; S.recent = []; S.voiced = false; S.hold = null;
+    S.purity *= 0.9;
+  }
+  S.trail.push({ t, m: voiced ? S.midi : null, p: S.purity });
+  while (S.trail.length && S.trail[0].t < t - 10) S.trail.shift();
+
+  drawSpec(); drawTrail(t); updateLive(rms);
+  if (!muted) singStep(dt);
+}
+
+function record(t, dt, midi) {
+  const r = Math.round(midi);
+  if (r >= RANGE_LO && r <= RANGE_HI) {
+    const n = store.notes[r] || (store.notes[r] = { sec: 0, psum: 0, best: 0 });
+    n.sec += dt; n.psum += S.purity * dt; n.best = Math.max(n.best, S.purity); dirty = true;
+  }
+  // a held note becomes a discovery
+  if (!S.hold || Math.abs(midi - S.hold.center) > 0.45) S.hold = { center: midi, start: t, psum: 0, n: 0, h: new Array(HN).fill(0), saved: false };
+  const h = S.hold; h.psum += S.purity; h.n++;
+  const top = Math.max(...S.hDb); S.hDb.forEach((d, i) => h.h[i] += Math.pow(10, (d - top) / 20));
+  if (!h.saved && t - h.start >= 1.2 && h.psum / h.n >= 72) {
+    h.saved = true;
+    const purity = Math.round(h.psum / h.n), note = Math.round(h.center);
+    const amps = h.h.map(v => +(v / h.n).toFixed(3));
+    const extrasNow = [...S.extraScore.values()].filter(e => e.s > 3.5).map(e => e.e.kind);
+    const ex = store.discoveries.find(d => d.midi === note);
+    if (!ex || ex.purity < purity) {
+      store.discoveries = store.discoveries.filter(d => d.midi !== note);
+      store.discoveries.push({ midi: note, purity, amps, tone: S.tone, extras: extrasNow, at: Date.now() });
+      dirty = true;
+      toast((ex ? 'New best on ' : 'Pure tone found: ') + nameOf(note) + ' · purity ' + purity);
+    }
+  }
+}
+
+// ---------- live UI ----------
+const hbars = $('#hbars'); for (let i = 0; i < HN; i++) hbars.appendChild(document.createElement('div'));
+let uiTick = 0;
+function updateLive(rms) {
+  if ((uiTick++ & 1)) return; // ~30 fps is plenty for text
+  if (S.voiced) {
+    const r = Math.round(S.midi), cents = Math.round((S.midi - r) * 100);
+    $('#noteName').textContent = nameOf(S.midi);
+    $('#noteHz').textContent = S.freq.toFixed(1) + ' Hz';
+    $('#needle').style.left = (50 + cents) + '%';
+    $('#centsTxt').textContent = (cents > 0 ? '+' : '') + cents + '¢';
+  } else {
+    $('#noteName').textContent = '—'; $('#noteHz').textContent = '— Hz'; $('#needle').style.left = '50%'; $('#centsTxt').textContent = '0¢';
+  }
+  const pv = S.voiced ? Math.round(S.purity) : null;
+  $('#purityNum').textContent = pv == null ? '—' : pv;
+  $('#grade').textContent = pv == null ? (rms > 0.005 ? 'unpitched sound' : 'silent') : pv >= 85 ? 'crystal pure' : pv >= 72 ? 'pure' : pv >= 55 ? 'getting there' : 'rough';
+  [['Clar', S.clar], ['Stab', S.stab], ['Focus', S.focus]].forEach(([k, v]) => {
+    $('#m' + k).style.width = (S.voiced ? v * 100 : 0) + '%'; $('#v' + k).textContent = S.voiced ? Math.round(v * 100) : '–';
+  });
+  // harmonics + tone color
+  if (S.voiced && S.hDb) {
+    const top = Math.max(...S.hDb);
+    const lin = S.hDb.map(d => Math.pow(10, (d - top) / 20));
+    [...hbars.children].forEach((el, i) => el.style.height = (2 + 98 * clamp((S.hDb[i] - top + 45) / 45)) + '%');
+    const power = lin.reduce((s, v) => s + v * v, 0), share = lin[0] * lin[0] / power;
+    S.tone = share > 0.6 ? 'Flute-like · close to a sine' : share > 0.35 ? 'Warm · rounded' : share > 0.15 ? 'Bright · rich overtones' : 'Brassy · overtone-heavy';
+    $('#toneName').textContent = S.tone;
+  } else { [...hbars.children].forEach(el => el.style.height = '2%'); $('#toneName').textContent = '—'; }
+  // sounding now
+  const chips = $('#chips'); chips.textContent = '';
+  if (S.voiced) {
+    chips.append(chip('main', nameOf(S.midi), 'main'));
+    const shown = new Set([Math.round(S.midi)]);
+    for (const e of [...S.extraScore.values()].filter(e => e.s > 3.5).sort((a, b) => b.s - a.s).slice(0, 3)) {
+      const m = Math.round(f2m(e.e.freq)); if (shown.has(m)) continue; shown.add(m);
+      chips.append(chip(e.e.kind === 'over' ? 'over' : '', nameOf(m), e.e.kind === 'over' ? 'overtone ' + e.e.n : e.e.kind === 'sub' ? 'undertone' : 'second voice'));
+    }
+  } else chips.append(Object.assign(document.createElement('span'), { className: 'chip muted', textContent: rms > 0.005 ? 'noise, no clear pitch' : 'nothing yet' }));
+  $('#coach').textContent = coach(rms);
+  $('#coach').classList.toggle('muted', !S.voiced);
+}
+function chip(cls, note, label) {
+  const c = document.createElement('span'); c.className = 'chip ' + cls;
+  const b = document.createElement('b'); b.textContent = note; const s = document.createElement('small'); s.textContent = label;
+  c.append(b, s); return c;
+}
+function coach(rms) {
+  if (!S.voiced) return rms > 0.005 ? 'There is sound but no steady pitch. Try a gentle hum on "mmm" and let it ring.' : 'Hum softly on "mmm" or "oo". Quiet and relaxed beats loud.';
+  const ex = [...S.extraScore.values()].filter(e => e.s > 3.5).map(e => e.e.kind);
+  if (ex.includes('over')) return 'Two notes at once: a whistle-like overtone is riding on your note. Slide your vowel slowly from "oo" to "ee" to move it.';
+  if (ex.includes('sub')) return 'An undertone an octave below is sounding. Fun to explore, but for purity relax the throat and drop the volume a little.';
+  if (S.purity >= 80) return 'Pure. Notice how this feels in your throat, chest and face. This is a sound to come back to.';
+  const lows = [['c', S.clar], ['f', S.focus], ['s', S.stab]].sort((a, b) => a[1] - b[1])[0][0];
+  if (lows === 'c') return 'Some air or rasp is mixed in. Sing softer and close to a hum: "ng" or "oo" with lips gently rounded.';
+  if (lows === 'f') return 'Energy is leaking into noise between harmonics. Keep the sound forward behind your teeth and let the jaw hang loose.';
+  return 'The pitch is drifting. Pick one note, breathe low into your belly, and let a slow steady stream of air carry it.';
+}
+
+// ---------- canvases ----------
+const spec = $('#spec'), trail = $('#trail');
+let specCtx = null, trailCtx = null;
+function sizeCanvas(c) { const d = devicePixelRatio || 1, w = Math.round(c.clientWidth * d), h = Math.round(c.clientHeight * d); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; return true; } return false; }
+function initCanvases() {
+  specCtx = spec.getContext('2d'); trailCtx = trail.getContext('2d');
+  sizeCanvas(spec); sizeCanvas(trail); readTokens(); drawTrail(now());
+}
+addEventListener('resize', () => { if (sizeCanvas(spec)) { specCtx.fillStyle = C.spec0; specCtx.fillRect(0, 0, spec.width, spec.height); } sizeCanvas(trail); drawTrail(now()); });
+
+function drawSpec() {
+  if (spec.offsetParent === null) return;
+  const w = spec.width, h = spec.height, step = Math.max(2, Math.round(devicePixelRatio || 1) * 2);
+  specCtx.drawImage(spec, -step, 0);
+  const binHz = ac.sampleRate / analyser.fftSize, lf = Math.log(60), hf = Math.log(5000);
+  for (let y = 0; y < h; y++) {
+    const f = Math.exp(hf - (hf - lf) * y / (h - 1)), b = Math.round(f / binHz);
+    const v = clamp((freqDb[b] + 95) / 70);
+    specCtx.fillStyle = C.lut[Math.round(v * 255)];
+    specCtx.fillRect(w - step, y, step, 1);
+  }
+}
+
+function drawTrail(t) {
+  if (!trailCtx || trail.offsetParent === null) return;
+  const c = trailCtx, w = trail.width, h = trail.height, d = devicePixelRatio || 1;
+  c.fillStyle = C.surface; c.fillRect(0, 0, w, h);
+  const ms = S.trail.filter(p => p.m != null).map(p => p.m);
+  const tg = singTarget();
+  if (tg != null) ms.push(tg);
+  let lo = ms.length ? Math.min(...ms) - 3 : 45, hi = ms.length ? Math.max(...ms) + 3 : 69;
+  if (hi - lo < 16) { const mid = (hi + lo) / 2; lo = mid - 8; hi = mid + 8; }
+  const Y = m => h - (m - lo) / (hi - lo) * h, left = 38 * d;
+  c.font = `${11 * d}px ${getComputedStyle(document.body).getPropertyValue('--mono') || 'monospace'}`;
+  c.textBaseline = 'middle';
+  for (let m = Math.ceil(lo); m <= hi; m++) {
+    const nat = !isBlack(m);
+    c.strokeStyle = C.line; c.globalAlpha = nat ? 0.9 : 0.35; c.lineWidth = d;
+    c.beginPath(); c.moveTo(left, Y(m)); c.lineTo(w, Y(m)); c.stroke(); c.globalAlpha = 1;
+    if (nat && (hi - lo < 26 || m % 12 === 0 || m % 12 === 7)) { c.fillStyle = C.muted; c.fillText(nameOf(m), 4 * d, Y(m)); }
+  }
+  if (tg != null) { c.strokeStyle = C.good; c.lineWidth = 3 * d; c.setLineDash([8 * d, 6 * d]); c.beginPath(); c.moveTo(left, Y(tg)); c.lineTo(w, Y(tg)); c.stroke(); c.setLineDash([]); }
+  const X = tt => left + (w - left) * (1 - (t - tt) / 10);
+  for (const p of S.trail) {
+    if (p.m == null) continue;
+    c.fillStyle = mixPurity(p.p);
+    c.beginPath(); c.arc(X(p.t), Y(p.m), (1.6 + clamp((p.p - 50) / 40) * 2) * d, 0, Math.PI * 2); c.fill();
+  }
+  if (!S.trail.some(p => p.m != null)) { c.fillStyle = C.muted; c.textAlign = 'center'; c.fillText('Your pitch will draw here as you sing', (w + left) / 2, h / 2); c.textAlign = 'start'; }
+}
+
+// ---------- voice map ----------
+function noteScore(n) { if (!n || n.sec <= 0) return 0; return (n.psum / n.sec / 100) * Math.min(1, n.sec / 3); }
+function strongZone() {
+  let total = 0; for (const k in store.notes) total += store.notes[k].sec;
+  if (total < 4) return null;
+  let best = null;
+  for (let s = RANGE_LO; s + 8 <= RANGE_HI; s++) {
+    let sum = 0; for (let m = s; m < s + 9; m++) sum += noteScore(store.notes[m]);
+    if (!best || sum > best.sum) best = { lo: s, hi: s + 8, sum };
+  }
+  if (!best || best.sum <= 0) return null;
+  // trim edges with no singing
+  while (best.lo < best.hi && noteScore(store.notes[best.lo]) === 0) best.lo++;
+  while (best.hi > best.lo && noteScore(store.notes[best.hi]) === 0) best.hi--;
+  return best;
+}
+function renderVoice() {
+  const zone = strongZone(), range = $('#range'); range.textContent = '';
+  let maxSec = 0; for (const k in store.notes) maxSec = Math.max(maxSec, store.notes[k].sec);
+  for (let m = RANGE_LO; m <= RANGE_HI; m++) {
+    const n = store.notes[m], col = document.createElement('div');
+    col.className = 'col' + (isBlack(m) ? ' black' : '') + (zone && m >= zone.lo && m <= zone.hi ? ' zone' : '');
+    col.title = nameOf(m) + (n ? ` · ${n.sec.toFixed(1)} s · avg purity ${Math.round(n.psum / n.sec)} · best ${Math.round(n.best)}` : ' · not sung yet');
+    const bw = document.createElement('div'); bw.className = 'barwrap';
+    const b = document.createElement('div'); b.className = 'b';
+    if (n && n.sec > 0) {
+      b.style.height = (6 + 94 * Math.log1p(n.sec) / Math.log1p(maxSec)) + '%';
+      const ap = n.psum / n.sec;
+      b.style.background = ap >= 72 ? 'var(--pure)' : ap >= 55 ? 'color-mix(in srgb, var(--accent) 60%, var(--pure))' : 'var(--accent)';
+      b.style.opacity = (0.45 + 0.55 * clamp((ap - 30) / 55)).toFixed(2);
+    }
+    bw.style.height = '100%'; bw.appendChild(b);
+    const k = document.createElement('div'); k.className = 'k'; k.textContent = isBlack(m) ? '·' : (m % 12 === 0 ? nameOf(m) : pcOf(m));
+    col.append(bw, k); range.appendChild(col);
+  }
+  const zb = $('#zoneBox'); zb.textContent = '';
+  const stat = (label, val) => { const s = document.createElement('div'); s.className = 'stat'; s.innerHTML = `<span class="label"></span><span class="val"></span>`; s.children[0].textContent = label; s.children[1].textContent = val; zb.appendChild(s); };
+  const sung = Object.keys(store.notes).map(Number).filter(m => store.notes[m].sec > 0.3).sort((a, b) => a - b);
+  if (!sung.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'Nothing recorded yet. Press Start listening and sing a slow siren from your lowest comfortable note to your highest, then hold a few notes along the way.'; zb.appendChild(p); }
+  else {
+    stat('Range heard', nameOf(sung[0]) + ' – ' + nameOf(sung[sung.length - 1]));
+    if (zone) stat('Strongest zone', nameOf(zone.lo) + ' – ' + nameOf(zone.hi));
+    let bestM = sung[0]; for (const m of sung) if (noteScore(store.notes[m]) > noteScore(store.notes[bestM])) bestM = m;
+    stat('Purest note', nameOf(bestM));
+    stat('Pure tones saved', String(store.discoveries.length));
+  }
+  const dg = $('#discs'); dg.textContent = '';
+  if (!store.discoveries.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'No pure tones saved yet. Hold any comfortable note steadily for a second or two; when it rings clean, it lands here.'; dg.appendChild(p); }
+  for (const d of [...store.discoveries].sort((a, b) => a.midi - b.midi)) {
+    const card = document.createElement('div'); card.className = 'disc';
+    card.innerHTML = `<div class="top-line"><span class="n"></span><span class="p"></span></div><div class="mini"></div><div class="muted" style="font-size:.82rem"></div><div class="row"></div>`;
+    card.querySelector('.n').textContent = nameOf(d.midi);
+    card.querySelector('.p').textContent = 'purity ' + d.purity;
+    const mini = card.querySelector('.mini'); const top = Math.max(...d.amps);
+    d.amps.forEach(a => { const bar = document.createElement('div'); bar.style.height = (4 + 96 * clamp((20 * Math.log10(a / top + 1e-6) + 45) / 45)) + '%'; mini.appendChild(bar); });
+    card.querySelector('.muted').textContent = (d.tone || '') + (d.extras && d.extras.includes('over') ? ' · overtone heard' : '') + ' · ' + m2f(d.midi).toFixed(0) + ' Hz';
+    const row = card.querySelector('.row');
+    const play = document.createElement('button'); play.className = 'small'; play.textContent = 'Play';
+    play.onclick = async () => { await ensureAudio(); playTone(d.midi, 1.6, d.amps); };
+    const del = document.createElement('button'); del.className = 'small'; del.textContent = 'Remove';
+    del.onclick = () => { store.discoveries = store.discoveries.filter(x => x !== d); save(); renderVoice(); };
+    row.append(play, del); dg.appendChild(card);
+  }
+}
+let resetArmed = false;
+$('#btnReset').onclick = () => {
+  const b = $('#btnReset');
+  if (!resetArmed) { resetArmed = true; b.textContent = 'Click again to clear everything'; setTimeout(() => { resetArmed = false; b.textContent = 'Clear my voice data'; }, 3500); return; }
+  store = { notes: {}, discoveries: [] }; save(); renderVoice(); resetArmed = false; b.textContent = 'Clear my voice data'; toast('Voice data cleared');
+};
+
+// ---------- sing ----------
+// Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
+const SONGS = [
+  { id: 'hum', name: 'Five-note hum', kind: 'Warm-up', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
+  { id: 'arp', name: 'Major arpeggio', kind: 'Warm-up', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
+  { id: 'twinkle', name: 'Twinkle, Twinkle', kind: 'Song', notes: [[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[7,1],[7,1],[5,1],[5,1],[4,1],[4,1],[2,2],[0,1],[0,1],[7,1],[7,1],[9,1],[9,1],[7,2],[5,1],[5,1],[4,1],[4,1],[2,1],[2,1],[0,2]] },
+  { id: 'ode', name: 'Ode to Joy', kind: 'Song', notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
+  { id: 'grace', name: 'Amazing Grace', kind: 'Song', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
+];
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], seq: [] };
+
+function zoneCenter() { const z = strongZone(); return z ? (z.lo + z.hi) / 2 : 55; }
+function autoShift(song) {
+  const offs = song.notes.map(n => n[0]);
+  return Math.round(zoneCenter() - (Math.min(...offs) + Math.max(...offs)) / 2);
+}
+function loadSong(song, keepShift = false) {
+  G.song = song; if (!keepShift) G.shift = autoShift(song);
+  G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b }));
+  G.idx = 0; G.hold = 0; G.hits = [];
+  renderSongs(); renderSing();
+}
+function renderSongs() {
+  const el = $('#songs'); el.textContent = '';
+  for (const s of SONGS) {
+    const b = document.createElement('button'); b.className = 'small'; b.textContent = s.name; b.setAttribute('aria-pressed', s === G.song);
+    b.onclick = () => loadSong(s); el.appendChild(b);
+  }
+  $('#songKind').textContent = G.song.kind + ' · ' + G.song.notes.length + ' notes';
+}
+function singTarget() { return (document.querySelector('#tab-sing').hidden || G.idx >= G.seq.length) ? null : G.seq[G.idx].m; }
+function renderSing() {
+  const lane = $('#lane'); lane.textContent = '';
+  G.seq.forEach((n, i) => { const s = document.createElement('span'); s.textContent = nameOf(n.m); s.className = i < G.idx ? 'done' : i === G.idx ? 'now' : ''; lane.appendChild(s); });
+  const cur = lane.children[G.idx]; if (cur) lane.scrollLeft = cur.offsetLeft - lane.clientWidth / 3;
+  $('#keyTxt').textContent = 'Key of ' + pcOf(G.shift);
+  const done = G.idx >= G.seq.length;
+  $('#tgtName').textContent = done ? '✓' : nameOf(G.seq[G.idx].m);
+  if (done) {
+    const avg = G.hits.length ? G.hits.reduce((s, h) => s + h.p, 0) / G.hits.length : 0;
+    $('#tgtHint').textContent = 'Finished. Average purity ' + Math.round(avg) + '.'; $('#tgtHint').className = 'hint ok';
+  } else if (mode === 'idle') { $('#tgtHint').textContent = 'Press Start listening, then sing'; $('#tgtHint').className = 'hint'; }
+  $('#tgtScore').textContent = `${G.hits.length} of ${G.seq.length} notes sung` + (G.hits.length ? ` · avg ${Math.round(G.hits.reduce((s, h) => s + Math.abs(h.c), 0) / G.hits.length)}¢ off` : '');
+  $('#holdFill').style.width = '0%';
+}
+function singStep(dt) {
+  if (document.querySelector('#tab-sing').hidden || G.idx >= G.seq.length) return;
+  const hint = $('#tgtHint'), tgt = G.seq[G.idx].m;
+  if (!S.voiced) { hint.textContent = 'Sing ' + nameOf(tgt); hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
+  else {
+    let c = (S.midi - tgt) * 100;
+    if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
+    if (Math.abs(c) <= 50) { G.hold += dt; hint.textContent = 'On pitch, hold it'; hint.className = 'hint ok'; }
+    else { G.hold = Math.max(0, G.hold - dt * 2); hint.textContent = c < 0 ? 'Go higher ↑' : 'Go lower ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
+    G.lastC = c;
+  }
+  const need = Math.min(0.6, 0.25 + 0.15 * G.seq[G.idx].b);
+  $('#holdFill').style.width = (100 * clamp(G.hold / need)) + '%';
+  if (G.hold >= need) { G.hits.push({ c: G.lastC || 0, p: S.purity }); G.idx++; G.hold = 0; renderSing(); }
+}
+$('#btnRestart').onclick = () => loadSong(G.song, true);
+$('#btnSkip').onclick = () => { if (G.idx < G.seq.length) { G.idx++; G.hold = 0; renderSing(); } };
+$('#kUp').onclick = () => { G.shift++; loadSong(G.song, true); };
+$('#kDown').onclick = () => { G.shift--; loadSong(G.song, true); };
+$('#kAuto').onclick = () => loadSong(G.song);
+function myTimbre(m) {
+  if (!store.discoveries.length) return null;
+  return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
+}
+$('#btnRef').onclick = async () => { await ensureAudio(); if (G.idx < G.seq.length) { const m = G.seq[G.idx].m; playTone(m, 1.2, myTimbre(m)); } };
+$('#btnPlaySong').onclick = async () => {
+  await ensureAudio(); const beat = 60 / 92; let t = 0;
+  for (const n of G.seq.slice(G.idx)) { playTone(n.m, n.b * beat * 0.95, myTimbre(n.m), t); t += n.b * beat; }
+};
+$('#btnGen').onclick = () => {
+  const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
+  let root = lo; for (let m = lo; m <= hi; m++) if (noteScore(store.notes[m]) > noteScore(store.notes[root])) root = m;
+  const pent = [0, 2, 4, 7, 9];
+  const pool = []; for (let m = lo; m <= hi; m++) if (pent.includes(((m - root) % 12 + 12) % 12)) pool.push(m);
+  const weight = m => 0.4 + noteScore(store.notes[m]);
+  let i = pool.indexOf(root); const notes = [];
+  for (let k = 0; k < 14; k++) {
+    notes.push([pool[i] - root, [1, 1, 1, 2, 2][Math.floor(Math.random() * 5)]]);
+    const opts = [i - 2, i - 1, i + 1, i + 2].filter(j => j >= 0 && j < pool.length);
+    const ws = opts.map(j => weight(pool[j]) * (Math.abs(j - i) === 1 ? 2 : 1)); let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+    i = opts[ws.findIndex(w => (r -= w) <= 0)] ?? opts[0];
+  }
+  notes.push([0, 3]);
+  const song = { id: 'gen', name: 'Your melody in ' + pcOf(root) + ' pentatonic', kind: 'New melody from your pure notes', notes, tonic: 0 };
+  const gi = SONGS.findIndex(s => s.id === 'gen'); if (gi >= 0) SONGS.splice(gi, 1); SONGS.push(song);
+  G.shift = root; loadSong(song, true);
+  toast(z ? 'Composed from your strongest zone, ' + nameOf(lo) + '–' + nameOf(hi) : 'Composed in a middle range. Sing more to personalize it.');
+};
+
+// ---------- wiring ----------
+for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
+  for (const o of document.querySelectorAll('.tabs button')) { o.setAttribute('aria-selected', o === b); $('#tab-' + o.dataset.tab).hidden = o !== b; }
+  if (b.dataset.tab === 'voice') renderVoice();
+  if (b.dataset.tab === 'sing') renderSing();
+  if (b.dataset.tab === 'listen') { sizeCanvas(spec); sizeCanvas(trail); specCtx.fillStyle = C.spec0; specCtx.fillRect(0, 0, spec.width, spec.height); }
+};
+$('#btnMic').onclick = startMic;
+$('#btnDemo').onclick = startDemo;
+$('#btnStop').onclick = () => { stopSources(); setMode('idle', 'Stopped. Your voice map is saved in this browser.'); dirty = true; };
+$('#fileIn').onchange = e => { const f = e.target.files[0]; if (f) startFile(f); e.target.value = ''; };
+$('#fileLabel').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#fileIn').click(); } };
+
+// Move the trail canvas into the Sing tab while singing, so the target line is visible there.
+const trailCard = trail.closest('.card'), listenTwo = trailCard.parentElement;
+const singCard = document.querySelector('#tab-sing .card:last-child');
+document.querySelector('[data-tab="sing"]').addEventListener('click', () => { singCard.after(trailCard); sizeCanvas(trail); });
+document.querySelector('[data-tab="listen"]').addEventListener('click', () => { listenTwo.appendChild(trailCard); sizeCanvas(trail); });
+
+initCanvases();
+renderVoice();
+loadSong(SONGS[0]);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
