@@ -186,6 +186,41 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.notes === 3 && s.cur && s.done && s.you, JSON.stringify(s));
   });
 
+  await test('a one-note monotone through a moving tune is caught and scored low', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { setInterval(() => { V.on = G.run === 'singing'; V.m = G.seq[0].m; }, 25); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ st: runStats(), head: $('.cheer-big').textContent }));
+    expect(s.st.monotone && s.st.score < 40 && /one held note/.test(s.head) && !/Great start/.test(s.head), JSON.stringify({ score: s.st.score, mono: s.st.monotone, head: s.head }));
+  });
+
+  await test('zero notes in tune: honest and kind, never "Great start"', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { V.follow = true; V.off = 2.5; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ ok: runStats().ok, head: $('.cheer-big').textContent, rows: document.querySelectorAll('#report .sk-row').length }));
+    expect(s.ok === 0 && !/Great start/.test(s.head) && /Your tone was clear|steady|ring|kept going|volume/.test(s.head) && s.rows === 9, JSON.stringify(s));
+  });
+
+  await test('steady hold: always gives a note, shows the band, in range vs too high', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; save(); openLab('hold'); });
+    const intro = await page.evaluate(() => ({ prompt: $('#dPrompt').textContent, sel: $('#holdSel')?.value, target: D.target }));
+    expect(intro.prompt === 'Your note: ' + 'D3' && intro.sel === '50' && intro.target === 50, JSON.stringify(intro));
+    await page.click('#dBtns >> text=▶ Start');
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'wait' || D.phase === 'hold'; V.m = D.target + (window.sharp ? 0.6 : 0); }, 25); });
+    await page.waitForFunction(() => D.phase === 'hold', null, { timeout: 10000 }); await page.waitForTimeout(800);
+    expect(await page.evaluate(() => /In range/.test($('#dLive').textContent) && $('#dLive').classList.contains('in')), 'not shown in range');
+    await page.evaluate(() => { window.sharp = true; }); await page.waitForTimeout(800);
+    expect(await page.evaluate(() => /Too high/.test($('#dLive').textContent) && $('#dLive').classList.contains('out')), 'not shown too high');
+    await page.evaluate(() => { window.sharp = false; });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 15000 });
+    const r = await page.evaluate(() => ({ note: (store.holdNotes || {})[50], map: document.querySelectorAll('#dResult .nm').length }));
+    expect(r.note > 0 && r.map === 22, JSON.stringify(r));
+  });
+
   await test('hidden toast never blocks taps', async page => {
     await page.evaluate(() => toast('hello'));
     const shown = await page.evaluate(() => { const r = $('#toast').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.id; });
