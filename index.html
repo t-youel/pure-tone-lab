@@ -79,6 +79,22 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .mini-read .fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width .1s; }
 .mini-read .v { font: 0.72rem/1 var(--mono); color: var(--muted); }
 .mini-read .txt { grid-column: 2 / 4; font: 0.76rem/1.2 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cheer { font: 700 1.05rem/1.25 var(--display); color: var(--pure); min-height: 1.3em; }
+.staff .st-pure { color: var(--pure); }
+.staff .st-ok { color: var(--good); }
+.staff .st-low, .staff .st-high { color: var(--warn); }
+.staff .st-miss { color: var(--muted); }
+.staff .glow { fill: var(--pure); opacity: .3; }
+.staff .tag { font: 700 10px var(--body); text-anchor: middle; fill: currentColor; }
+.legend-s { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.legend-s .k-pure { color: var(--pure); } .legend-s .k-ok { color: var(--good); } .legend-s .k-off { color: var(--warn); }
+.seg { display: inline-flex; gap: 4px; align-items: center; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.tile.st-ok .tp { color: var(--good); } .tile.st-ok i { background: var(--good); }
+.tile.st-low .tp, .tile.st-high .tp { color: var(--warn); } .tile.st-low i, .tile.st-high i { background: var(--warn); }
+.tile.st-miss { opacity: .6; }
+.tile .ts { font: 600 0.66rem/1 var(--body); }
+.cheer-big { font: 700 1.2rem/1.3 var(--display); }
 .staff .mark-lbl { font: 700 13px var(--body); }
 .tuner-scale { display: flex; justify-content: space-between; font: 0.72rem/1 var(--mono); color: var(--muted); }
 .purity-row { display: flex; align-items: baseline; gap: 10px; }
@@ -184,7 +200,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .line-nav { display: flex; justify-content: space-between; font: 0.75rem/1 var(--mono); color: var(--muted); }
 .sing-controls { border-top: 1px solid var(--line); padding-top: 10px; }
 .sing-controls .sep { flex: 1; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; }
 .tile { border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 0; display: grid; gap: 2px; text-align: center; overflow: hidden; }
 .tile b { font: 600 0.8rem/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .tn { font: 0.68rem/1 var(--mono); color: var(--muted); }
@@ -417,18 +433,19 @@ details b { color: var(--ink); }
         <div id="tgtHint" class="hint">Start listening to begin</div>
         <div class="hold" aria-hidden="true"><div id="holdFill"></div></div>
         <div id="tgtScore" class="muted mono" style="font-size:.85rem"></div>
+        <div id="cheer" class="cheer" aria-live="polite"></div>
       </div>
       <div class="sheet">
         <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
-        <div class="line-nav"><span><span id="songKind"></span> · <span id="lineTxt"></span></span><span id="clefTxt"></span></div>
+        <div class="line-nav"><span class="legend-s"><span class="k-pure">✦ pure</span><span class="k-ok">● on pitch</span><span class="k-off">↑↓ low / high</span><span>○ missed</span></span><span><span id="lineTxt"></span> · <span id="clefTxt"></span><span id="songKind" hidden></span></span></div>
         <div class="report" id="report" hidden></div>
       </div>
     </div>
     <div class="row sing-controls">
-      <button id="btnListen" class="primary small">▶ Listen first</button>
-      <button id="btnRef" class="small">Hear this note</button>
-      <button id="btnRestart" class="small">Restart</button>
-      <button id="btnSkip" class="small">Skip note</button>
+      <button id="btnSing" class="primary small">▶ Sing</button>
+      <button id="btnListen" class="small">▶ Listen first</button>
+      <button id="btnRef" class="small">Hear note</button>
+      <span class="seg" role="group" aria-label="Tempo"><span class="label">Tempo</span><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <span class="sep"></span>
       <span class="label">Key</span>
       <button id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
@@ -816,11 +833,11 @@ function updateReadings(rms) {
 function updateLiveMark() {
   const g = document.getElementById('liveMark'); if (!g) return;
   const geo = G.geo;
-  if (!geo || !S.voiced || G.play >= 0 || G.idx >= G.seq.length || !singActive()) { g.innerHTML = ''; return; }
+  if (!geo || !S.voiced || G.play >= 0 || G.run === 'done' || G.idx >= G.seq.length || !singActive()) { g.innerHTML = ''; return; }
   const tgt = G.seq[G.idx].m; let m = S.midi;
   if ($('#octFree').checked) m = tgt + (((m - tgt) % 12 + 18) % 12) - 6;
   const shown = clamp(m, tgt - 7, tgt + 7), c = Math.round((m - tgt) * 100);
-  const yOf = mf => { const lo = Math.floor(mf), f = mf - lo, a = spell(lo + G.disp, geo.tonic, geo.sig).step, b = spell(lo + 1 + G.disp, geo.tonic, geo.sig).step; return 80 - (a + (b - a) * f - 30) * 5; };
+  const yOf = mf => staffY(mf, geo.tonic, geo.sig);
   const x = geo.cx + 26, ty = yOf(tgt), sy = yOf(shown);
   const cls = S.purity >= 72 ? 'n-pure' : 'n-done', ok = Math.abs(c) <= 50;
   const lbl = ok ? '✓ on pitch' : (c < 0 ? '↑ higher ' : '↓ lower ') + (Math.abs(c) >= 100 ? (Math.abs(c) / 100).toFixed(1) + ' notes' : Math.abs(c) + '¢');
@@ -1019,7 +1036,9 @@ const SONGS = [
   { id: 'ode', name: 'Ode to Joy', kind: 'Song', words: "Joy- ful, joy- ful, we a- dore thee, / God of glo- ry, Lord of love; / Hearts un- fold like flowers be- fore thee, / op'- ning to the sun a- bove.", notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
-const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0 };
+const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'slow' };
+const TEMPOS = { slow: 54, medium: 72, normal: 90 };
+const beatSec = () => 60 / TEMPOS[G.tempo];
 const SOLF = ['Do','Di','Re','Ri','Mi','Fa','Fi','So','Si','La','Li','Ti'];
 const sylOf = m => SOLF[(((m - G.shift) % 12) + 12) % 12];
 
@@ -1043,7 +1062,7 @@ function loadSong(song, keepShift = false) {
   for (let a = ls; a < G.seq.length; a += chunk) G.lines.push([a, Math.min(G.seq.length, a + chunk) - 1]);
   // Low voices read treble clef an octave up (the small 8 under the clef).
   G.disp = G.seq.reduce((s, n) => s + n.m, 0) / G.seq.length < 60 ? 12 : 0;
-  G.idx = 0; G.hold = 0; G.hits = []; G.res = []; G.acc = null;
+  G.idx = 0; G.res = []; G.acc = []; G.run = 'ready'; G.streak = 0; G.attempt = 0;
   renderSongs(); renderSing();
 }
 function renderSongs() {
@@ -1058,45 +1077,94 @@ function singActive() { return !$('#tab-sing').hidden || (!$('#tab-start').hidde
 function singTarget() { return (!singActive() || G.idx >= G.seq.length) ? null : G.seq[G.idx].m; }
 function renderSing() {
   $('#keyTxt').textContent = 'Do = ' + pcOf(G.shift);
-  const done = G.idx >= G.seq.length;
-  showTarget(done ? -1 : G.idx);
+  document.querySelectorAll('[data-tempo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tempo === G.tempo));
+  const done = G.run === 'done', len = G.seq.length;
+  showTarget(done ? -1 : Math.min(G.idx, len - 1));
   drawStaff();
   renderReport();
   $('#staff').hidden = done; $('#lineTxt').closest('.line-nav').hidden = done;
-  if (done) {
-    const avg = G.hits.length ? G.hits.reduce((s, h) => s + h.p, 0) / G.hits.length : 0;
-    $('#tgtHint').textContent = 'Finished. Average purity ' + Math.round(avg) + '.'; $('#tgtHint').className = 'hint ok';
-  } else if (mode === 'idle') { $('#tgtHint').textContent = 'Press Start listening, then sing'; $('#tgtHint').className = 'hint'; }
-  $('#tgtScore').textContent = `${G.hits.length} of ${G.seq.length} notes sung` + (G.hits.length ? ` · avg ${Math.round(G.hits.reduce((s, h) => s + Math.abs(h.c), 0) / G.hits.length)}¢ off` : '');
+  const hint = $('#tgtHint');
+  if (done) { hint.textContent = 'Finished!'; hint.className = 'hint ok'; }
+  else if (G.run === 'ready') { hint.textContent = 'Tap ▶ Sing. A count of 3, then the notes move along.'; hint.className = 'hint'; }
+  $('#btnSing').textContent = G.run === 'countin' || G.run === 'singing' ? '■ Stop' : done ? '▶ Sing again' : '▶ Sing';
+  const onp = G.res.filter(r => r && (r.status === 'pure' || r.status === 'ok')).length;
+  $('#tgtScore').textContent = G.run === 'singing' ? `Note ${G.idx + 1} of ${len} · ${onp} on pitch so far` : done ? '' : 'Try ' + (G.attempt + 1) + ' · ' + len + ' notes';
   $('#holdFill').style.width = '0%';
 }
-function singStep(dt) {
-  if (!singActive() || G.idx >= G.seq.length) return;
-  const hint = $('#tgtHint'), tgt = G.seq[G.idx].m;
-  if (G.play >= 0) return;
-  if (!S.voiced) { hint.textContent = 'Sing ' + wordAt(G.idx) + ' (' + nameOf(tgt) + ')'; hint.className = 'hint'; G.hold = Math.max(0, G.hold - dt); }
-  else {
-    let c = (S.midi - tgt) * 100;
-    if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
-    if (Math.abs(c) <= 50) {
-      G.hold += dt; hint.textContent = 'On pitch, hold it · purity ' + Math.round(S.purity); hint.className = 'hint ok';
-      const a = G.acc || (G.acc = { p: 0, c: 0, cl: 0, st: 0, fo: 0, w: 0 });
-      a.p += S.purity * dt; a.c += c * dt; a.cl += S.clar * dt; a.st += S.stab * dt; a.fo += S.focus * dt; a.w += dt;
-    }
-    else { G.hold = Math.max(0, G.hold - dt * 2); hint.textContent = c < 0 ? 'Go higher ↑' : 'Go lower ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
-    G.lastC = c;
+
+// Sing-through: the song moves on by itself at the chosen tempo. Each note is judged on what was sung
+// during it (after a short grace period for the attack), so the singer is never stuck on a note.
+function click(when, hi) {
+  const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.value = hi ? 1320 : 880; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.08);
+}
+async function startRun() {
+  if (G.run === 'countin' || G.run === 'singing') { G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
+  stopPlayback(true);
+  if (mode === 'idle') await startMic();
+  if (mode === 'idle') return;
+  await ensureAudio();
+  const beat = beatSec(), count = 3;
+  G.starts = []; let t = 0; for (const n of G.seq) { G.starts.push(t); t += n.b * beat; }
+  G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
+  G.t0 = now() + count * beat + 0.12;
+  for (let k = 0; k < count; k++) click(0.12 + k * beat, k === 0);
+  G.run = 'countin'; $('#cheer').textContent = '';
+  renderSing();
+}
+function singStep() {
+  if (!singActive() || G.play >= 0) return;
+  const hint = $('#tgtHint');
+  if (G.run === 'countin') {
+    const left = G.t0 - now();
+    if (left > 0) { $('#tgtName').textContent = String(Math.ceil(left / beatSec())); $('#tgtNote').textContent = 'First: "' + wordAt(0) + '" on ' + nameOf(G.seq[0].m); hint.textContent = 'Get ready…'; hint.className = 'hint'; return; }
+    G.run = 'singing'; G.idx = 0; renderSing();
   }
-  const need = G.song.hold || Math.min(0.6, 0.25 + 0.15 * G.seq[G.idx].b);
-  $('#holdFill').style.width = (100 * clamp(G.hold / need)) + '%';
-  if (G.hold >= need) {
-    const a = G.acc, w = a && a.w ? a.w : 1;
-    const r = a ? { m: tgt, p: a.p / w, c: a.c / w, cl: a.cl / w, st: a.st / w, fo: a.fo / w } : { m: tgt, p: S.purity, c: G.lastC || 0 };
-    G.hits.push(r); G.res.push(r); G.acc = null; G.idx++; G.hold = 0;
-    if (G.idx >= G.seq.length) saveRun();
+  if (G.run !== 'singing') return;
+  const e = now() - G.t0, beat = beatSec();
+  let i = G.idx; while (i < G.seq.length && e >= G.starts[i] + G.seq[i].b * beat) i++;
+  if (i !== G.idx) {
+    for (let k = G.idx; k < i; k++) finalizeNote(k);
+    G.idx = i;
+    if (i >= G.seq.length) { finishRun(); return; }
     renderSing();
   }
+  const n = G.seq[i], dur = n.b * beat, into = e - G.starts[i];
+  $('#holdFill').style.width = (100 * clamp(into / dur)) + '%';
+  if (into < Math.min(0.15 * dur + 0.05, 0.3)) return;
+  const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], p: 0, cl: 0, st: 0, fo: 0 });
+  a.total++;
+  if (!S.voiced) { hint.textContent = 'Sing "' + wordAt(i) + '"'; hint.className = 'hint'; return; }
+  let c = (S.midi - n.m) * 100;
+  if ($('#octFree').checked) c = ((c % 1200) + 1800) % 1200 - 600;
+  a.voiced++; a.cents.push(c); a.p += S.purity; a.cl += S.clar; a.st += S.stab; a.fo += S.focus;
+  if (Math.abs(c) <= 50) { hint.textContent = S.purity >= 72 ? 'On pitch and pure ✦' : 'On pitch'; hint.className = 'hint ok'; }
+  else { hint.textContent = c < 0 ? 'A little low, go up ↑' : 'A little high, come down ↓'; hint.className = 'hint ' + (c < 0 ? 'up' : 'down'); }
 }
-$('#btnRestart').onclick = () => loadSong(G.song, true);
+const CHEERS = { pure: ['Beautiful tone!', 'Pure!', 'Lovely!', 'That one rang!'], ok: ['Nice!', 'Good pitch!', 'Right on!'], low: ['Close! Aim a touch higher next time'], high: ['Close! A touch lower next time'], missed: ['Keep going!'] };
+let cheerTimer = 0;
+function finalizeNote(i) {
+  const a = G.acc[i], n = G.seq[i];
+  let r;
+  if (!a || a.voiced < Math.max(3, a.total * 0.25)) r = { m: n.m, status: 'missed' };
+  else {
+    const cs = [...a.cents].sort((x, y) => x - y), v = a.voiced;
+    r = { m: n.m, c: cs[cs.length >> 1], p: a.p / v, cl: a.cl / v, st: a.st / v, fo: a.fo / v };
+    r.status = Math.abs(r.c) <= 50 ? (r.p >= 72 ? 'pure' : 'ok') : r.c < 0 ? 'low' : 'high';
+  }
+  G.res[i] = r;
+  G.streak = r.status === 'pure' || r.status === 'ok' ? G.streak + 1 : 0;
+  const pool = CHEERS[r.status];
+  $('#cheer').textContent = G.streak >= 3 && G.streak % 2 === 1 ? G.streak + ' in a row!' : pool[Math.floor(Math.random() * pool.length)];
+  clearTimeout(cheerTimer); cheerTimer = setTimeout(() => { $('#cheer').textContent = ''; }, 1400);
+}
+function finishRun() {
+  G.run = 'done'; G.idx = G.seq.length; G.attempt++;
+  saveRun(); renderSing();
+}
+$('#btnSing').onclick = startRun;
+document.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => { if (G.run === 'singing' || G.run === 'countin') return; G.tempo = b.dataset.tempo; renderSing(); });
 
 // ---------- words and sheet music ----------
 function wordAt(i) {
@@ -1124,6 +1192,7 @@ function spell(m, tonicPc, sig) {
   const oct = (m - NAT[L] - alt) / 12 - 1;
   return { step: L + 7 * oct, acc: alt === keyAlt ? '' : alt === 1 ? '♯' : alt === -1 ? '♭' : '♮' };
 }
+function staffY(mf, tonic, sig) { const lo = Math.floor(mf), f = mf - lo, a = spell(lo + G.disp, tonic, sig).step, b = spell(lo + 1 + G.disp, tonic, sig).step; return 80 - (a + (b - a) * f - 30) * 5; }
 function lineOf(i) { const k = G.lines.findIndex(([a, b]) => i >= a && i <= b); return k < 0 ? G.lines.length - 1 : k; }
 function drawStaff() {
   const box = $('#staff'); if (!box || !G.lines.length) return;
@@ -1140,13 +1209,20 @@ function drawStaff() {
   for (let k = 0; k < ks; k++) out.push(`<text class="glyph" x="${50 + k * 10}" y="${Y(sig > 0 ? SHARP_STEP[k] : FLAT_STEP[k]) + 5}" font-size="17">${sig > 0 ? '♯' : '♭'}</text>`);
   for (let i = a; i <= b; i++) {
     const n = G.seq[i], cx = xs[i - a], sp = spell(n.m + G.disp, tonic, sig), y = Y(sp.step);
-    const r = G.res[i], cls = i === G.play ? 'n-play' : (G.play < 0 && i === G.idx) ? 'n-now' : r ? (r.skip ? 'n-skip' : r.p >= 72 ? 'n-pure' : 'n-done') : '';
+    const r = G.res[i], cls = i === G.play ? 'n-play' : r ? 'st-' + (r.status === 'missed' ? 'miss' : r.status) : (G.play < 0 && i === G.idx && G.run !== 'done') ? 'n-now' : '';
     const g = [];
     if (cls === 'n-now' || cls === 'n-play') g.push(`<circle class="halo" cx="${cx}" cy="${y}" r="14"/>`);
+    if (cls === 'st-pure') g.push(`<circle class="glow" cx="${cx}" cy="${y}" r="15"/>`, `<text class="tag" x="${cx}" y="${Math.min(y, 40) - 30}">✦</text>`);
+    if (cls === 'st-low' || cls === 'st-high') {
+      const sy = staffY(n.m + clamp(r.c, -700, 700) / 100, tonic, sig);
+      g.push(`<line x1="${cx + 9}" x2="${cx + 9}" y1="${y}" y2="${sy}" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>`, `<circle cx="${cx + 9}" cy="${sy}" r="3.2" fill="currentColor"/>`,
+        `<text class="tag" x="${cx}" y="${cls === 'st-low' ? Math.max(y, 80) + 22 : Math.min(y, 40) - 28}">${cls === 'st-low' ? '↑ low' : '↓ high'}</text>`);
+    }
+    if (cls === 'st-ok') g.push(`<text class="tag" x="${cx}" y="${Math.min(y, 40) - 30}">✓</text>`);
     for (let st = 28; st >= sp.step; st -= 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
     for (let st = 40; st <= sp.step; st += 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
     const hollow = n.b >= 2, up = sp.step < 34;
-    g.push(`<ellipse cx="${cx}" cy="${y}" rx="6.6" ry="4.7" transform="rotate(-20 ${cx} ${y})" fill="${hollow ? 'var(--surface)' : 'currentColor'}" stroke="currentColor" stroke-width="${hollow ? 1.8 : 1}"/>`);
+    g.push(`<ellipse cx="${cx}" cy="${y}" rx="6.6" ry="4.7" transform="rotate(-20 ${cx} ${y})" fill="${hollow && cls !== 'st-pure' && cls !== 'st-ok' ? 'var(--surface)' : 'currentColor'}" stroke="currentColor" stroke-width="${hollow ? 1.8 : 1}"/>`);
     if (n.b < 4) g.push(up ? `<line x1="${cx + 6}" x2="${cx + 6}" y1="${y - 1}" y2="${y - 33}" stroke="currentColor" stroke-width="1.4"/>` : `<line x1="${cx - 6}" x2="${cx - 6}" y1="${y + 1}" y2="${y + 33}" stroke="currentColor" stroke-width="1.4"/>`);
     if (n.b <= 0.5) g.push(up ? `<path d="M${cx + 6} ${y - 33} q 2 9 9 13 q -5 -4 -9 -6 z" fill="currentColor" stroke="currentColor" stroke-width="1"/>` : `<path d="M${cx - 6} ${y + 33} q 2 -9 9 -13 q -5 4 -9 6 z" fill="currentColor" stroke="currentColor" stroke-width="1"/>`);
     if ([1.5, 3].includes(n.b)) g.push(`<circle cx="${cx + 11}" cy="${y - (sp.step % 2 === 0 ? 3 : 0)}" r="1.9" fill="currentColor"/>`);
@@ -1176,7 +1252,8 @@ function stopPlayback(quiet) {
 async function listenFirst() {
   if (playback) { stopPlayback(); return; }
   await ensureAudio();
-  const beat = 60 / 84; let t = 0.15;
+  if (G.run === 'singing' || G.run === 'countin') return;
+  const beat = beatSec(); let t = 0.15;
   playback = { timers: [], oscs: [] };
   G.seq.forEach((n, i) => {
     playback.oscs.push(playTone(n.m, n.b * beat * 0.94, PURE, t));
@@ -1189,13 +1266,31 @@ async function listenFirst() {
 $('#btnListen').onclick = listenFirst;
 
 // ---------- end-of-song report ----------
-function runAvg() { const sung = G.res.filter(r => !r.skip); return sung.length ? sung.reduce((s, r) => s + r.p, 0) / sung.length : 0; }
+function runStats() {
+  const all = G.seq.map((n, i) => G.res[i] || { m: n.m, status: 'missed' }), sung = all.filter(r => r.status !== 'missed');
+  return { all, sung, n: all.length, ok: all.filter(r => r.status === 'pure' || r.status === 'ok').length, pure: all.filter(r => r.status === 'pure').length,
+    low: all.filter(r => r.status === 'low').length, high: all.filter(r => r.status === 'high').length, missed: all.length - sung.length,
+    avg: sung.length ? Math.round(sung.reduce((s, r) => s + r.p, 0) / sung.length) : 0 };
+}
+function runAvg() { return runStats().avg; }
 function saveRun() {
-  const sung = G.res.filter(r => !r.skip);
+  const st = runStats();
   if (!store.runs) store.runs = [];
-  store.runs.push({ id: G.song.id, at: Date.now(), avg: Math.round(runAvg()), pure: sung.filter(r => r.p >= 72).length, n: G.seq.length });
-  if (store.runs.length > 60) store.runs.splice(0, store.runs.length - 60);
+  store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo });
+  if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true;
+}
+function encouragement(st, prev, isBest) {
+  if (st.ok === st.n && st.pure === st.n) return 'Wow! Every note on pitch and pure. You nailed it!';
+  const m = [];
+  if (!prev || prev.ok == null) m.push(`Great start! ${st.ok} of ${st.n} notes on pitch.`);
+  else {
+    if (st.ok > prev.ok) m.push(`Better! ${st.ok - prev.ok} more note${st.ok - prev.ok > 1 ? 's' : ''} on pitch than last time.`);
+    if (st.avg > prev.avg) m.push(`Your tone got purer: +${st.avg - prev.avg}.`);
+    if (isBest) m.push('New personal best!');
+    if (!m.length) m.push(`Good effort: ${st.ok} of ${st.n} on pitch. Every try trains your ear and your voice.`);
+  }
+  return m.join(' ') + ' Sing it again, it gets easier each time.';
 }
 const FIX = {
   cl: 'Some breath or rasp got mixed in. Sing it softer, closer to a hum, with lips gently rounded on "oo".',
@@ -1204,61 +1299,43 @@ const FIX = {
 };
 function renderReport() {
   const box = $('#report');
-  if (G.idx < G.seq.length || !G.res.length) { box.hidden = true; return; }
+  if (G.run !== 'done') { box.hidden = true; return; }
   box.hidden = false; box.textContent = '';
-  const sung = G.res.filter(r => !r.skip), avg = Math.round(runAvg()), pure = sung.filter(r => r.p >= 72).length;
+  const st = runStats();
   const runs = (store.runs || []).filter(r => r.id === G.song.id), prev = runs.length > 1 ? runs[runs.length - 2] : null;
-  const best = Math.max(...runs.map(r => r.avg));
+  const scoreOf = r => (r.ok ?? 0) * 1000 + r.avg, isBest = runs.length > 1 && scoreOf(runs[runs.length - 1]) > Math.max(...runs.slice(0, -1).map(scoreOf));
+  const head = document.createElement('p'); head.className = 'cheer-big'; head.textContent = encouragement(st, prev, isBest); box.appendChild(head);
   const top = document.createElement('div'); top.className = 'report-top';
-  const sc = document.createElement('div');
-  sc.innerHTML = '<div class="label">Your purity score</div><div class="score"><span></span><small> / 100</small></div>';
-  sc.querySelector('.score span').textContent = avg; top.appendChild(sc);
-  const stat = (l, v) => { const d = document.createElement('div'); d.className = 'stat'; const a = document.createElement('span'); a.className = 'label'; a.textContent = l; const b = document.createElement('span'); b.className = 'val'; b.textContent = v; d.append(a, b); top.appendChild(d); };
-  stat('Pure notes (72+)', pure + ' of ' + G.seq.length);
-  stat('Pitch', sung.length ? 'avg ' + Math.round(sung.reduce((s, r) => s + Math.abs(r.c), 0) / sung.length) + '¢ off' : '–');
-  stat('Points to 100', String(100 - avg));
-  if (prev) stat('Last time', prev.avg + (avg >= prev.avg ? '  (+' : '  (') + (avg - prev.avg) + ')');
-  if (runs.length > 1) stat('Your best', String(best));
+  const stat = (l, v, big) => { const d = document.createElement('div'); d.className = 'stat'; const a = document.createElement('span'); a.className = 'label'; a.textContent = l; const b = document.createElement('span'); b.className = big ? 'score' : 'val'; b.textContent = v; if (big) { const sm = document.createElement('small'); sm.textContent = ' / 100'; b.appendChild(sm); } d.append(a, b); top.appendChild(d); };
+  stat('Purity score', String(st.avg), true);
+  stat('On pitch', st.ok + ' of ' + st.n);
+  stat('Pure ✦', st.pure + ' of ' + st.n);
+  stat('Try', String(runs.length || 1));
+  if (prev && prev.ok != null) stat('Last try', prev.ok + ' on pitch · ' + prev.avg);
   box.appendChild(top);
   const tiles = document.createElement('div'); tiles.className = 'tiles';
-  G.res.forEach((r, i) => {
-    const t = document.createElement('div'); t.className = 'tile';
-    t.innerHTML = '<b></b><span class="tn"></span><span class="tp"></span><span class="tc"></span><i></i>';
+  const LBL = { pure: '✦ pure', ok: '✓ on pitch', low: '↑ low', high: '↓ high', missed: 'missed' };
+  st.all.forEach((r, i) => {
+    const t = document.createElement('div'); t.className = 'tile st-' + (r.status === 'missed' ? 'miss' : r.status);
+    t.innerHTML = '<b></b><span class="tn"></span><span class="tp"></span><span class="ts"></span><i></i>';
     t.querySelector('b').textContent = G.seq[i].cont ? '–' : wordAt(i); t.querySelector('.tn').textContent = nameOf(r.m);
-    const bar = t.querySelector('i');
-    if (r.skip) { t.querySelector('.tp').textContent = '–'; t.querySelector('.tc').textContent = 'skipped'; bar.style.width = '0'; }
-    else {
-      t.querySelector('.tp').textContent = Math.round(r.p); bar.style.width = Math.round(r.p) + '%';
-      if (r.p >= 72) { t.querySelector('.tp').classList.add('pure'); bar.className = 'pure'; }
-      t.querySelector('.tc').textContent = (r.c > 0 ? '+' : '') + Math.round(r.c) + '¢';
-    }
-    t.title = wordAt(i) + ' ' + nameOf(r.m) + (r.skip ? ' skipped' : ' purity ' + Math.round(r.p));
+    t.querySelector('.tp').textContent = r.status === 'missed' ? '–' : Math.round(r.p);
+    t.querySelector('.ts').textContent = LBL[r.status] + (r.status === 'low' || r.status === 'high' ? ' ' + Math.abs(Math.round(r.c)) + '¢' : '');
+    t.querySelector('i').style.width = r.status === 'missed' ? '0' : Math.round(r.p) + '%';
+    if (r.status === 'pure') { t.querySelector('.tp').classList.add('pure'); t.querySelector('i').className = 'pure'; }
     tiles.appendChild(t);
   });
   box.appendChild(tiles);
   const tip = document.createElement('p'); tip.className = 'tip';
-  if (sung.length) {
-    const hi = sung.reduce((a, b) => b.p > a.p ? b : a), lo = sung.reduce((a, b) => b.p < a.p ? b : a);
-    if (lo.p >= 85) tip.textContent = 'Every note was crystal pure. Try the next key up with the + button, or move on to a song.';
-    else {
-      const weak = lo.cl != null ? [['cl', lo.cl], ['st', lo.st], ['fo', lo.fo]].sort((a, b) => a[1] - b[1])[0][0] : 'cl';
-      const wi = i => G.res.indexOf(i), hw = wordAt(wi(hi)) + ' (' + nameOf(hi.m) + ')', lw = wordAt(wi(lo)) + ' (' + nameOf(lo.m) + ')';
-      tip.textContent = 'Purest: ' + hw + ', ' + Math.round(hi.p) + '. Work on ' + lw + ', ' + Math.round(lo.p) + ': ' + FIX[weak] + ' Sing ' + nameOf(hi.m) + ' first, then slide to ' + nameOf(lo.m) + ' keeping the same feeling.';
-    }
-  } else tip.textContent = 'No notes were sung this time.';
+  if (st.missed >= Math.max(2, st.n * 0.3)) tip.textContent = 'Some notes slipped by. Try Slow tempo, and tap ▶ Listen first to learn the tune before singing.';
+  else if (st.low >= 2 && st.low >= st.high) tip.textContent = 'You often land a little low. Think of each note as slightly higher than you expect, and keep the breath moving through the note.';
+  else if (st.high >= 2) tip.textContent = 'You often land a little high. Relax your throat and jaw and let each note settle down into place.';
+  else if (st.sung.length && st.avg < 72) {
+    const k = ['cl', 'st', 'fo'].map(key => [key, st.sung.reduce((s, r) => s + (r[key] ?? 1), 0)]).sort((x, y) => x[1] - y[1])[0][0];
+    tip.textContent = FIX[k];
+  } else tip.textContent = st.ok === st.n ? 'Ready for more? Try Medium tempo, or the next key up with +.' : 'Play the orange notes with Hear note, then sing it again.';
   box.appendChild(tip);
-  const row = document.createElement('div'); row.className = 'row';
-  const again = document.createElement('button'); again.className = 'primary'; again.textContent = 'Sing it again'; again.onclick = () => loadSong(G.song, true);
-  const lis = document.createElement('button'); lis.className = 'small'; lis.textContent = '▶ Listen again'; lis.onclick = () => { loadSong(G.song, true); listenFirst(); };
-  row.append(again, lis);
-  if (sung.length) {
-    const lo = sung.reduce((a, b) => b.p < a.p ? b : a);
-    const hear = document.createElement('button'); hear.className = 'small'; hear.textContent = 'Hear ' + nameOf(lo.m);
-    hear.onclick = async () => { await ensureAudio(); playTone(lo.m, 1.4, myTimbre(lo.m)); }; row.appendChild(hear);
-  }
-  box.appendChild(row);
 }
-$('#btnSkip').onclick = () => { if (G.idx < G.seq.length) { G.res.push({ m: G.seq[G.idx].m, skip: true }); G.acc = null; G.idx++; G.hold = 0; if (G.idx >= G.seq.length) saveRun(); renderSing(); } };
 $('#kUp').onclick = () => { G.shift++; loadSong(G.song, true); };
 $('#kDown').onclick = () => { G.shift--; loadSong(G.song, true); };
 $('#kAuto').onclick = () => loadSong(G.song);
@@ -1266,7 +1343,7 @@ function myTimbre(m) {
   if (!store.discoveries.length) return null;
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
 }
-$('#btnRef').onclick = async () => { await ensureAudio(); if (G.idx < G.seq.length) { const m = G.seq[G.idx].m; playTone(m, 1.2, myTimbre(m)); } };
+$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[Math.min(G.idx, G.seq.length - 1)].m; playTone(m, 1.2, PURE); };
 $('#btnGen').onclick = () => {
   const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
   let root = lo; for (let m = lo; m <= hi; m++) if (noteScore(store.notes[m]) > noteScore(store.notes[root])) root = m;
@@ -1372,14 +1449,14 @@ const STEPS = [
     done: () => 'Copy that sound whenever you warm up. Open the My voice map tab any time to see your full range.' },
 
   { key: 'song', short: 'First melody', title: 'Sing your first melody',
-    how: ['Look at the big note name and sing it. Tap <b>Hear this note</b> if you\'re unsure.', 'Follow the arrows, <b>Go higher</b> or <b>Go lower</b>, until it says <b>On pitch</b>.', 'Hold each note until the green bar fills. The next note lights up automatically.'],
+    how: ['Tap <b>▶ Listen first</b> to hear the tune, then tap <b>▶ Sing</b>.', 'After a count of 3 the notes move along by themselves. Sing each word as it lights up; the gold "you" note shows where your voice is.', 'Don\'t worry about being perfect. Each note is marked as you go, and you can sing it again to do better.'],
     why: 'This short scale has already been moved into your strongest zone, so it should feel easy. After this, try the songs in the Sing tab.',
-    goal: 'Sing all 9 notes of the Five-note hum.',
+    goal: 'Sing through the Five-note hum once.',
     enter: () => { loadSong(SONGS.find(x => x.id === 'hum')); placeSingCard(true); },
     leave: () => placeSingCard(false),
     tick: () => G.seq.length ? G.idx / G.seq.length : 0,
     live: () => '',
-    done: () => 'You sang all ' + G.seq.length + ' notes' + (G.hits.length ? ', average purity ' + Math.round(G.hits.reduce((s, h) => s + h.p, 0) / G.hits.length) : '') + '.' },
+    done: () => { const st = runStats(); return 'You sang it through! ' + st.ok + ' of ' + st.n + ' notes on pitch, purity ' + st.avg + '.'; } },
 ];
 const FINISH = { key: 'finish', title: 'You\'re ready to practice',
   how: ['Come back each day for the 10-minute routine below.', 'Use the <b>Sing</b> tab for Twinkle, Ode to Joy and Amazing Grace, or tap <b>Compose a new melody</b> for a tune built from your purest notes.', 'Explore: on a steady "oo", slide slowly toward "ee" and watch <b>Sounding now</b> for an overtone, a second note at the same time.'],
@@ -1494,7 +1571,8 @@ function driveDemo() {
     case 'siren': wave('oo'); sing(48 + 16 * clamp((el - 0.8) / 4)); break;
     case 'map': quiet(); if (el > 1.8 && !GS.flags.playedAt) playBest(); break;
     case 'song': {
-      wave('voice'); const tg = G.seq[G.idx]; if (!tg) { quiet(); break; }
+      wave('voice'); if (G.run === 'ready') { startRun(); break; }
+      const tg = G.seq[G.idx]; if (G.run !== 'singing' || !tg) { quiet(); break; }
       if (d.lastIdx !== G.idx) { d.lastIdx = G.idx; d.noteT = now(); }
       if (now() - d.noteT < 0.15) quiet(); else sing(tg.m + (now() - d.noteT < 0.35 ? -0.7 : 0));
       break;
