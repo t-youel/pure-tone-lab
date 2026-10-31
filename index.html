@@ -805,7 +805,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTokens
 new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
 // ---------- audio engine ----------
-let ac = null, analyser, timeBuf, freqDb, nsdf, sq, micIn;
+let ac = null, analyser, timeBuf, freqDb, nsdf, sq, micIn, micIn2, toneOut, toneVol;
 const NOTCH_IDLE = 18000;
 let mode = 'idle', stream = null, liveNodes = [], demoTimer = null;
 let refUntil = 0; // ignore analysis while a reference tone plays
@@ -817,7 +817,12 @@ async function ensureAudio() {
     timeBuf = new Float32Array(analyser.fftSize);
     freqDb = new Float32Array(analyser.frequencyBinCount);
     nsdf = new Float32Array(2048); sq = new Float64Array(2049);
-    micIn = ac.createBiquadFilter(); micIn.type = 'notch'; micIn.Q.value = 30; micIn.frequency.value = NOTCH_IDLE; micIn.connect(analyser);
+    micIn = ac.createBiquadFilter(); micIn.type = 'notch'; micIn.Q.value = 30; micIn.frequency.value = NOTCH_IDLE;
+    micIn2 = ac.createBiquadFilter(); micIn2.type = 'notch'; micIn2.Q.value = 30; micIn2.frequency.value = NOTCH_IDLE;
+    micIn.connect(micIn2); micIn2.connect(analyser);
+    // Notes go through a limiter, so they can be loud on a small speaker without crackling.
+    toneOut = ac.createDynamicsCompressor(); toneOut.threshold.value = -12; toneOut.knee.value = 6; toneOut.ratio.value = 8; toneOut.attack.value = 0.003; toneOut.release.value = 0.1;
+    toneVol = ac.createGain(); toneVol.gain.value = 1.6; toneOut.connect(toneVol); toneVol.connect(ac.destination);
   }
   if (ac.state !== 'running') { try { await ac.resume(); } catch (e) {} }
 }
@@ -951,9 +956,9 @@ function playTone(midi, dur = 1.2, amps = null, when = 0) {
   const t = ac.currentTime + 0.03 + when;
   const o = ac.createOscillator(); o.frequency.value = m2f(midi);
   o.setPeriodicWave(makeWave(amps || [1, .25, .1, .04]));
-  const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.3, t + .04);
-  g.gain.setValueAtTime(.3, t + dur - .08); g.gain.linearRampToValueAtTime(0, t + dur);
-  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + .02);
+  const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.6, t + .04);
+  g.gain.setValueAtTime(.6, t + dur - .08); g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + .02);
   notchFor(midi, t, t + dur + .1);
   return o;
 }
@@ -962,16 +967,19 @@ function playTone(midi, dur = 1.2, amps = null, when = 0) {
 let guideTone = null;
 function notchFor(midi, from, until) {
   if (!micIn) return;
-  const f = micIn.frequency; f.cancelScheduledValues(from); f.setValueAtTime(m2f(midi), from);
-  if (until != null && !(guideTone && guideTone.midi === midi)) f.setValueAtTime(guideTone ? m2f(guideTone.midi) : NOTCH_IDLE, until);
+  [[micIn, 1], [micIn2, 2]].forEach(([n, k]) => {
+    const f = n.frequency; f.cancelScheduledValues(from); f.setValueAtTime(k * m2f(midi), from);
+    if (until != null && !(guideTone && guideTone.midi === midi)) f.setValueAtTime(guideTone ? k * m2f(guideTone.midi) : NOTCH_IDLE, until);
+  });
 }
-function guideOn(midi, vol = 0.14) {
+const GUIDE_WAVE = [1, 0.8];
+function guideOn(midi, vol = 0.35) {
   if (!ac) return;
   guideOff(true);
   const t = ac.currentTime + 0.02, o = ac.createOscillator(), g = ac.createGain();
-  o.type = 'sine'; o.frequency.value = m2f(midi);
+  o.setPeriodicWave(makeWave(GUIDE_WAVE)); o.frequency.value = m2f(midi);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.25);
-  o.connect(g); g.connect(ac.destination); o.start(t);
+  o.connect(g); g.connect(toneOut); o.start(t);
   guideTone = { o, g, midi, vol, level: vol };
   notchFor(midi, t);
 }
@@ -991,7 +999,7 @@ function guideOff(now_) {
   if (!guideTone) return;
   const { o, g } = guideTone, t = ac.currentTime; guideTone = null;
   try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + (now_ ? 0.03 : 0.2)); o.stop(t + (now_ ? 0.05 : 0.25)); } catch (e) {}
-  if (micIn) { micIn.frequency.cancelScheduledValues(t); micIn.frequency.setValueAtTime(NOTCH_IDLE, t + 0.3); }
+  for (const n of [micIn, micIn2]) if (n) { n.frequency.cancelScheduledValues(t); n.frequency.setValueAtTime(NOTCH_IDLE, t + 0.3); }
 }
 
 // ---------- analysis ----------
@@ -1619,7 +1627,7 @@ function startEcho() {
 function echoHear() {
   const r = RUNGS[CO.rung], i = G.echo.i, n = G.seq[i];
   G.echo.phase = 'hear'; G.echo.t0 = now(); G.idx = i;
-  if (r.along || guidePref()) guideOn(n.m, 0.25); else playTone(n.m, r.hear, PURE);
+  if (r.along || guidePref()) guideOn(n.m, 0.6); else playTone(n.m, r.hear, PURE);
   showTarget(i); drawStaff(); drawFocus();
   $('#tgtHint').textContent = '🔊 Listen: "' + wordAt(i) + '" (' + nameOf(n.m) + ')'; $('#tgtHint').className = 'hint';
   $('#tgtScore').textContent = 'Note ' + (i + 1) + ' of ' + G.seq.length + (G.echo.retried ? ' · second try' : '');
@@ -1882,7 +1890,7 @@ function drawStaff() {
 }
 
 // "Listen first": the whole song once in a clean, near-sine tone, with the staff following along.
-const PURE = [1, 0.12, 0.04];
+const PURE = [1, 0.7, 0.45, 0.25, 0.12];
 let playback = null;
 function stopPlayback(quiet) {
   guideOff();
@@ -2887,7 +2895,7 @@ const DRILLS = {
       playTone(m, 2, PURE);
       dSet({ step: `Round ${D.rounds.length + 1} of ${D.n}`, prompt: 'Listen: ' + nameOf(m), sub: 'Hear it in your head.', live: '🔊 playing…', prog: D.rounds.length / D.n });
       $('#dLive').className = 'live-tip';
-      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 2, PURE); D.rem++; } }, { label: 'Skip', fn: () => this.score() }]);
+      dBtns([{ label: 'Hear it again', fn: () => { playTone(D.target, 2, PURE); refUntil = now() + 2.15; D.rem++; } }, { label: 'Skip', fn: () => this.score() }]);
     },
     tick(dt, muted) {
       const e = now() - D.t0;
@@ -2910,7 +2918,7 @@ const DRILLS = {
       }
       // Can't find it yet? Play it again and give more time (twice), then score what was sung.
       // Can't find it yet? Play it again and give more time (twice). Still lost: keep the note playing to sing along with.
-      if (!D.guided && e > 3.5 + D.rem * 3.5 && D.rem < 2) { D.rem++; playTone(D.target, 2, PURE); dSet({ live: '🔊 Listen again: ' + nameOf(D.target) + '. Take your time.' }); $('#dLive').className = 'live-tip'; }
+      if (!D.guided && e > 3.5 + D.rem * 3.5 && D.rem < 2) { D.rem++; playTone(D.target, 2, PURE); refUntil = now() + 2.15; dSet({ live: '🔊 Listen again: ' + nameOf(D.target) + '. Take your time.' }); $('#dLive').className = 'live-tip'; }
       else if (!D.guided && e > 11) { D.guided = true; D.autoGuide = true; D.t0 = now() - 3; guideOn(D.target); dSet({ prompt: 'Sing along with ' + nameOf(D.target), live: "🎵 I'll keep the note playing: match it", sub: 'Hum quietly with the tone and slide slowly until the rough "beating" disappears and the band turns green.' }); $('#dLive').className = 'live-tip'; }
       else if (e > (D.autoGuide ? 14 : 11.5)) this.score(false);
     },

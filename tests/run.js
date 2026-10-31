@@ -272,7 +272,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test('guide tone: the mic ignores the speaker playing the note, but still hears the singer', async page => {
     await page.evaluate(async () => {
       await ensureAudio(); setMode('mic', 'test');
-      const leak = ac.createOscillator(); leak.frequency.value = m2f(57); const lg = ac.createGain(); lg.gain.value = .35; leak.connect(lg); lg.connect(micIn); leak.start();
+      const leak = ac.createOscillator(); leak.setPeriodicWave(makeWave(GUIDE_WAVE)); leak.frequency.value = m2f(57); const lg = ac.createGain(); lg.gain.value = .35; leak.connect(lg); lg.connect(micIn); leak.start();
       window.T = { leak, lg };
     });
     await page.waitForTimeout(700);
@@ -336,6 +336,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(400);
     const s = await page.evaluate(() => ({ ok: runStats().ok, rung: CO.rung, guided: gs.filter(Boolean).length / Math.max(1, gs.length), tone: !!guideTone }));
     expect(mig === 2 && s.ok === 3 && s.rung === 1 && s.guided > .8 && !s.tone, JSON.stringify({ mig, s }));
+  });
+
+  await test('notes play loud, with overtones a small speaker can reproduce', async page => {
+    const s = await page.evaluate(async () => { await ensureAudio(); return { overtones: PURE.slice(1).reduce((a, b) => a + b, 0), vol: toneVol.gain.value, guide: GUIDE_WAVE.length }; });
+    expect(s.overtones >= 1 && s.vol >= 1.5 && s.guide >= 2, JSON.stringify(s));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
