@@ -59,6 +59,8 @@ button.small { padding: 7px 12px; font-size: 0.85rem; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 .status { font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+.lvl { flex: none; width: 70px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.lvl span { display: block; height: 100%; width: 0; background: var(--good); transition: width .08s; }
 .dot.on { background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 25%, transparent); }
 
 /* live strip */
@@ -222,7 +224,7 @@ details b { color: var(--ink); }
   </div>
 </header>
 
-<div class="status"><span id="dot" class="dot"></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span></div>
+<div class="status"><span id="dot" class="dot"></span><span class="lvl" id="lvlBox" hidden title="Microphone level"><span id="lvl"></span></span><span id="status">Microphone is off. Press Start listening, then hum any comfortable note.</span></div>
 
 <section class="live" aria-live="off">
   <div class="cell">
@@ -411,6 +413,7 @@ const isBlack = m => [1,3,6,8,10].includes(((m % 12) + 12) % 12);
 const now = () => performance.now() / 1000;
 const RANGE_LO = 36, RANGE_HI = 84; // C2..C6
 const HN = 10;
+const QUIET = 0.0025; // below this input level the app treats the room as silent
 
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -459,8 +462,19 @@ async function ensureAudio() {
     freqDb = new Float32Array(analyser.frequencyBinCount);
     nsdf = new Float32Array(2048); sq = new Float64Array(2049);
   }
-  if (ac.state === 'suspended') await ac.resume();
+  if (ac.state !== 'running') { try { await ac.resume(); } catch (e) {} }
 }
+const LISTEN_MSG = 'Listening. Hum or sing any note; quiet and relaxed works best. Use headphones when you play reference tones.';
+// iPad Safari can hand a page a silent microphone, or pause its audio. Any tap wakes it again.
+document.addEventListener('pointerdown', () => {
+  if (ac && ac.state !== 'running' && mode !== 'idle') ac.resume().then(() => { if (mode === 'mic') setMode('mic', LISTEN_MSG); }).catch(() => {});
+});
+async function rebuildAudio() {
+  try { await ac.close(); } catch (e) {}
+  ac = null; await ensureAudio();
+  if (stream) { const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes = [src]; }
+}
+let micWatch = 0;
 
 function stopSources() {
   clearTimeout(demoTimer); demoTimer = null;
@@ -475,6 +489,7 @@ function setMode(m, msg) {
   $('#dot').classList.toggle('on', m !== 'idle');
   $('#status').textContent = msg;
   $('#btnStop').hidden = m === 'idle';
+  $('#lvlBox').hidden = m === 'idle';
   $('#btnMic').textContent = m === 'mic' ? 'Listening…' : 'Start listening';
   $('#btnMic').disabled = m === 'mic';
   renderGuide();
@@ -491,7 +506,16 @@ async function startMic() {
     setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then press Start listening again.'); return;
   }
   const src = ac.createMediaStreamSource(stream); src.connect(analyser); liveNodes.push(src);
-  setMode('mic', 'Listening. Hum or sing any note; quiet and relaxed works best. Use headphones when you play reference tones.');
+  S.micPeak = 0; S.quietFor = 0;
+  setMode('mic', LISTEN_MSG);
+  // A real microphone always picks up a little room noise. Perfect digital silence means the feed is stuck: rebuild the audio engine once.
+  clearTimeout(micWatch);
+  micWatch = setTimeout(async () => {
+    if (mode !== 'mic' || S.micPeak > 0) return;
+    await rebuildAudio(); S.micPeak = 0;
+    setMode('mic', ac.state === 'running' ? LISTEN_MSG : 'Tap anywhere on the page to switch the sound meter on.');
+    micWatch = setTimeout(() => { if (mode === 'mic' && S.micPeak === 0) setMode('mic', 'The microphone is sending no sound. Close other apps using the mic, reload this page, and tap Start listening again.'); }, 2500);
+  }, 1500);
 }
 
 function makeWave(amps) {
@@ -641,8 +665,9 @@ function frame() {
   const x = timeBuf.subarray(timeBuf.length - 2048);
   let rms = 0; for (let i = 0; i < x.length; i++) rms += x[i] * x[i]; rms = Math.sqrt(rms / x.length);
   S.rms = rms;
+  if (mode === 'mic') { S.micPeak = Math.max(S.micPeak || 0, rms); S.quietFor = rms < QUIET ? (S.quietFor || 0) + dt : 0; }
   let p = null;
-  if (rms > 0.005) p = mpm(x, ac.sampleRate);
+  if (rms > QUIET) p = mpm(x, ac.sampleRate);
   const voiced = !!(p && p.clarity > 0.55 && p.freq > 62 && p.freq < 1300);
   const muted = t < refUntil;
 
@@ -716,6 +741,7 @@ const hbars = $('#hbars'); for (let i = 0; i < HN; i++) hbars.appendChild(docume
 let uiTick = 0;
 function updateLive(rms) {
   if ((uiTick++ & 1)) return; // ~30 fps is plenty for text
+  $('#lvl').style.width = (100 * clamp((20 * Math.log10(rms + 1e-9) + 70) / 50)) + '%';
   if (S.voiced) {
     const r = Math.round(S.midi), cents = Math.round((S.midi - r) * 100);
     $('#noteName').textContent = nameOf(S.midi);
@@ -727,7 +753,7 @@ function updateLive(rms) {
   }
   const pv = S.voiced ? Math.round(S.purity) : null;
   $('#purityNum').textContent = pv == null ? '—' : pv;
-  $('#grade').textContent = pv == null ? (rms > 0.005 ? 'unpitched sound' : 'silent') : pv >= 85 ? 'crystal pure' : pv >= 72 ? 'pure' : pv >= 55 ? 'getting there' : 'rough';
+  $('#grade').textContent = pv == null ? (rms > QUIET ? 'unpitched sound' : 'silent') : pv >= 85 ? 'crystal pure' : pv >= 72 ? 'pure' : pv >= 55 ? 'getting there' : 'rough';
   [['Clar', S.clar], ['Stab', S.stab], ['Focus', S.focus]].forEach(([k, v]) => {
     $('#m' + k).style.width = (S.voiced ? v * 100 : 0) + '%'; $('#v' + k).textContent = S.voiced ? Math.round(v * 100) : '–';
   });
@@ -746,7 +772,7 @@ function updateLive(rms) {
       const m = Math.round(f2m(e.e.freq)); if (shown.has(m)) continue; shown.add(m);
       chips.append(chip(e.e.kind === 'over' ? 'over' : '', nameOf(m), e.e.kind === 'over' ? 'overtone ' + e.e.n : e.e.kind === 'sub' ? 'undertone' : 'second voice'));
     }
-  } else chips.append(Object.assign(document.createElement('span'), { className: 'chip muted', textContent: rms > 0.005 ? 'noise, no clear pitch' : 'nothing yet' }));
+  } else chips.append(Object.assign(document.createElement('span'), { className: 'chip muted', textContent: rms > QUIET ? 'noise, no clear pitch' : 'nothing yet' }));
   $('#coach').textContent = coach(rms);
   $('#coach').classList.toggle('muted', !S.voiced);
 }
@@ -756,7 +782,8 @@ function chip(cls, note, label) {
   c.append(b, s); return c;
 }
 function coach(rms) {
-  if (!S.voiced) return rms > 0.005 ? 'There is sound but no steady pitch. Try a gentle hum on "mmm" and let it ring.' : 'Hum softly on "mmm" or "oo". Quiet and relaxed beats loud.';
+  if (!S.voiced && mode === 'mic' && S.micPeak > 0 && S.quietFor > 5) return 'The microphone barely hears you. Hum a little louder, or hold the iPad closer (its microphones are along the top edge).';
+  if (!S.voiced) return rms > QUIET ? 'There is sound but no steady pitch. Try a gentle hum on "mmm" and let it ring.' : 'Hum softly on "mmm" or "oo". Quiet and relaxed beats loud.';
   const ex = [...S.extraScore.values()].filter(e => e.s > 3.5).map(e => e.e.kind);
   if (ex.includes('over')) return 'Two notes at once: a whistle-like overtone is riding on your note. Slide your vowel slowly from "oo" to "ee" to move it.';
   if (ex.includes('sub')) return 'An undertone an octave below is sounding. Fun to explore, but for purity relax the throat and drop the volume a little.';
@@ -1004,7 +1031,7 @@ const STEPS = [
     why: 'The app needs to hear you to give feedback. Listening happens on this device; nothing is recorded or uploaded. Headphones help later, when the app plays notes for you.',
     goal: 'Microphone on, and the app hears a sound.',
     action: () => mode === 'idle' ? { label: 'Start listening', fn: startMic } : null,
-    tick: () => (mode === 'idle' ? 0 : 0.5) + (mode !== 'idle' && S.rms > 0.005 ? 0.5 : 0),
+    tick: () => (mode === 'idle' ? 0 : 0.5) + (mode !== 'idle' && S.rms > QUIET ? 0.5 : 0),
     live: () => mode === 'idle' ? 'Waiting for the microphone. Tap Start listening.' : 'Microphone is on. Make any sound.',
     done: () => 'The app hears you. The Note and Purity panels at the top now follow your voice.' },
 
@@ -1123,7 +1150,7 @@ function guideLive() {
   const st = STEPS[guide.step];
   $('#sProg').style.width = (GS.prog * 100) + '%';
   $('#sBar').classList.toggle('full', GS.prog >= 1);
-  $('#sLive').textContent = st && !GS.complete ? st.live() : '';
+  $('#sLive').textContent = !st || GS.complete ? '' : (mode === 'idle' && st.key !== 'map' && st.key !== 'setup') ? 'The microphone is off. Tap Start listening.' : (mode === 'mic' && !S.voiced && S.micPeak > 0 && S.quietFor > 5 && st.key !== 'map') ? coach(S.rms) : st.live();
 }
 function renderGuide() {
   if (!$('#stepper')) return;
@@ -1143,7 +1170,8 @@ function renderGuide() {
   $('#sGoal').textContent = st.goal;
   $('#sDone').hidden = !GS.complete && !fin;
   $('#sDoneMsg').textContent = fin ? 'Great work. Your progress and voice map are saved in this browser.' : GS.msg;
-  const act = fin ? { label: 'Go to the Sing tab', fn: () => $('#t-sing').click() } : (!GS.complete && st.action ? st.action() : null);
+  let act = fin ? { label: 'Go to the Sing tab', fn: () => $('#t-sing').click() } : (!GS.complete && st.action ? st.action() : null);
+  if (!act && !fin && !GS.complete && mode === 'idle' && st.key !== 'map') act = { label: 'Start listening', fn: startMic };
   $('#sAction').hidden = !act; if (act) { $('#sAction').textContent = act.label; $('#sAction').onclick = act.fn; }
   $('#sNext').hidden = !GS.complete || fin;
   $('#sNext').textContent = guide.step === STEPS.length - 1 ? 'Finish →' : 'Next step →';
