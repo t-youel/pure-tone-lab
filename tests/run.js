@@ -130,6 +130,40 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.lv === 2 && s.cel && !s.live, JSON.stringify(s));
   });
 
+  await test('gold band covers only the voice types the singer falls into', async page => {
+    const h = await page.evaluate(() => {
+      const box = document.createElement('div');
+      box.innerHTML = rangeFigure({ low: 45, high: 69, natural: 55, type: 'Baritone', speak: 47 });
+      const one = +box.querySelector('.you-band').getAttribute('height');
+      box.innerHTML = rangeFigure({ low: 42, high: 66, natural: 52, type: 'Bass', speak: 47 });
+      return [one, +box.querySelector('.you-band').getAttribute('height'), box.textContent.includes('also you')];
+    });
+    expect(h[0] === 20 && h[1] === 40 && h[2], 'band heights ' + JSON.stringify(h));
+  });
+
+  await test('Start over resets progress, and Undo brings it all back', async page => {
+    await page.evaluate(() => { store.profile = { low: 45, high: 65, type: 'Baritone', zlo: 47, zhi: 62, natural: 52 }; store.lessons = ['1.1']; store.level = 1; save(); renderHome(); });
+    await page.click('#btnStartOver'); await page.click('#btnStartOver'); await page.waitForLoadState('load'); await page.waitForTimeout(500);
+    let s = await page.evaluate(() => ({ p: !!store.profile, undo: !$('#undoBar').hidden }));
+    expect(!s.p && s.undo, 'after reset ' + JSON.stringify(s));
+    await page.click('#btnUndo'); await page.waitForLoadState('load'); await page.waitForTimeout(500);
+    s = await page.evaluate(() => ({ type: store.profile && store.profile.type, undo: !$('#undoBar').hidden }));
+    expect(s.type === 'Baritone' && !s.undo, 'after undo ' + JSON.stringify(s));
+  });
+
+  await test('three singers each keep their own data, and can be renamed', async page => {
+    await page.evaluate(() => { store.profile = { low: 45, high: 65, type: 'Baritone', zlo: 47, zhi: 62, natural: 52 }; store.lessons = ['1.1']; save(); });
+    await page.click('#btnUser'); await page.click('#userMenu .um-row:nth-child(2) .um-pick'); await page.waitForLoadState('load'); await page.waitForTimeout(500);
+    let s = await page.evaluate(() => ({ p: !!store.profile, who: $('#btnUser').textContent, fresh: document.body.classList.contains('fresh') }));
+    expect(!s.p && /Singer 2/.test(s.who) && s.fresh, 'singer 2 ' + JSON.stringify(s));
+    await page.click('#btnUser'); await page.click('#userMenu .um-row:nth-child(2) >> text=Rename');
+    await page.fill('#userName1', 'Anna'); await page.keyboard.press('Enter'); await page.waitForTimeout(200);
+    expect(/Anna/.test(await page.evaluate(() => $('#btnUser').textContent)), 'rename failed');
+    await page.click('#userMenu .um-row:nth-child(1) .um-pick'); await page.waitForLoadState('load'); await page.waitForTimeout(500);
+    s = await page.evaluate(() => ({ type: store.profile && store.profile.type, who: $('#btnUser').textContent }));
+    expect(s.type === 'Baritone' && /Singer 1/.test(s.who), 'back to singer 1 ' + JSON.stringify(s));
+  });
+
   await test('hidden toast never blocks taps', async page => {
     await page.evaluate(() => toast('hello'));
     const shown = await page.evaluate(() => { const r = $('#toast').getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.id; });

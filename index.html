@@ -46,7 +46,7 @@ p { margin: 0; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* header */
-.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
+.top { position: relative; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; }
 .brand { display: flex; gap: 14px; align-items: center; min-width: 0; }
 .brand svg { flex: none; }
 .brand p { color: var(--muted); max-width: 46ch; font-size: 0.88rem; line-height: 1.35; }
@@ -328,6 +328,14 @@ details b { color: var(--ink); }
 .path-more[open] summary { margin-bottom: 10px; }
 .path-more { border-top: 1px solid var(--line); }
 body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .status, body.fresh.idle #btnMic { display: none; }
+/* singers */
+.user-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 25; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: grid; gap: 6px; min-width: 260px; box-shadow: 0 14px 40px rgba(0,0,0,.14); }
+.um-row { display: flex; gap: 8px; align-items: center; }
+.um-row .um-pick { flex: 1; justify-content: flex-start; }
+.um-row.on .um-pick { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.um-row input { flex: 1; font: 600 0.95rem var(--body); padding: 9px 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface); color: var(--ink); min-width: 0; }
+.undo-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: color-mix(in srgb, var(--pure) 14%, var(--surface)); border: 1px solid var(--pure); border-radius: 12px; padding: 10px 14px; font-weight: 600; }
+.home-foot { justify-content: center; margin-top: 4px; }
 /* home */
 .home-head h2 { font-size: clamp(1.6rem, 3.6vw, 2.2rem); }
 .home-head p { margin-top: 4px; }
@@ -432,6 +440,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     </div>
   </div>
   <div class="controls">
+    <button id="btnUser" class="small user-btn" aria-haspopup="true">👤 Singer 1</button>
+    <div class="user-menu" id="userMenu" hidden></div>
     <button id="btnMic" class="small mic-btn">🎙 Mic off</button>
     <button id="lvlBadge" class="lvl-badge" hidden>Level 1</button>
     <button id="btnStop" hidden>Stop</button>
@@ -490,7 +500,9 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 <!-- HOME -->
 <section class="panel" id="tab-home">
   <div class="home-head"><h2 id="homeTitle">Let's find your voice</h2><p id="homeSub" class="muted">Four steps, one at a time. Start with number 1.</p></div>
+  <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
+  <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
 </section>
 
 <!-- YOUR PATH -->
@@ -629,7 +641,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <p class="muted" style="font-size:.9rem">Play rebuilds each sound from your own harmonic fingerprint, so you hear your timbre back as a clean tone. Match it to lock the feeling in.</p>
   </div>
   <div class="row">
-    <button id="btnReset" class="small">Clear my voice data</button>
+    <button id="btnReset" class="small">Start over (reset my progress)</button>
     <span class="muted" style="font-size:.85rem">Data stays in this browser only.</span>
   </div>
 </section>
@@ -701,7 +713,11 @@ function toast(msg) {
 }
 
 // ---------- persistence ----------
-const KEY = 'pureToneLab.v1';
+const UKEY = 'pureToneLab.users';
+let users = { active: 0, names: ['Singer 1', 'Singer 2', 'Singer 3'] };
+try { const u = JSON.parse(localStorage.getItem(UKEY)); if (u && Array.isArray(u.names) && u.names.length === 3) users = u; } catch (e) {}
+const saveUsers = () => { try { localStorage.setItem(UKEY, JSON.stringify(users)); } catch (e) {} };
+const KEY = 'pureToneLab.v1' + (users.active ? '.u' + (users.active + 1) : '');
 let store = { notes: {}, discoveries: [] };
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.notes && s.discoveries) store = s; } catch (e) {}
 let dirty = false;
@@ -1289,11 +1305,45 @@ function renderVoice() {
   }
 }
 let resetArmed = false;
-$('#btnReset').onclick = () => {
-  const b = $('#btnReset');
-  if (!resetArmed) { resetArmed = true; b.textContent = 'Click again to clear everything'; setTimeout(() => { resetArmed = false; b.textContent = 'Clear my voice data'; }, 3500); return; }
-  store = { notes: {}, discoveries: [] }; save(); renderVoice(); resetArmed = false; b.textContent = 'Clear my voice data'; toast('Voice data cleared');
-};
+// Start over: keep a copy of everything first, so an Undo can put it all back.
+function resetProgress() {
+  try { localStorage.setItem(KEY + '.undo', JSON.stringify(store)); } catch (e) {}
+  store = { notes: {}, discoveries: [], lv2: true, level: 1, settings: store.settings };
+  save(); location.reload();
+}
+function armReset(b) {
+  if (!resetArmed) { resetArmed = true; const t = b.textContent; b.textContent = 'Tap again to reset ' + users.names[users.active] + '\'s progress'; setTimeout(() => { resetArmed = false; b.textContent = t; }, 3500); return; }
+  resetArmed = false; resetProgress();
+}
+$('#btnReset').onclick = () => armReset($('#btnReset'));
+$('#btnStartOver').onclick = () => armReset($('#btnStartOver'));
+$('#btnUndo').onclick = () => { try { const b = localStorage.getItem(KEY + '.undo'); if (b) { localStorage.setItem(KEY, b); localStorage.removeItem(KEY + '.undo'); } } catch (e) {} location.reload(); };
+$('#btnUndoOk').onclick = () => { try { localStorage.removeItem(KEY + '.undo'); } catch (e) {} $('#undoBar').hidden = true; };
+try { $('#undoBar').hidden = !localStorage.getItem(KEY + '.undo'); } catch (e) {}
+// Singers menu
+function renderUserMenu() {
+  const m = $('#userMenu'); m.textContent = '';
+  users.names.forEach((n, i) => {
+    const row = el('div', 'um-row' + (i === users.active ? ' on' : ''));
+    const b = el('button', 'um-pick small', (i === users.active ? '✓ ' : '') + n); b.onclick = () => switchUser(i);
+    const r = el('button', 'small', 'Rename');
+    r.onclick = () => {
+      const inp = el('input'); inp.id = 'userName' + i; inp.value = n; inp.maxLength = 20; inp.setAttribute('aria-label', 'Name for singer ' + (i + 1));
+      row.replaceChild(inp, b); r.hidden = true; inp.focus(); inp.select();
+      inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+      inp.onblur = () => { users.names[i] = inp.value.trim() || 'Singer ' + (i + 1); saveUsers(); renderUserMenu(); $('#btnUser').textContent = '👤 ' + users.names[users.active]; };
+    };
+    row.append(b, r); m.appendChild(row);
+  });
+  m.appendChild(el('p', 'fine', 'Each singer keeps their own voice type, lessons and scores on this device.'));
+}
+function switchUser(i) {
+  if (i === users.active) { $('#userMenu').hidden = true; return; }
+  save(); users.active = i; saveUsers(); location.reload();
+}
+$('#btnUser').textContent = '👤 ' + users.names[users.active];
+$('#btnUser').onclick = e => { e.stopPropagation(); const m = $('#userMenu'); m.hidden = !m.hidden; if (!m.hidden) renderUserMenu(); };
+document.addEventListener('click', e => { const m = $('#userMenu'); if (!m.hidden && !m.contains(e.target) && e.target !== $('#btnUser')) m.hidden = true; });
 
 // ---------- sing ----------
 // Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
@@ -2124,17 +2174,24 @@ function voiceTypes(low, high, speak) {
 // Voice-type chart with the singer placed inside it: a gold band through every type where their range falls,
 // their range drawn on their own type's bar, and a star at their home note.
 function rangeFigure(p) {
-  const X = m => 100 + (m - 36) / 48 * 590, rows = [], top = p ? 22 : 8, rowH = 20;
+  const X = m => 150 + (m - 36) / 48 * 540, rows = [], top = p ? 22 : 8, rowH = 20;
   const yEnd = top + TYPES.length * rowH;
+  // The types this voice falls into: the best match, plus any type that is nearly as good.
+  let match = [];
   if (p) {
-    rows.push(`<rect x="${X(p.xlo ?? p.low)}" y="${top - 4}" width="${Math.max(4, X(p.xhi ?? p.high) - X(p.xlo ?? p.low))}" height="${yEnd - top + 4}" rx="8" fill="var(--pure)" opacity=".08"/>`,
-      `<rect x="${X(p.low)}" y="${top - 4}" width="${Math.max(4, X(p.high) - X(p.low))}" height="${yEnd - top + 4}" rx="8" fill="var(--pure)" opacity=".2"/>`,
+    const ranked = voiceTypes(p.low, Math.max(p.high, p.low + 1), p.speak);
+    match = ranked.filter(t => t.pen - ranked[0].pen < 3).map(t => t.n);
+    if (!match.includes(p.type)) match.push(p.type);
+    const idx = TYPES.map((T, i) => match.includes(T.n) ? i : -1).filter(i => i >= 0), r0 = Math.min(...idx), r1 = Math.max(...idx);
+    const by = top + r0 * rowH - 4, bh = (r1 - r0 + 1) * rowH;
+    rows.push(`<rect x="${X(p.xlo ?? p.low)}" y="${by}" width="${Math.max(4, X(p.xhi ?? p.high) - X(p.xlo ?? p.low))}" height="${bh}" rx="8" fill="var(--pure)" opacity=".1"/>`,
+      `<rect class="you-band" x="${X(p.low)}" y="${by}" width="${Math.max(4, X(p.high) - X(p.low))}" height="${bh}" rx="8" fill="var(--pure)" opacity=".25"/>`,
       `<text x="${(X(p.low) + X(p.high)) / 2}" y="${top - 9}" text-anchor="middle" style="font:700 12px var(--body);fill:var(--pure)">You: ${nameOf(p.low)} – ${nameOf(p.high)}</text>`);
   }
   TYPES.forEach((T, i) => {
-    const y = top + i * rowH, me = p && T.n === p.type;
-    rows.push(`<rect x="${X(T.lo)}" y="${y}" width="${X(T.hi) - X(T.lo)}" height="13" rx="6.5" fill="${me ? 'var(--accent)' : 'var(--line)'}" opacity="${me ? 0.35 : 1}"/>`,
-      `<text x="92" y="${y + 10}" text-anchor="end" style="font:${me ? 700 : 500} 11px var(--body);fill:var(--${me ? 'accent' : 'muted'})">${T.n}${me ? ' ← you' : ''}</text>`);
+    const y = top + i * rowH, me = p && T.n === p.type, also = !me && match.includes(T.n);
+    rows.push(`<rect x="${X(T.lo)}" y="${y}" width="${X(T.hi) - X(T.lo)}" height="13" rx="6.5" fill="${me || also ? 'var(--accent)' : 'var(--line)'}" opacity="${me ? 0.35 : also ? 0.2 : 1}"/>`,
+      `<text x="142" y="${y + 10}" text-anchor="end" style="font:${me || also ? 700 : 500} 11px var(--body);fill:var(--${me || also ? 'accent' : 'muted'})">${T.n}${me ? ' ← you' : also ? ' ← also you' : ''}</text>`);
     if (me) rows.push(`<rect x="${X(p.low)}" y="${y}" width="${Math.max(4, X(p.high) - X(p.low))}" height="13" rx="6.5" fill="var(--pure)"/>`,
       p.natural != null ? `<text x="${X(p.natural)}" y="${y + 11}" text-anchor="middle" style="font:14px serif;fill:var(--accent)">★</text>` : '');
   });
