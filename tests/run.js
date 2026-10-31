@@ -343,6 +343,14 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.overtones >= 1 && s.vol >= 1.5 && s.guide >= 2, JSON.stringify(s));
   });
 
+  await test('Home says when only the practice-days lesson is left, and lets you start the next level', async page => {
+    await page.evaluate(() => { store.level = 1; store.days = ['2026-10-31']; store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; LEVELS[0].lessons.forEach(x => { if (x.kind !== 'days') x.pass = () => true; }); store.runs = [{ id: 'doremi', good: [], n: 8, ok: 6 }]; save(); $('#t-home').click(); renderHome(); });
+    const txt = await page.evaluate(() => $('[data-card="practice"]').textContent);
+    await page.click('[data-card="practice"] >> text=Start Level 2 now');
+    const lv = await page.evaluate(() => level());
+    expect(/6 of 7 done/.test(txt) && /3 different days/.test(txt) && /day 1 of 3/.test(txt) && lv === 2, JSON.stringify({ txt, lv }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

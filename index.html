@@ -3303,6 +3303,9 @@ function renderHome() {
   const p = store.profile, dr = runsOf(['doremi']), lv = level(), L = LEVELS[lv - 1];
   const doneN = L.lessons.filter(x => x.pass()).length, nextLesson = L.lessons.find(x => !x.pass() && x.kind !== 'days');
   const step = !p ? 1 : !dr.length ? 2 : 3;
+  // only the "practise on N days" lesson left: say so, and let the singer move on if they want
+  const daysLeft = !nextLesson && doneN < L.lessons.length && lv < LEVELS.length ? L.lessons.find(x => x.kind === 'days' && !x.pass()) : null;
+  const daysTxt = daysLeft ? ` · Last one: practise on ${daysLeft.need} different days. You're on day ${Math.max(1, daysPractised())} of ${daysLeft.need}; come back tomorrow.` : '';
   $('#homeTitle').textContent = step === 1 ? 'Let\'s find your voice' : step === 2 ? 'Nice to meet you, ' + p.type.toLowerCase() + '!' : 'Welcome back';
   $('#homeSub').textContent = step === 1 ? 'Four steps, one at a time. Start with number 1. It takes about 40 seconds.' : step === 2 ? 'Next, find the notes you already sing well.' : 'Pick up where you left off: practise, or sing a song.';
   const fit = p ? songFits(p).find(f => level() >= (SONG_LEVEL[f.s.id] || 1)) : null;
@@ -3313,7 +3316,8 @@ function renderHome() {
     { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
       result: dr.length ? (good.length ? 'Strongest notes: <b>' + listJoin(good) + '</b>' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
     { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
-      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
+      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : daysTxt) : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }],
+      extra3: daysLeft && step >= 3 ? ['Start Level ' + (lv + 1) + ' now →', () => { store.level = lv + 1; dirty = true; save(); applyLevel(); toast('Welcome to Level ' + (lv + 1) + ': ' + LEVELS[lv].title + '. Keep practising on different days too.'); renderHome(); }] : null },
     { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,
       result: fit ? 'Best fit for you: ' + fit.s.name : '', go: 'Sing →' },
   ];
@@ -3326,7 +3330,7 @@ function renderHome() {
     d.appendChild(t);
     const acts = el('div', 'acts');
     const b = el('button', state === 'is-next' ? 'primary' : 'small', c.go); b.onclick = () => startHome(c.k); acts.appendChild(b);
-    for (const x of [c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
+    for (const x of [c.extra3, c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
     d.appendChild(acts); box.appendChild(d);
   }
 }
