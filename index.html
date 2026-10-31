@@ -328,6 +328,34 @@ details b { color: var(--ink); }
 .path-more[open] summary { margin-bottom: 10px; }
 .path-more { border-top: 1px solid var(--line); }
 body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .status, body.fresh.idle #btnMic { display: none; }
+/* home */
+.home-head h2 { font-size: clamp(1.6rem, 3.6vw, 2.2rem); }
+.home-head p { margin-top: 4px; }
+.home-cards { display: grid; gap: 12px; }
+.hc { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+.hc .num { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font: 700 1.3rem var(--display); background: var(--line); color: var(--ink); }
+.hc.is-next { border: 2px solid var(--accent); box-shadow: 0 6px 24px color-mix(in srgb, var(--accent) 18%, transparent); }
+.hc.is-next .num { background: var(--accent); color: var(--accent-ink); }
+.hc.is-done .num { background: var(--pure); color: var(--surface); }
+.hc.is-later { opacity: .6; }
+.hc h3 { font-size: 1.25rem; }
+.hc .desc { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+.hc .result { font: 700 1.05rem/1.3 var(--display); color: var(--ink); margin-top: 6px; }
+.hc .result b { color: var(--pure); font-size: 1.35rem; }
+.hc .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.hc .acts .primary { font-size: 1.05rem; padding: 13px 22px; }
+.back-bar { display: flex; align-items: center; gap: 12px; }
+.mic-btn.on { border-color: var(--good); color: var(--good); }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live { display: none !important; }
+.vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
+.vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
+.vf-chip.done .ic { color: var(--pure); }
+.vf-chip b { font: 700 0.85rem var(--display); }
+.vf-chip span { font: 600 0.78rem var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vf-chip.now { border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.vf-chip.done { border-color: var(--pure); } .vf-chip.done span { color: var(--pure); }
+@media (max-width: 640px) { .hc { grid-template-columns: 40px minmax(0, 1fr); } .hc .acts { grid-column: 1 / -1; } .hc .num { width: 38px; height: 38px; font-size: 1.05rem; } .vf-strip { grid-template-columns: repeat(5, 1fr); } .vf-chip b { display: none; } }
 /* lab */
 .lab-intro { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center; }
 .lab-intro p { color: var(--muted); max-width: 62ch; font-size: 0.92rem; margin-top: 4px; }
@@ -404,8 +432,8 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
     </div>
   </div>
   <div class="controls">
-    <button id="btnMic" class="primary">Turn on mic</button>
-    <button id="lvlBadge" class="lvl-badge">Level 1</button>
+    <button id="btnMic" class="small mic-btn">🎙 Mic off</button>
+    <button id="lvlBadge" class="lvl-badge" hidden>Level 1</button>
     <button id="btnStop" hidden>Stop</button>
   </div>
 </header>
@@ -450,15 +478,23 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
   </div>
 </section>
 
-<nav class="tabs" role="tablist">
-  <button role="tab" id="t-path" aria-selected="true" data-tab="path">Your path</button>
+<div class="back-bar" id="backBar" hidden><button id="btnHome" class="small">← Home</button><span class="label" id="screenTitle"></span></div>
+<nav class="tabs" role="tablist" hidden>
+  <button role="tab" id="t-home" aria-selected="true" data-tab="home">Home</button>
+  <button role="tab" id="t-path" aria-selected="false" data-tab="path">Your path</button>
   <button role="tab" id="t-lab" aria-selected="false" data-tab="lab">Voice Lab</button>
   <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">Sing songs</button>
   <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
 </nav>
 
+<!-- HOME -->
+<section class="panel" id="tab-home">
+  <div class="home-head"><h2 id="homeTitle">Let's find your voice</h2><p id="homeSub" class="muted">Four steps, one at a time. Start with number 1.</p></div>
+  <div class="home-cards" id="homeCards"></div>
+</section>
+
 <!-- YOUR PATH -->
-<section class="panel" id="tab-path">
+<section class="panel" id="tab-path" hidden>
   <div class="card hero" id="lvCurrent"></div>
   <div class="card" id="findCard" hidden></div>
   <details class="card path-more" id="lvLessons"><summary id="lvLessonsSum">Your lessons</summary><div class="lessons" id="lessonList"></div></details>
@@ -512,13 +548,14 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 <section class="panel" id="tab-lab" hidden>
   <div id="labHome" class="panel">
     <div class="card lab-intro">
-      <div><span class="label">Step 1 · build the skills</span><h2>Voice Lab</h2><p>Short exercises that each measure one thing about your voice, explain the result and tell you exactly what to change. Then take the skill to a song.</p></div>
+      <div><span class="label">Step 3</span><h2>Practise</h2><p>Short exercises that each train one thing: breath, pitch or tone. Each one tells you exactly what to change.</p></div>
       <div class="profile-mini" id="profileMini"></div>
     </div>
     <div class="lab-grid" id="labGrid"></div>
   </div>
   <div class="card" id="labStage" hidden>
     <div class="card-head"><div><span class="label" id="lsTags"></span><h2 id="lsTitle"></h2></div><button id="lsBack" class="small">← All exercises</button></div>
+    <div class="vf-strip" id="vfStrip" hidden></div>
     <div class="drill" id="drillBox">
       <div class="drill-left">
         <span class="label" id="dStep"></span>
@@ -707,7 +744,7 @@ async function ensureAudio() {
   }
   if (ac.state !== 'running') { try { await ac.resume(); } catch (e) {} }
 }
-const LISTEN_MSG = 'Listening. Hum or sing any note; quiet and relaxed works best. Use headphones when you play reference tones.';
+const LISTEN_MSG = 'Mic on. Hum or sing whenever you like.';
 // iPad Safari can hand a page a silent microphone, or pause its audio. Any tap wakes it again.
 let micLostFlag = false;
 function micLost() {
@@ -741,15 +778,15 @@ function setMode(m, msg) {
   mode = m;
   $('#dot').classList.toggle('on', m !== 'idle');
   $('#status').textContent = msg;
-  $('#btnStop').hidden = m === 'idle';
+  $('#btnStop').hidden = m !== 'demo' && m !== 'file';
   $('#lvlBox').hidden = m === 'idle';
   $('#btnHelp').hidden = m === 'idle' || (store.level || 1) < 3;
   $('.live').classList.toggle('show-help', liveHelp);
   $('#btnHelp').textContent = liveHelp ? 'Show the meters' : 'What do these mean?';
   if (m === 'idle') { S.voiced = false; S.quietFor = 0; S.micPeak = 0; updateLive(0); updateLive(0); }
-  $('#btnMic').textContent = m === 'mic' ? 'Mic on' : 'Turn on mic';
+  $('#btnMic').textContent = m === 'mic' ? '🎙 Mic on' : '🎙 Mic off'; $('#btnMic').classList.toggle('on', m === 'mic');
   document.body.classList.toggle('idle', m === 'idle');
-  $('#btnMic').disabled = m === 'mic';
+
   renderGuide();
 }
 
@@ -1978,9 +2015,9 @@ function renderLab() {
 }
 function openLab(id, fromPath) {
   const L = LAB.find(x => x.id === id); if (!L || level() < (LAB_LEVEL[id] || 1)) return;
-  D.fromPath = !!fromPath; $('#lsBack').textContent = fromPath ? '← Back to your path' : '← All exercises';
-  if ($('#tab-lab').hidden) { $('#t-lab').click(); }
+  D.fromPath = !!fromPath; $('#lsBack').textContent = '← All exercises'; $('#lsBack').hidden = !!fromPath; $('#vfStrip').hidden = id !== 'range';
   D.id = id; D.kind = L.kind;
+  if ($('#tab-lab').hidden) { $('#t-lab').click(); }
   $('#labHome').hidden = true; $('#labStage').hidden = false;
   $('#lsTitle').textContent = L.title; $('#lsTags').textContent = L.tags.join(' · ') + ' · ' + L.time;
   $('#drillBox').hidden = L.kind !== 'drill'; $('#labSlot').hidden = L.kind === 'drill';
@@ -1994,7 +2031,7 @@ function openLab(id, fromPath) {
 function closeLab() {
   D.run = null;
   const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
-  if (back) $('#t-path').click();
+  if (back) $('#t-home').click();
 }
 
 // drill UI helpers
@@ -2014,8 +2051,9 @@ function dShow(nodes, again) {
   const box = $('#dResult'); box.textContent = ''; box.hidden = false; $('#lane').hidden = true;
   dSet({ step: 'Finished', prompt: 'Results ✓', sub: 'Your results and what to work on are on the right. Each try is saved, so you can watch your score grow.', live: '', prog: -1 });
   for (const n of nodes) box.appendChild(n);
+  if (D.id === 'range') { dBtns([{ label: 'Next: find your best notes →', primary: true, fn: () => { closeLab(); $('#t-home').click(); startHome('notes'); } }, { label: 'Try again', fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } }, { label: '← Home', fn: () => { closeLab(); $('#t-home').click(); } }]); return; }
   dBtns([{ label: 'Try again', primary: true, fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } },
-    { label: 'Take it to a song →', fn: () => { closeLab(); $('#t-sing').click(); } }, { label: D.fromPath ? '← Back to your path' : '← All exercises', fn: closeLab }]);
+    { label: 'Take it to a song →', fn: () => { closeLab(); $('#t-sing').click(); } }, { label: D.fromPath ? '← Home' : '← All exercises', fn: closeLab }]);
 }
 function statRow(pairs) { const d = el('div', 'report-top'); for (const [l, v, big] of pairs) { const s = el('div', 'stat'); s.append(el('span', 'label', l), el('span', big ? 'score' : 'val', v)); d.appendChild(s); } return d; }
 function fixCards(items) {
@@ -2229,10 +2267,22 @@ const DRILLS = {
         say: 'Last one, the fun one! Slide on weee, like a siren, from your very bottom to your very top. Listen first.' },
     ],
     lane: () => ({ ladder: true }),
+    strip() {
+      const box = $('#vfStrip'); box.textContent = '';
+      const SH = { speak: 'Hello', natural: 'Easy note', low: 'Low', high: 'High', stretch: 'Siren' };
+      const val = { speak: D.speak.length > 20 ? Math.round(m2f(med(D.speak))) + ' Hz' : null, natural: D.natural != null ? nameOf(D.natural) : null,
+        low: D.low != null ? nameOf(D.low) : null, high: D.high != null ? nameOf(D.high) : null, stretch: D.xlo != null ? nameOf(D.xlo) + '–' + nameOf(D.xhi) : null };
+      this.steps.forEach((st, i) => {
+        const v = val[st.k], now_ = i === D.si && !['intro', 'done', 'paused'].includes(D.phase) && v == null;
+        const c = el('div', 'vf-chip' + (v != null ? ' done' : '') + (now_ ? ' now' : ''));
+        c.append(el('i', 'ic', v != null ? '✓' : st.cue), el('b', '', (i + 1) + ' · ' + SH[st.k]), el('span', '', v ?? (now_ ? 'now' : '–')));
+        box.appendChild(c);
+      });
+    },
     start() {
       Object.assign(D, { phase: 'intro', si: 0, low: null, high: null, natural: null, speak: [], samples: [], all: [], xlo: null, xhi: null, flash: '', flashT: 0, cue: '', run: null, tries: {} });
-      $('#lane').classList.add('tall');
-      dSet({ step: 'Find your voice · 5 quick steps · about a minute', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. Each step starts with a chime and waits for you: take your time.', live: '', prog: -1 });
+      $('#lane').classList.add('tall'); setTimeout(() => this.strip(), 0);
+      dSet({ step: 'Find your voice · 5 quick steps · about 40 seconds', prompt: 'Find your voice', sub: 'Say hello, hum an easy note, hum low, hum high, then a fun siren. Each step starts with a chime and waits for you: take your time.', live: '', prog: -1 });
       dBtns([{ label: 'Let\'s go', primary: true, fn: async () => { if (await ensureListening()) this.run(0); } }]);
     },
     async run(from) {
@@ -2247,7 +2297,8 @@ const DRILLS = {
     async step(i, alive) {
       const st = this.steps[i];
       Object.assign(D, { si: i, phase: 'cue', samples: [], cue: st.cue, started: null, nudged: false });
-      dSet({ step: `Step ${i + 1} of 5 · ${'●'.repeat(i)}${'○'.repeat(5 - i)}`, prompt: st.prompt, sub: st.sub, live: st.k === 'stretch' ? 'Listen: weeee…' : '', prog: 0 });
+      this.strip();
+      dSet({ step: `Step ${i + 1} of 5`, prompt: st.prompt, sub: st.sub, live: st.k === 'stretch' ? 'Listen: weeee…' : '', prog: 0 });
       this.controls(i);
       chime(st.k);
       if (st.k === 'stretch') { glide(); await wait(2200); } else await wait(450);
@@ -2262,7 +2313,7 @@ const DRILLS = {
       }
       const r = this.evaluate(st.k);
       if (!r.ok && !D.tries[st.k]) { D.tries[st.k] = true; dSet({ prompt: 'Once more', live: 'That was very short. Keep going a little longer this time.' }); await wait(1200); return alive(); }
-      D.phase = 'got'; D.cue = '✓';
+      D.phase = 'got'; D.cue = '✓'; this.strip();
       if (r.ok) this.flash(r.short);
       dSet({ prompt: r.ok ? r.text : 'Skipped', live: r.ok ? '' : 'No problem, we\'ll work with the rest.', prog: 1 });
       await wait(1000);
@@ -2319,7 +2370,7 @@ const DRILLS = {
       const ranked = voiceTypes(low, Math.max(high, low + 1), speak), t = ranked[0];
       const zlo = high - low >= 9 ? low + 2 : low, zhi = high - low >= 9 ? high - 3 : Math.max(high, low + 4);
       store.profile = { low, high, speak, natural, xlo, xhi, type: t.n, zlo, zhi, at: Date.now(), vowel: store.profile && store.profile.vowel };
-      labSave('range', 100, { type: t.n }); renderLab();
+      labSave('range', 100, { type: t.n }); renderLab(); this.strip();
       const nodes = voiceResult(store.profile, ranked);
       if (high - low < 5) nodes.splice(2, 0, fixCards([{ good: true, title: 'A cozy range today: ' + nameOf(low) + ' to ' + nameOf(high), why: 'That\'s completely normal for a first try. Voices open up as they warm up and get used to being used.', tryThis: 'Do a gentle siren on "ng" a few times a day, and try this test again in a week. Most people find several more notes.' }]));
       dShow(nodes, () => this.start());
@@ -2496,9 +2547,9 @@ const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.g
 const LEVELS = [
   { title: 'Foundations', short: 'Foundations', intro: 'The basics, one small step at a time. Every lesson starts from what you already do well.',
     lessons: [
+      { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
       { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
         pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'You already sing ' + g.join(', ') + ' well.' : 'You sang it through.'; } },
-      { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
       { title: 'Find your pure notes', kind: 'find', goal: 'Find 3 notes that ring pure', pass: () => store.discoveries.length >= 3,
         won: () => [...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ') + ' ring pure.' },
       { title: 'Hold a steady note', kind: 'lab', lab: 'hold', goal: '40% pure and steady', pass: () => labBestOf('hold') >= 40, won: () => 'Best: ' + labBestOf('hold') + '%.' },
@@ -2554,7 +2605,7 @@ function applyLevel() {
   document.querySelectorAll('[data-min]').forEach(e => { e.hidden = lv < +e.dataset.min; });
   $('#lvlBadge').textContent = 'Level ' + lv + ' · ' + LEVELS[lv - 1].short;
   $('#btnHelp').hidden = mode === 'idle' || lv < 2;
-  renderPath(); renderLab(); renderSongs();
+  renderPath(); renderLab(); renderSongs(); renderHome();
 }
 function checkLevel(quiet) {
   if (realStore) return; // demos never move you up
@@ -2683,6 +2734,45 @@ function updateFind() {
   $('#ringLbl').textContent = lbl;
 }
 $('#lvlBadge').onclick = () => $('#t-path').click();
+// Home: the four steps at a glance. Each card says what it is, shows its result once done, and has one obvious button.
+function startHome(k) {
+  if (k === 'voice') { openLab('range', true); $('#t-lab').click(); ensureListening(); }
+  else if (k === 'notes') { openLab('scale', true); $('#t-lab').click(); ensureListening(); }
+  else if (k === 'practice') { const L = LEVELS[level() - 1], next = L.lessons.find(x => !x.pass() && x.kind !== 'days'); if (next) startLesson(next); else { closeLab(); $('#t-lab').click(); } }
+  else if (k === 'songs') { $('#t-sing').click(); const p = store.profile; if (p) { const f = songFits(p).find(f => level() >= (SONG_LEVEL[f.s.id] || 1)); if (f) { G.shift = f.k; loadSong(f.s, true); } } }
+}
+function renderHome() {
+  const box = $('#homeCards'); if (!box) return; box.textContent = '';
+  const p = store.profile, dr = runsOf(['doremi']), lv = level(), L = LEVELS[lv - 1];
+  const doneN = L.lessons.filter(x => x.pass()).length, nextLesson = L.lessons.find(x => !x.pass() && x.kind !== 'days');
+  const step = !p ? 1 : !dr.length ? 2 : 3;
+  $('#homeTitle').textContent = step === 1 ? 'Let\'s find your voice' : step === 2 ? 'Nice to meet you, ' + p.type.toLowerCase() + '!' : 'Welcome back';
+  $('#homeSub').textContent = step === 1 ? 'Four steps, one at a time. Start with number 1. It takes about 40 seconds.' : step === 2 ? 'Next, find the notes you already sing well.' : 'Pick up where you left off: practise, or sing a song.';
+  const fit = p ? songFits(p).find(f => level() >= (SONG_LEVEL[f.s.id] || 1)) : null;
+  const good = dr.length ? (dr[dr.length - 1].good || []) : [];
+  const cards = [
+    { k: 'voice', n: 1, title: 'Find your voice', desc: 'Hum low, high and in between. About 40 seconds.', done: !!p,
+      result: p ? `<b>${p.type}</b> · ${nameOf(p.low)} – ${nameOf(p.high)}` : '', go: p ? 'Try again' : 'Start →', extra: p ? ['Your voice profile', () => $('#t-voice').click()] : null },
+    { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
+      result: dr.length ? (good.length ? 'You sing <b>' + good.slice(0, 5).join(', ') + '</b> well' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
+    { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
+      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
+    { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,
+      result: fit ? 'Best fit for you: ' + fit.s.name : '', go: 'Sing →' },
+  ];
+  for (const c of cards) {
+    const state = c.done ? 'is-done' : c.n === step || (step >= 3 && c.n === 3) ? 'is-next' : c.n > step && step < 3 ? 'is-later' : '';
+    const d = el('div', 'hc ' + state); d.dataset.card = c.k;
+    d.append(el('span', 'num', c.done ? '✓' : String(c.n)));
+    const t = el('div'); t.append(el('h3', '', c.title), el('p', 'desc', c.desc));
+    if (c.result) { const r = el('p', 'result'); r.innerHTML = c.result; t.appendChild(r); }
+    d.appendChild(t);
+    const acts = el('div', 'acts');
+    const b = el('button', state === 'is-next' ? 'primary' : 'small', c.go); b.onclick = () => startHome(c.k); acts.appendChild(b);
+    if (c.extra) { const e = el('button', 'small', c.extra[0]); e.onclick = c.extra[1]; acts.appendChild(e); }
+    d.appendChild(acts); box.appendChild(d);
+  }
+}
 let unlockArmed = false;
 $('#btnUnlockAll').onclick = () => {
   const b = $('#btnUnlockAll');
@@ -2701,8 +2791,15 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'voice') renderVoice();
   if (tab === 'start') renderGuide();
   if (tab === 'path') renderPath();
+  if (tab === 'home') renderHome();
+  const scr = { home: 'home', path: 'practice', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
+  document.body.dataset.screen = scr;
+  $('#backBar').hidden = scr === 'home';
+  $('#screenTitle').textContent = { voice: 'Step 1 · Find your voice', notes: 'Step 2 · Find your best notes', practice: 'Step 3 · Practise', songs: 'Step 4 · Sing songs', profile: 'Your voice profile' }[scr] || '';
+  window.scrollTo(0, 0);
 };
-$('#btnMic').onclick = startMic;
+$('#btnHome').onclick = () => { if (D.id) closeLab(); $('#t-home').click(); };
+$('#btnMic').onclick = () => { if (mode === 'mic') { stopSources(); setMode('idle', 'Mic off.'); } else startMic(); };
 $('#labSlot').appendChild($('#tab-listen'));
 document.querySelector('[data-start]').onclick = startMic;
 $('#btnHelp').onclick = () => { liveHelp = !liveHelp; setMode(mode, $('#status').textContent); };
@@ -2720,6 +2817,8 @@ G.metro = !!(store.settings && store.settings.metro); $('#btnMetro').setAttribut
 if (!store.lv2) { store.level = 1; store.lv2 = true; save(); }
 applyLevel();
 checkLevel(true);
+document.body.dataset.screen = 'home';
+renderHome();
 requestAnimationFrame(frame);
 </script>
 </body>
