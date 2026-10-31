@@ -14,6 +14,14 @@ The app opens on **Your path**: five levels, each a set of lessons. Level 1 (Fou
 and shows which notes you already sing well; a level ends only when every lesson is done and you have
 practised on enough different days. Later levels add breath and tone, pitch and leaps, songs, and advanced work.
 
+## Guide tone
+
+When a note is hard to find, the app can keep it playing while you sing: in Coach mode ("Sing along", the
+safety net below "Echo 3 notes"), in Pitch match (automatically after two reminders, or always with
+"Keep the note playing"), and in Steady hold ("Guide on"). The tone softens once you are in the green band.
+The microphone path runs through a narrow notch filter at the guide's frequency, so the app hears the singer
+(through the overtones every voice has) and not the speaker. Headphones still help.
+
 ## Tests
 
 `node tests/run.js` runs the end-to-end suite in headless Chromium with a simulated voice

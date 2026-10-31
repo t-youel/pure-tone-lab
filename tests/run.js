@@ -42,6 +42,7 @@ const setLevel = (page, n) => page.evaluate(n => { store.level = n; if (!store.l
 const tab = (page, id) => page.evaluate(id => $(id).click(), id);
 
 async function test(name, fn) {
+  if (process.env.ONLY && !new RegExp(process.env.ONLY, 'i').test(name)) return;
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   const t0 = Date.now();
   try {
@@ -230,20 +231,20 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(400);
     const s = await page.evaluate(() => ({ ok: runStats().ok, rung: CO.rung, msg: $('#report .coach-offer').textContent }));
-    expect(s.ok === 3 && s.rung === 1 && /Level up/.test(s.msg), JSON.stringify(s));
+    expect(s.ok === 3 && s.rung === 2 && /Level up/.test(s.msg), JSON.stringify(s));
     await page.click('#report .coach-offer button'); await page.waitForTimeout(300);
     expect(await page.evaluate(() => G.seq.length === 5 && G.run === 'echo'), 'did not move to 5 notes');
   });
 
   await test('coach: two hard runs step back down a rung', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
-    await page.evaluate(() => { store.coach = { row: { rung: 1, fails: 0 } }; setCoach(true); setInterval(() => { V.on = G.run === 'echo' && G.echo && G.echo.phase === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m + 2.5; }, 25); });
+    await page.evaluate(() => { store.coach = { row: { rung: 2, fails: 0, v: 2 } }; setCoach(true); setInterval(() => { V.on = G.run === 'echo' && G.echo && G.echo.phase === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m + 2.5; }, 25); });
     for (let k = 0; k < 2; k++) {
       await page.evaluate(() => startRun());
       await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
     }
     const s = await page.evaluate(() => ({ rung: CO.rung, msg: CO.msg, saved: store.coach.row.rung }));
-    expect(s.rung === 0 && s.saved === 0 && /easier/.test(s.msg), JSON.stringify(s));
+    expect(s.rung === 1 && s.saved === 1 && /easier/.test(s.msg), JSON.stringify(s));
   });
 
   await test('after a hard run, the coach is offered', async page => {
@@ -266,6 +267,75 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 30000 }); await page.waitForTimeout(300);
     const s = await page.evaluate(() => ({ done: $('#drillBox').classList.contains('is-finished'), promptHidden: getComputedStyle($('#dPrompt')).display === 'none', hum: /Hum along/.test($('#dResult').textContent) }));
     expect(s.done && s.promptHidden && s.hum, JSON.stringify(s));
+  });
+
+  await test('guide tone: the mic ignores the speaker playing the note, but still hears the singer', async page => {
+    await page.evaluate(async () => {
+      await ensureAudio(); setMode('mic', 'test');
+      const leak = ac.createOscillator(); leak.frequency.value = m2f(57); const lg = ac.createGain(); lg.gain.value = .35; leak.connect(lg); lg.connect(micIn); leak.start();
+      window.T = { leak, lg };
+    });
+    await page.waitForTimeout(700);
+    const bare = await page.evaluate(() => S.voiced && Math.abs(S.midi - 57) < .3);
+    await page.evaluate(() => guideOn(57)); await page.waitForTimeout(900);
+    const notched = await page.evaluate(() => S.voiced);
+    // a real voice on the same note has overtones, so the app still hears it through the notch
+    await page.evaluate(() => { const o = ac.createOscillator(); o.setPeriodicWave(makeWave([1, .5, .35, .2, .1])); o.frequency.value = m2f(57); const g = ac.createGain(); g.gain.value = .35; o.connect(g); g.connect(micIn); o.start(); T.v = o; });
+    await page.waitForTimeout(900);
+    const sung = await page.evaluate(() => ({ v: S.voiced, m: S.midi }));
+    await page.evaluate(() => { guideOff(); T.leak.stop(); T.v.stop(); });
+    expect(bare && !notched && sung.v && Math.abs(sung.m - 57) < .3, JSON.stringify({ bare, notched, sung }));
+  });
+
+  await test('pitch match: still lost after two reminders, the note keeps playing to sing along', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => openLab('match')); await page.click('#dBtns >> text=▶ Start');
+    // a semitone off until the guide tone comes on, then right on it
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'sing'; if (D.target != null) V.m = D.target + (guideTone ? 0 : 1.0); }, 25); });
+    await page.waitForFunction(() => guideTone && D.phase === 'sing', null, { timeout: 20000 });
+    const mid = await page.evaluate(() => ({ live: $('#dLive').textContent, midi: guideTone.midi, target: D.target }));
+    await page.waitForFunction(() => D.rounds && D.rounds.length >= 1, null, { timeout: 20000 });
+    const r0 = await page.evaluate(() => ({ r: D.rounds[0], tone: !!guideTone }));
+    expect(/keep the note playing/.test(mid.live) && mid.midi === mid.target && r0.r.guided && r0.r.locked && !r0.tone, JSON.stringify({ mid, r0 }));
+  });
+
+  await test('pitch match: "Keep the note playing" plays it from the start of each round', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { openLab('match'); });
+    await page.check('#guideTog');
+    await page.click('#dBtns >> text=▶ Start');
+    await page.waitForFunction(() => D.phase === 'sing', null, { timeout: 8000 }); await page.waitForTimeout(300);
+    const s = await page.evaluate(() => ({ on: !!guideTone, pref: store.settings.guide, rem: D.rem, live: $('#dLive').textContent }));
+    await page.evaluate(() => closeLab());
+    const off = await page.evaluate(() => !guideTone);
+    await page.evaluate(() => { store.settings.guide = false; });
+    expect(s.on && s.pref && s.rem === 0 && /playing/.test(s.live) && off, JSON.stringify({ s, off }));
+  });
+
+  await test('steady hold: guide on keeps the note under the singer, and a guided hold is not a personal best', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.holdNotes = {}; (store.settings ||= {}).guide = true; openLab('hold'); });
+    expect(await page.evaluate(() => $('#guideTog').checked), 'toggle not shown checked');
+    await page.click('#dBtns >> text=▶ Start');
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'wait' || D.phase === 'hold'; V.m = D.target; }, 25); });
+    await page.waitForFunction(() => D.phase === 'hold', null, { timeout: 10000 }); await page.waitForTimeout(1500);
+    const mid = await page.evaluate(() => ({ on: !!guideTone && guideTone.midi === D.target, soft: guideTone && guideTone.level < guideTone.vol }));
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 15000 });
+    const end = await page.evaluate(() => ({ tone: !!guideTone, best: (store.holdNotes || {})[50] }));
+    await page.evaluate(() => { store.settings.guide = false; });
+    expect(mid.on && mid.soft && !end.tone && end.best == null, JSON.stringify({ mid, end }));
+  });
+
+  await test('coach: Sing along is the safety net below Echo 3, and old progress moves up a step', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    const mig = await page.evaluate(() => { store.coach = { row: { rung: 1, fails: 0 } }; return coachRec('row').rung; });
+    await page.evaluate(() => { store.coach = { row: { rung: 0, fails: 0, v: 2 } }; setCoach(true); });
+    expect(await page.evaluate(() => /Sing along/.test($('#coachBar').textContent) && G.seq.length === 3), 'Sing along rung not shown');
+    const seen = await page.evaluate(() => { window.gs = []; setInterval(() => { V.on = G.run === 'echo' && G.echo.phase === 'sing'; const tg = G.seq[G.idx]; if (tg) V.m = tg.m; if (V.on) gs.push(guideTone ? guideTone.midi === tg.m : false); }, 25); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(400);
+    const s = await page.evaluate(() => ({ ok: runStats().ok, rung: CO.rung, guided: gs.filter(Boolean).length / Math.max(1, gs.length), tone: !!guideTone }));
+    expect(mig === 2 && s.ok === 3 && s.rung === 1 && s.guided > .8 && !s.tone, JSON.stringify({ mig, s }));
   });
 
   await test("pitch match's trickiest notes open Steady hold on that note", async page => {
