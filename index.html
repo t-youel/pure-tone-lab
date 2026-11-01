@@ -322,39 +322,51 @@ details b { color: var(--ink); }
 .staff .sg.on .ln { stroke: var(--accent); }
 #btnSigns[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .sign-list { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; }
-.easy { display: grid; gap: 12px; }
-.easy-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
-.easy-steps { display: flex; gap: 8px; }
-.easy-steps .es { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; background: var(--line); border: 3px solid transparent; }
+.easy { display: grid; gap: 8px; }
+.easy-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.easy-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.easy-btn { min-width: 74px; min-height: 74px; border-radius: 18px; display: grid; place-items: center; gap: 0; padding: 6px 8px; border: 3px solid var(--line); background: var(--surface); }
+.easy-btn .ei { font-size: 2rem; line-height: 1; } .easy-btn .el { font: 700 .8rem var(--display); }
+.easy-btn.go { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.easy-steps { display: flex; gap: 6px; }
+.easy-steps .es { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 1.4rem; background: var(--line); border: 3px solid transparent; }
 .easy-steps .es.now { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
 .easy-steps .es.done { background: var(--good); color: var(--surface); font-weight: 700; }
-.easy-stars { font-size: 1.6rem; letter-spacing: 2px; min-height: 2rem; }
+.easy-stars { font-size: 1.4rem; letter-spacing: 1px; margin-left: auto; }
 .easy-stage { position: relative; background: var(--surface); border: 2px solid var(--line); border-radius: 22px; overflow: hidden; }
-#easyCanvas { display: block; width: 100%; height: min(60vh, 560px); }
-.easy-face { position: absolute; right: 14px; top: 12px; font-size: 4rem; line-height: 1; transition: transform .15s; }
+#easyCanvas { display: block; width: 100%; height: 60vh; }
+.easy-face { position: absolute; right: 14px; top: 12px; font-size: 4rem; line-height: 1; transition: transform .15s; pointer-events: none; }
 .easy-face.good { filter: drop-shadow(0 0 12px var(--pure)); }
 .easy-face.pop { animation: ezpop .5s; }
 @keyframes ezpop { 50% { transform: scale(1.4); } }
 @media (prefers-reduced-motion: reduce) { .easy-face.pop { animation: none; } }
 .easy-pic { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7rem; pointer-events: none; }
-.easy-words { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; font: 700 2rem/1.2 var(--display); text-align: center; min-height: 2.6rem; }
+.easy-words { position: absolute; left: 0; right: 0; bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; font: 700 1.6rem/1.2 var(--display); text-align: center; pointer-events: none; padding: 0 10px; }
 .ez-line { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: center; }
-.ez-w { padding: 4px 10px; border-radius: 12px; color: var(--muted); }
-.ez-w.now { background: var(--accent); color: var(--accent-ink); transform: scale(1.15); }
+.ez-w { padding: 3px 10px; border-radius: 12px; color: var(--muted); border-bottom: 4px solid var(--nc); background: color-mix(in srgb, var(--surface) 85%, transparent); }
+.ez-w.now { background: var(--nc); color: #fff; transform: scale(1.15); }
 .ez-w.past.good { color: var(--good); }
-.ez-pic { font-size: 2.6rem; }
+.ez-pic { font-size: 2.2rem; }
+.ez-done { position: absolute; inset: auto 0 30%; display: grid; justify-items: center; gap: 10px; pointer-events: auto; }
 .ez-big { font-size: 3rem; } .ez-pct { font-size: 2rem; }
-.ez-garden { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; justify-content: center; width: 100%; }
+.ez-garden { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
 .ez-day { display: grid; justify-items: center; gap: 2px; }
 .ez-day i { width: 14px; background: var(--good); border-radius: 4px; }
 .ez-flower { font-size: 1.6rem; }
-.easy-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-.easy-btn { min-width: 120px; min-height: 96px; border-radius: 22px; display: grid; place-items: center; gap: 2px; padding: 10px 16px; border: 3px solid var(--line); background: var(--surface); }
-.easy-btn .ei { font-size: 2.6rem; line-height: 1; } .easy-btn .el { font: 700 1rem var(--display); }
-.easy-btn.go { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
-.easy-btn.song { min-width: 150px; }
-.easy-help { font-size: .95rem; color: var(--muted); }
-.easy-help summary { cursor: pointer; font-weight: 700; }
+.easy-menu { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 16px; align-content: center; background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.easy-tile { min-height: 120px; border-radius: 22px; display: grid; place-items: center; gap: 4px; border: 3px solid var(--line); background: var(--surface); }
+.easy-tile .ei { font-size: 3rem; line-height: 1; } .easy-tile .el { font: 700 1rem var(--display); }
+.easy-tile:hover, .easy-tile:focus-visible { border-color: var(--accent); }
+.easy-piano { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; gap: 12px; padding: 14px; background: var(--surface); }
+.pn-song { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.pn-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--nc); opacity: .35; }
+.pn-dot.done { opacity: 1; } .pn-dot.now { opacity: 1; outline: 4px solid var(--ink); outline-offset: 2px; }
+.pn-keys { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; min-height: 0; }
+.pn-key { border-radius: 0 0 16px 16px; border: 2px solid var(--line); background: var(--surface); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding: 8px 2px; min-height: 160px; border-bottom: 14px solid var(--nc); }
+.pn-key .pn-syl { font: 700 1.2rem var(--display); color: var(--nc); } .pn-key .pn-nm { font: 600 .75rem var(--mono); color: var(--muted); }
+.pn-key.want { background: color-mix(in srgb, var(--nc) 30%, var(--surface)); border-color: var(--nc); box-shadow: 0 0 0 4px var(--nc); animation: pnglow 1s infinite alternate; }
+@keyframes pnglow { to { box-shadow: 0 0 0 9px color-mix(in srgb, var(--nc) 40%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .pn-key.want { animation: none; } }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -696,7 +708,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · First Notes flows</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · seven games</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -815,11 +827,15 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 <!-- MY VOICE -->
 <section class="panel" id="tab-easy" hidden>
   <div class="easy">
-    <div class="easy-top"><div class="easy-steps" id="easySteps" aria-label="Steps"></div><div class="easy-stars" id="easyStars" aria-live="polite"></div></div>
-    <div class="easy-stage"><canvas id="easyCanvas" aria-label="Your voice is the bird. Sing to move it into the glowing band."></canvas><div class="easy-face" id="easyFace" aria-hidden="true"></div><div class="easy-pic" id="easyPic" aria-hidden="true"></div></div>
-    <div class="easy-words" id="easyWords"></div>
-    <div class="easy-btns" id="easyBtns"></div>
-    <details class="easy-help"><summary>For helpers</summary><p>First Notes is an easy start for any new singer, and is built to need no reading. Each step shows a glowing band: sing so the bird sits inside it, and a star appears. The note can keep playing so it's easy to match. Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best: the same five steps each day. If the bird doesn't move, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.</p></details>
+    <div class="easy-bar"><div class="easy-btns" id="easyBtns"></div><div class="easy-steps" id="easySteps" aria-label="Games today"></div><div class="easy-stars" id="easyStars" aria-live="polite"></div></div>
+    <div class="easy-stage">
+      <canvas id="easyCanvas" aria-label="Sing to move the bird, balloon or frog to its goal."></canvas>
+      <div class="easy-face" id="easyFace" aria-hidden="true"></div>
+      <div class="easy-pic" id="easyPic" aria-hidden="true"></div>
+      <div class="easy-words" id="easyWords"></div>
+      <div class="easy-menu" id="easyMenu" hidden></div>
+      <div class="easy-piano" id="easyPiano" hidden></div>
+    </div>
   </div>
 </section>
 
@@ -1325,7 +1341,7 @@ function record(t, dt, midi) {
       store.discoveries = store.discoveries.filter(d => d.midi !== note);
       store.discoveries.push({ midi: note, purity, amps, tone: S.tone, extras: extrasNow, at: Date.now() });
       dirty = true;
-      toast((ex ? 'New best on ' : 'Pure tone found: ') + nameOf(note) + ' · purity ' + purity);
+      if (document.body.dataset.screen !== 'easy') toast((ex ? 'New best on ' : 'Pure tone found: ') + nameOf(note) + ' · purity ' + purity);
       drawKbd(); setTimeout(() => checkLevel(), 600);
     }
   }
@@ -4279,22 +4295,25 @@ function traceSVG(c) {
 }
 const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); return y + '-W' + String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7)).padStart(2, '0'); };
 let storeArmed = null;
-// ---------- First Notes: an easy start for any new singer ----------
-// Built to need no reading: big pictures, one note at a time, a wide target, a bird that rides on your voice,
-// a star and a chime for every success, and the same five short steps each time.
+// ---------- First Notes: an easy start for every new singer ----------
+// One screen, no reading needed: big picture buttons along the top, a game that fills the screen, a star and a
+// chime for every success. Seven games; the daily routine plays five of them by itself, one after another.
 const EASY_SONGS = [
   { id: 'hello', pic: '👋', name: 'Hello Song', words: 'Hel- lo, hel- lo, I sing to you; / hel- lo, hel- lo, you sing too!', notes: [[4,1],[2,1],[0,2],[0,1],[2,1],[4,1],[2,1],[0,2],[4,1],[2,1],[0,2],[2,1],[2,1],[0,2]] },
   { id: 'updown', pic: '🎈', name: 'Up and Down', words: 'Up, up, up we go; / down, down, down so slow.', notes: [[0,1],[2,1],[4,2],[4,1],[4,1],[4,1],[2,1],[0,2]] },
   { id: 'moon', pic: '🌙', name: 'Night Sky', words: 'Good- night, moon, good- night, sky; / good- night, stars, way up high.', notes: [[4,1],[4,1],[2,2],[4,1],[4,1],[2,2],[2,1],[2,1],[4,1],[2,1],[0,2],[0,2]] },
 ];
-const EASY_STEPS = [
-  { k: 'hello', icon: '🐦', name: 'Wake up your voice' },
-  { k: 'match', icon: '🎯', name: 'Match the note' },
-  { k: 'updown', icon: '⛰', name: 'Up and down' },
-  { k: 'echo', icon: '🔁', name: 'Copy two notes' },
-  { k: 'song', icon: '🎵', name: 'Sing a song' },
-];
-const EZ = { on: false, i: 0, phase: 'ready', t0: 0, stars: 0, total: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, sidx: 0, sres: [], echo: null, inTune: 0, voiced: 0 };
+const EASY_GAMES = {
+  hello: { icon: '🐦', name: 'Wake the bird', sprite: '🐦' },
+  match: { icon: '🪺', name: 'Mother bird home', sprite: '🐦', goal: '🪺', chicks: true },
+  updown: { icon: '🎈', name: 'Balloon ride', sprite: '🎈', goal: '☁️' },
+  echo: { icon: '🐸', name: 'Frog hops', sprite: '🐸', goal: '🪷' },
+  grow: { icon: '🌻', name: 'Grow a flower' },
+  piano: { icon: '🎹', name: 'Piano play-along' },
+  song: { icon: '🎵', name: 'Sing a song' },
+};
+const EASY_ROUTINE = ['hello', 'match', 'updown', 'echo', 'song'];
+const EZ = { on: false, list: EASY_ROUTINE, i: 0, phase: 'ready', t0: 0, stars: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, echo: null, inTune: 0, voiced: 0, grow: 0, flowers: 0, piano: null };
 const EZ_TOL = 50; // cents: a wider, kinder band
 // Each scale note has its own colour, like the coloured bells in a classroom: Do is always red, Re orange, and so on.
 const DEG_COLOR = { 0: '#e53935', 2: '#fb8c00', 4: '#f2b600', 5: '#43a047', 7: '#00a3b4', 9: '#3f51b5', 11: '#d81b60' };
@@ -4328,68 +4347,81 @@ function ezHome() {
   const p = store.profile; if (p && p.natural != null) return Math.round(p.natural);
   const z = labZone(); return Math.round(z.center);
 }
-function easyOpen() {
+const ezKey = () => EZ.list[EZ.i];
+const ezStep = () => { const k = ezKey(); return k ? { k, ...EASY_GAMES[k] } : null; };
+function easyOpen(list) {
   if (!$('#easyCanvas')) return;
-  EZ.on = true; EZ.i = 0; EZ.stars = 0; EZ.total = 0; EZ.inTune = 0; EZ.voiced = 0; EZ.phase = 'ready'; EZ.home = null;
+  Object.assign(EZ, { on: true, list: list || EASY_ROUTINE, i: 0, stars: 0, inTune: 0, voiced: 0, phase: 'ready', readyAt: 0, song: null, piano: null, home: EZ.home });
+  $('#easyMenu').hidden = true;
   clearInterval(EZ.iv); EZ.iv = setInterval(ezTick, 40);
   if (mode === 'idle') startMic().catch(() => {});
   ezRender();
 }
 function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); }
-const ezStep = () => EASY_STEPS[EZ.i];
-function ezBtns(list) {
+// the top bar: big picture buttons, always in the same place
+function ezBar() {
   const b = $('#easyBtns'); b.textContent = '';
-  for (const [icon, label, fn, primary] of list) { const x = el('button', 'easy-btn' + (primary ? ' go' : '')); x.append(el('span', 'ei', icon), el('span', 'el', label)); x.onclick = fn; x.setAttribute('aria-label', label); b.appendChild(x); }
+  const add = (icon, label, fn, cls) => { const x = el('button', 'easy-btn' + (cls ? ' ' + cls : '')); x.append(el('span', 'ei', icon), el('span', 'el', label)); x.onclick = fn; x.setAttribute('aria-label', label); b.appendChild(x); };
+  add('🏠', 'Home', () => $('#t-home').click());
+  add('🎮', 'Games', () => ezMenu(), !$('#easyMenu').hidden ? 'go' : '');
+  add('🔁', 'Again', () => { if (EZ.phase === 'done') easyOpen(EZ.list); else { guideOff(); EZ.phase = 'ready'; EZ.readyAt = 0; EZ.song = null; EZ.piano = null; ezRender(); } });
+  add('⏭', 'Next', () => ezNext());
+  add('ⓘ', 'Helpers', () => infoSheet('For helpers', [el('p', '', 'First Notes is an easy start for every new singer, and needs no reading. Each game shows a target: sing so the bird, balloon or frog reaches it, and a star appears. The note keeps playing so it is easy to match, and each scale note has its own colour.'), el('p', '', 'Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best. If nothing moves, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.')]));
+}
+function ezMenu() {
+  guideOff(); const m = $('#easyMenu'); m.textContent = ''; m.hidden = false;
+  for (const [k, g] of Object.entries(EASY_GAMES)) { const x = el('button', 'easy-tile'); x.dataset.game = k; x.append(el('span', 'ei', g.icon), el('span', 'el', g.name)); x.setAttribute('aria-label', g.name); x.onclick = () => easyOpen([k]); m.appendChild(x); }
+  EZ.phase = 'menu'; ezBar();
 }
 function ezRender() {
+  ezBar();
   const st = $('#easySteps'); st.textContent = '';
-  EASY_STEPS.forEach((x, i) => { const d = el('span', 'es' + (i < EZ.i ? ' done' : i === EZ.i ? ' now' : ''), i < EZ.i ? '✓' : x.icon); d.title = x.name; st.appendChild(d); });
-  $('#easyStars').textContent = '⭐'.repeat(Math.min(EZ.stars, 20)) + (EZ.stars > 20 ? ' +' + (EZ.stars - 20) : '');
-  const s0 = ezStep();
+  EZ.list.forEach((k, i) => { const d = el('span', 'es' + (i < EZ.i ? ' done' : i === EZ.i ? ' now' : ''), i < EZ.i ? '✓' : EASY_GAMES[k].icon); d.title = EASY_GAMES[k].name; st.appendChild(d); });
+  $('#easyStars').textContent = '⭐'.repeat(Math.min(EZ.stars, 12)) + (EZ.stars > 12 ? '+' + (EZ.stars - 12) : '');
   if (EZ.phase === 'done') return ezDone();
-  $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? s0.icon : '';
+  const s0 = ezStep(); if (!s0) return;
+  $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? '🐦' : '';
   if (EZ.phase === 'ready') {
     if (!EZ.readyAt || EZ.readyStep !== EZ.i) { EZ.readyAt = now(); EZ.readyStep = EZ.i; }
-    $('#easyWords').textContent = s0.k === 'hello' ? s0.name : '🐦 → 🪺';
-    if (s0.k === 'song') return ezSongPick();
-    ezBtns([['▶', 'Start', () => ezStart(), true], ['⏭', 'Skip', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
-  } else ezBtns([['🔁', 'Again', () => ezStart()], ['⏭', 'Next', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
+    $('#easyWords').textContent = '';
+    if (s0.k === 'song') ezSongPick();
+  }
+  ezPianoDraw();
 }
 async function ezStart() {
   if (EZ.starting) return; EZ.starting = true; setTimeout(() => { EZ.starting = false; }, 300);
   if (mode === 'idle') await startMic(); if (mode === 'idle') return;
   await ensureAudio();
-  const k = ezStep().k, h = ezHome();
-  Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0 });
-  guideOff();
-  if (k === 'hello') { EZ.hello = []; EZ.tgt = null; $('#easyWords').textContent = ''; }
-  if (k === 'match') { ezSetTarget(h); }
-  if (k === 'updown') { EZ.seq = [h, h + 4, h, h + 4, h]; EZ.round = 0; ezSetTarget(EZ.seq[0]); }
-  if (k === 'echo') { EZ.echo = { notes: [h, h + 2], phase: 'listen', i: 0, res: [] }; EZ.tgt = null; ezEchoPlay(); }
-  $('#easyWords').textContent = '';
+  const k = ezKey(), h = ezHome();
+  Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0, grow: 0, flowers: 0 });
+  guideOff(); $('#easyWords').textContent = '';
+  if (k === 'hello') { EZ.hello = []; }
+  if (k === 'match') ezSetTarget(h);
+  if (k === 'updown') { EZ.seq = [h + 4, h, h + 4, h, h + 5]; ezSetTarget(EZ.seq[0]); }
+  if (k === 'echo') { EZ.echo = { notes: [h, h + 2], phase: 'listen', i: 0, round: 0 }; ezEchoPlay(); }
+  if (k === 'grow') ezSetTarget(h);
+  if (k === 'piano') ezPianoStart();
   ezRender();
 }
-function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); EZ.sungT = 0; playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = ''; }
+function ezSetTarget(m) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); EZ.sungT = 0; playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); }
 function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'); f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop'); ezRender(); }
-function ezEchoPlay() {
-  const e = EZ.echo; e.phase = 'listen'; e.t0 = now();
-  e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1));
-  $('#easyWords').textContent = '';
-}
+function ezWon(after) { guideOff(); EZ.tgt = null; EZ.phase = 'won'; $('#easyPic').textContent = '🎉'; setTimeout(() => { if (!EZ.on || EZ.phase !== 'won') return; $('#easyPic').textContent = ''; ezNext(); }, after || 1800); }
+function ezEchoPlay() { const e = EZ.echo; e.phase = 'listen'; e.t0 = now(); EZ.tgt = null; e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1)); }
 function ezNext() {
-  guideOff(); EZ.readyAt = 0;
-  if (EZ.phase === 'run' || EZ.phase === 'won') EZ.total++;
-  EZ.i++; EZ.phase = EZ.i >= EASY_STEPS.length ? 'done' : 'ready';
+  guideOff(); EZ.readyAt = 0; EZ.song = null; EZ.piano = null; $('#easyMenu').hidden = true;
+  if (EZ.phase === 'menu') { EZ.phase = 'ready'; return ezRender(); }
+  EZ.i++; EZ.phase = EZ.i >= EZ.list.length ? 'done' : 'ready';
   ezRender();
 }
-// pitch of the voice, folded to the target's octave so any octave counts
 function ezVoice(target) { if (S.rawM == null) return null; let m = S.rawM; if (target != null) { while (m - target > 6) m -= 12; while (target - m > 6) m += 12; } return m; }
 function ezTick() {
   if (!EZ.on) return;
-  const k = ezStep() && ezStep().k, t = now();
+  const k = ezKey(), t = now();
+  // each game starts by itself: after its little demo, or as soon as the singer makes a sound
   if (EZ.phase === 'ready' && k && mode !== 'idle' && EZ.readyAt) {
     const waited = t - EZ.readyAt, heard = S.rawM != null && waited > 1;
     if (k === 'song') { if (waited > 7 || heard) { const n = Object.keys((store.easy || {}).days || {}).length; ezSongStart(EASY_SONGS[n % EASY_SONGS.length]); } }
+    else if (k === 'piano') ezStart();
     else if (waited > (k === 'hello' ? 2 : 4) || heard) ezStart();
   }
   const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
@@ -4400,123 +4432,135 @@ function ezTick() {
     if (k === 'hello') {
       if (v != null) EZ.hello.push(S.rawM);
       if (EZ.hello.length > 40 && !EZ.helloStar) { EZ.helloStar = true; ezStar(); }
-      if (EZ.hello.length > 75) { if (EZ.hello.length > 20) EZ.home = Math.round(pctl(EZ.hello, 0.5)); EZ.helloStar = false; EZ.phase = 'won'; $('#easyWords').textContent = '🎉'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); }
+      if (EZ.hello.length > 75) { EZ.home = Math.round(pctl(EZ.hello, 0.5)); EZ.helloStar = false; ezWon(); }
     }
-    if ((k === 'match' || k === 'updown') && EZ.tgt != null) {
+    if ((k === 'match' || k === 'updown' || k === 'grow') && EZ.tgt != null) {
       if (v != null) EZ.sungT = (EZ.sungT || 0) + 0.04;
       if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else guideLevel(1);
-      const need = k === 'match' ? 2 : 1;
-      if (EZ.inBand >= need) {
-        ezStar();
-        if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
-        else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(EZ.seq[EZ.round]); }
-      } else if (EZ.sungT > 15) { // after plenty of singing without landing, move along kindly
-        if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
-        else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(EZ.seq[EZ.round]); }
+      const need = k === 'match' ? 2 : k === 'grow' ? 3 : 1, rounds = k === 'match' ? 3 : k === 'grow' ? 3 : EZ.seq.length;
+      const nextTarget = () => { const h = ezHome(); return k === 'match' ? h + [0, 2, -1][EZ.round] : k === 'grow' ? h + [0, 2, 0][EZ.round] : EZ.seq[EZ.round]; };
+      if (EZ.inBand >= need || EZ.sungT > 15) {
+        if (EZ.inBand >= need) { ezStar(); if (k === 'grow') EZ.flowers++; }
+        EZ.round++; if (EZ.round >= rounds) ezWon(); else ezSetTarget(nextTarget());
       }
     }
     if (k === 'echo' && EZ.echo) {
       const e = EZ.echo, et = t - e.t0;
-      if (e.phase === 'listen' && et > e.notes.length * 1.1 + 0.4) { e.phase = 'sing'; e.t0 = t; e.i = 0; e.got = []; e.wait = true; EZ.tgt = e.notes[0]; }
-      else if (e.phase === 'sing' && e.wait) { if (v != null) { e.wait = false; e.t0 = t; } } // the turn starts when they start singing
+      if (e.phase === 'listen' && et > e.notes.length * 1.1 + 0.4) { e.phase = 'sing'; e.i = 0; e.got = []; e.wait = true; EZ.tgt = e.notes[0]; }
+      else if (e.phase === 'sing' && e.wait) { if (v != null) { e.wait = false; e.t0 = t; } }
       else if (e.phase === 'sing') {
         EZ.tgt = e.notes[e.i];
         if (inb) e.got.push(1);
-        if (et > 2.2 * (e.i + 1)) {
+        if (e.got.length >= 8 || et > 2.4 * (e.i + 1)) {
           if (e.got.length >= 8) ezStar();
-          e.i++; e.got = [];
-          if (e.i >= e.notes.length) { e.round = (e.round || 0) + 1; if (e.round >= 3) { EZ.phase = 'won'; EZ.tgt = null; $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else { const h = ezHome(); e.notes = [[h, h + 2], [h + 2, h], [h, h + 4]][e.round]; EZ.tgt = null; ezEchoPlay(); } }
+          e.i++; e.got = []; e.t0 = t - 2.4 * e.i;
+          if (e.i >= e.notes.length) { e.round++; if (e.round >= 3) ezWon(); else { const h = ezHome(); e.notes = [[h + 2, h], [h, h + 2, h + 4]][e.round - 1]; ezEchoPlay(); } }
         }
       }
     }
-    if (k === 'song' && EZ.song) ezSongTick(t, inb);
+    if ((k === 'song' || k === 'piano') && EZ.song) ezSongTick(t, inb);
   }
-  // the face: a big, simple sign of what the voice is doing
   const face = $('#easyFace');
-  face.textContent = EZ.phase !== 'run' || EZ.tgt == null ? (v != null ? '🎤' : '') : v == null ? '🎤' : inb ? '😊' : off < 0 ? '⬆' : '⬇';
-  face.className = 'easy-face' + (inb ? ' good' : v != null && EZ.tgt != null && EZ.phase === 'run' ? ' off' : '') + (face.classList.contains('pop') ? ' pop' : '');
+  face.textContent = EZ.phase !== 'run' || EZ.tgt == null ? '' : v == null ? '' : inb ? '😊' : off < 0 ? '⬆' : '⬇';
+  face.className = 'easy-face' + (inb ? ' good' : '') + (face.classList.contains('pop') ? ' pop' : '');
   ezDraw(v, inb);
+}
+// size the stage so the whole game fits on one screen
+function ezFit() {
+  const c = $('#easyCanvas'); if (!c) return;
+  const r = c.getBoundingClientRect(), pageBelow = document.documentElement.scrollHeight - (r.bottom + window.scrollY), avail = window.innerHeight - r.top - pageBelow - 4;
+  const hgt = Math.max(260, Math.min(720, avail)); if (Math.abs(c.clientHeight - hgt) > 2) c.style.height = hgt + 'px';
 }
 function ezDraw(v, inb) {
   const c = $('#easyCanvas'); if (!c || c.offsetParent === null) return;
-  sizeCanvas(c);
+  ezFit(); sizeCanvas(c);
   const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
-  // before a step starts: a little demonstration of the goal, with no words needed
-  const st0 = ezStep();
-  if (EZ.phase === 'ready' && st0 && st0.k !== 'hello' && st0.k !== 'song') {
-    const mid0 = ezHome(), span0 = 5, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
-    const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5;
-    const prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
-    x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
-    ezLanes(x, Y0, mid0, span0, w, d, mid0);
-    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(100 * d, Y0(mid0 + 0.5), w - 100 * d, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
-    x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('🪺', w * 0.86, Y0(mid0));
-    ezChip(x, w * 0.86, Y0(mid0) - 48 * d, mid0, d, '🎯 ');
-    x.fillText('🐦', 150 * d + (w * 0.86 - 210 * d) * prog, Y0(mid0 + off));
-    if (prog >= 1) { x.font = `${60 * d}px system-ui, sans-serif`; x.fillText('⭐', w * 0.86, Y0(mid0) - 60 * d); }
-    const face = $('#easyFace'); face.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; face.className = 'easy-face' + (inside ? ' good' : ' off');
+  const st0 = ezStep(), k0 = st0 && st0.k, g = st0 || {};
+  x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+  if (EZ.phase === 'menu' || EZ.phase === 'done' || !st0) return;
+  const pianoH = k0 === 'piano' && EZ.piano && !EZ.song ? 0 : 0, h2 = h;
+  const mid = EZ.tgt != null ? EZ.tgt : ezHome(), span = 5;
+  const Y = m => h2 / 2 - (m - mid) / span * (h2 / 2 - 24 * d), X = tt => 120 * d + (w * 0.86 - 150 * d) * (1 - (t - tt) / 4);
+  const big = Math.round(Math.min(w, h) / 9);
+  const emoji = (ch, px, py, size, alpha) => { x.save(); x.globalAlpha = alpha == null ? 1 : alpha; x.font = `${size || big}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ch, px, py); x.restore(); };
+  // the demo before a game: the sprite settles into the band and travels to its goal
+  if (EZ.phase === 'ready' && k0 !== 'hello' && k0 !== 'song' && k0 !== 'piano') {
+    const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5, prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
+    ezLanes(x, Y, mid, span, w, d, mid);
+    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(100 * d, Y(mid + 0.5), w - 100 * d, Y(mid - 0.5) - Y(mid + 0.5)); x.globalAlpha = 1;
+    if (k0 === 'grow') { emoji(['🌱', '🌿', '🌷', '🌻'][Math.min(3, Math.floor(prog * 4))], w * 0.55, h * 0.78, big * (0.8 + prog)); emoji('🎤', w * 0.55, Y(mid + off), big * 0.8); }
+    else { if (g.goal) emoji(g.goal, w * 0.86, Y(mid)); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, 150 * d + (w * 0.86 - 210 * d) * prog, Y(mid + off)); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
+    const f = $('#easyFace'); f.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; f.className = 'easy-face' + (inside ? ' good' : '');
     return;
   }
-  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 5;
-  const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => 120 * d + (w * 0.86 - 150 * d) * (1 - (t - tt) / 4);
-  x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+  if (k0 === 'piano' && EZ.piano && !EZ.song) return; // the keyboard takes the stage
   ezLanes(x, Y, mid, span, w, d, EZ.tgt);
   if (EZ.tgt != null) {
     const tol = EZ_TOL / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
     x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
     const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(100 * d, y1, w - 100 * d, y2 - y1, r) : x.rect(100 * d, y1, w - 100 * d, y2 - y1); x.fill(); x.globalAlpha = 1;
-    x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(110 * d, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
   }
-  const k0 = ezStep() && ezStep().k, nestGame = EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown' || k0 === 'echo');
-  // a picture cue in the open space: 👂 while the note plays, a pulsing 🎤 when it's your turn
-  const cueEar = EZ.phase === 'run' && ((EZ.tgt != null && (k0 === 'match' || k0 === 'updown') && now() - EZ.tStart < 1.5) || (k0 === 'echo' && EZ.echo && EZ.echo.phase === 'listen'));
-  const cueSing = EZ.phase === 'run' && !cueEar && v == null && k0 !== 'song';
+  // picture cues in the open space: 👂 while the note plays, a pulsing 🎤 when it's your turn
+  const cueEar = EZ.phase === 'run' && ((EZ.tgt != null && ['match', 'updown', 'grow'].includes(k0) && t - EZ.tStart < 1.5) || (k0 === 'echo' && EZ.echo && EZ.echo.phase === 'listen'));
+  const cueSing = EZ.phase === 'run' && !cueEar && v == null && k0 !== 'song' && k0 !== 'piano';
   if (cueEar || cueSing) {
-    const pulse = 1 + 0.12 * Math.sin(t * 5), cx = w * 0.5, cy = h * 0.22;
-    x.save(); x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.font = `${72 * d * pulse}px system-ui, sans-serif`; x.fillText(cueEar ? '👂' : '🎤', cx, cy);
-    x.strokeStyle = C.accent; x.lineWidth = 4 * d; x.globalAlpha = 0.5;
-    for (let r = 0; r < 3; r++) { const rr = (60 + r * 22 + (t * 40) % 22) * d; x.beginPath(); x.arc(cx, cy, rr, cueEar ? -0.5 : -2.6, cueEar ? 0.5 : -0.5); x.stroke(); }
-    x.globalAlpha = 1;
-    if (cueSing) { x.font = `${34 * d}px system-ui, sans-serif`; for (let n = 0; n < 3; n++) { const ph = ((t * 0.6 + n / 3) % 1); x.globalAlpha = 1 - ph; x.fillText('🎵', cx + (n - 1) * 70 * d, cy - 40 * d - ph * 60 * d); } x.globalAlpha = 1; }
-    if (k0 === 'echo' && EZ.echo) { x.font = `${40 * d}px system-ui, sans-serif`; const n2 = EZ.echo.notes.length; for (let j = 0; j < n2; j++) { const lit = EZ.echo.phase === 'listen' ? Math.floor((now() - EZ.echo.t0) / 1.1) === j : EZ.echo.i === j; x.globalAlpha = lit ? 1 : 0.35; x.fillText('●', cx + (j - (n2 - 1) / 2) * 60 * d, cy + 70 * d); } x.globalAlpha = 1; }
+    const pulse = 1 + 0.12 * Math.sin(t * 5), cx = w * 0.5, cy = h * 0.18;
+    emoji(cueEar ? '👂' : '🎤', cx, cy, big * 1.1 * pulse);
+    x.save(); x.strokeStyle = C.accent; x.lineWidth = 4 * d; x.globalAlpha = 0.5;
+    for (let r = 0; r < 3; r++) { const rr = big * 0.9 + (r * 22 + (t * 40) % 22) * d; x.beginPath(); x.arc(cx, cy, rr, cueEar ? -0.5 : -2.6, cueEar ? 0.5 : -0.5); x.stroke(); }
     x.restore();
+    if (cueSing) for (let n = 0; n < 3; n++) { const p2 = ((t * 0.6 + n / 3) % 1); emoji('🎵', cx + (n - 1) * 70 * d, cy - big * 0.6 - p2 * 60 * d, big * 0.5, 1 - p2); }
   }
-  if (nestGame) {
-    const need = k0 === 'match' ? 2 : 1, prog = k0 === 'echo' ? Math.min(1, ((EZ.echo && EZ.echo.got) || []).length / 8) : Math.min(1, EZ.inBand / need);
-    x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('🪺', w * 0.86, Y(EZ.tgt));
-    ezChip(x, w * 0.86, Y(EZ.tgt) - 48 * d, EZ.tgt, d, '🎯 ');
-    const bx = 150 * d + (w * 0.86 - 210 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + 80 * d);
+  // the games
+  if (EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown')) {
+    const need = k0 === 'match' ? 2 : 1, prog = Math.min(1, EZ.inBand / need);
+    emoji(g.goal, w * 0.86, Y(EZ.tgt)); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(EZ.tgt) + big * 0.75, big * 0.55);
+    ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.9, EZ.tgt, d, '🎯 ');
+    const bx = 150 * d + (w * 0.86 - 210 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + big);
     if (v != null) EZ.lastBy = by;
-    x.globalAlpha = v != null ? 1 : 0.4; x.fillText('🐦', bx, by); x.globalAlpha = 1;
-    if (v != null) ezChip(x, bx, by + 46 * d, v, d);
+    emoji(g.sprite, bx, by, big, v != null ? 1 : 0.4); if (v != null) ezChip(x, bx, by + big * 0.75, v, d);
     return;
   }
+  if (EZ.phase === 'run' && k0 === 'echo' && EZ.echo) {
+    const e = EZ.echo, n2 = e.notes.length;
+    e.notes.forEach((m, j) => { const px = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : j / (n2 - 1))), lit = e.phase === 'listen' ? Math.floor((t - e.t0) / 1.1) === j : e.i === j; emoji('🪷', px, Y(m), big * (lit ? 1.1 : 0.85), lit ? 1 : 0.6); x.save(); x.fillStyle = DEG_COLOR[ezDeg(m)] || C.muted; x.globalAlpha = 0.8; x.beginPath(); x.arc(px, Y(m) + big * 0.6, 7 * d, 0, 7); x.fill(); x.restore(); });
+    const fx = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : Math.min(e.i, n2 - 1) / (n2 - 1))), fy = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : Y(e.notes[Math.min(e.i, n2 - 1)]) - big * 0.6;
+    emoji('🐸', e.phase === 'listen' ? w * 0.15 : fx, e.phase === 'listen' ? Y(e.notes[0]) : fy, big, v != null || e.phase === 'listen' ? 1 : 0.6);
+    if (v != null) ezChip(x, fx, fy + big * 0.75, v, d);
+    return;
+  }
+  if (EZ.phase === 'run' && k0 === 'grow') {
+    const pr = Math.min(1, EZ.inBand / 3);
+    for (let j = 0; j < 3; j++) { const px = w * (0.35 + j * 0.2), grown = j < EZ.flowers ? 1 : j === EZ.flowers ? pr : 0; emoji(grown >= 1 ? '🌻' : grown > 0.66 ? '🌷' : grown > 0.33 ? '🌿' : '🌱', px, h * 0.82 - grown * big * 0.6, big * (0.6 + grown * 0.8), j <= EZ.flowers ? 1 : 0.35); }
+    if (v != null) { const by = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('💧', w * (0.35 + Math.min(2, EZ.flowers) * 0.2), by, big * 0.7); ezChip(x, w * 0.16, by, v, d); }
+    ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.6, EZ.tgt, d, '🎯 ');
+    return;
+  }
+  // free flight (Wake the bird) and the songs: the voice draws a line and the bird rides on it
   const pts = EZ.trail;
   if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
-  if (v != null) { const by2 = Y(Math.max(mid - span, Math.min(mid + span, v))); x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), by2); ezChip(x, X(t), by2 + 46 * d, v, d); }
+  if (v != null) { const by2 = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('🐦', X(t), by2); ezChip(x, X(t), by2 + big * 0.75, v, d); }
+  if (EZ.song && EZ.tgt != null) ezChip(x, w * 0.9, Y(EZ.tgt), EZ.tgt, d, '🎯 ');
 }
+// ---- songs: shared by Sing a song and the piano game's sing-along
 function ezSongPick() {
-  $('#easyWords').textContent = '🎵 ?';
-  const b = $('#easyBtns'); b.textContent = '';
-  for (const sg of EASY_SONGS) { const x = el('button', 'easy-btn song'); x.append(el('span', 'ei', sg.pic), el('span', 'el', sg.name)); x.setAttribute('aria-label', sg.name); x.onclick = () => ezSongStart(sg); b.appendChild(x); }
-  const sk = el('button', 'easy-btn'); sk.append(el('span', 'ei', '⏭'), el('span', 'el', 'Skip')); sk.onclick = () => ezNext(); b.appendChild(sk);
+  const m = $('#easyMenu'); m.textContent = ''; m.hidden = false;
+  for (const sg of EASY_SONGS) { const x = el('button', 'easy-tile song'); x.append(el('span', 'ei', sg.pic), el('span', 'el', sg.name)); x.setAttribute('aria-label', sg.name); x.onclick = () => ezSongStart(sg); m.appendChild(x); }
 }
-async function ezSongStart(sg) {
-  if (EZ.phase === 'run') return;
+async function ezSongStart(sg, fromPiano) {
+  if (EZ.phase === 'run' && EZ.song) return;
   if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
+  $('#easyMenu').hidden = true;
   const h = ezHome(), toks = sg.words.split(/\s+/).filter(x => x && x !== '/');
   EZ.song = { sg, notes: sg.notes.map(([o, b], i) => ({ m: h - 2 + o, b, w: toks[i] || '' })), beat: 1.0, t0: now() + 1.6, res: [] };
-  EZ.phase = 'run'; EZ.trail = []; EZ.got = 0;
+  EZ.phase = 'run'; EZ.trail = []; EZ.got = 0; EZ.piano = fromPiano ? EZ.piano : null;
   playTone(EZ.song.notes[0].m, 1.3, PIPE);
   ezRender(); ezSongWords(-1);
 }
 function ezSongWords(cur) {
   const w = $('#easyWords'); w.textContent = '';
   const line = el('div', 'ez-line');
-  EZ.song.notes.forEach((n, i) => { const sp = el('span', 'ez-w' + (i === cur ? ' now' : i < cur ? ' past' + (EZ.song.res[i] ? ' good' : '') : ''), n.w.replace(/-$/, '')); line.appendChild(sp); });
+  EZ.song.notes.forEach((n, i) => { const sp = el('span', 'ez-w' + (i === cur ? ' now' : i < cur ? ' past' + (EZ.song.res[i] ? ' good' : '') : ''), n.w.replace(/-$/, '')); sp.style.setProperty('--nc', DEG_COLOR[ezDeg(n.m)] || 'var(--muted)'); line.appendChild(sp); });
   w.append(el('span', 'ez-pic', EZ.song.sg.pic), line);
 }
 function ezSongTick(t, inb) {
@@ -4525,22 +4569,53 @@ function ezSongTick(t, inb) {
   if (i !== S2.cur) {
     if (S2.cur != null && S2.cur < S2.notes.length) { const ok = (S2.hits || 0) >= 6; S2.res[S2.cur] = ok; if (ok) ezStar(); }
     S2.cur = i; S2.hits = 0;
-    if (i >= S2.notes.length) { guideOff(); EZ.tgt = null; EZ.phase = 'won'; $('#easyWords').textContent = '🎉 ' + S2.res.filter(Boolean).length + ' ⭐'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 2200); return; }
+    if (i >= S2.notes.length) { $('#easyWords').textContent = ''; ezWon(2200); return; }
     EZ.tgt = S2.notes[i].m; guideOn(EZ.tgt, 0.3); ezSongWords(i);
   }
   if (inb) S2.hits = (S2.hits || 0) + 1;
 }
+// ---- the piano game: tap the glowing key to play the song, then sing along with it
+const PIANO_DEG = [0, 2, 4, 5, 7, 9, 11, 12];
+function ezPianoStart() {
+  const n = Object.keys((store.easy || {}).days || {}).length, sg = EASY_SONGS[(n + 1) % EASY_SONGS.length], h = ezHome();
+  EZ.piano = { sg, doM: h - 2, notes: sg.notes.map(([o]) => o), i: 0 };
+  ezPianoDraw();
+}
+function ezPianoDraw() {
+  const box = $('#easyPiano'); if (!box) return;
+  const on = ezKey() === 'piano' && EZ.piano && EZ.phase === 'run' && !EZ.song; box.hidden = !on; if (!on) { box.textContent = ''; return; }
+  const P = EZ.piano; box.textContent = '';
+  const want = P.notes[P.i];
+  const songRow = el('div', 'pn-song'); songRow.append(el('span', 'ez-pic', P.sg.pic));
+  P.notes.forEach((o, j) => { const dot = el('span', 'pn-dot' + (j < P.i ? ' done' : j === P.i ? ' now' : '')); dot.style.setProperty('--nc', DEG_COLOR[o % 12] || 'var(--muted)'); songRow.appendChild(dot); });
+  const keys = el('div', 'pn-keys');
+  PIANO_DEG.forEach(dg => {
+    const k = el('button', 'pn-key' + (dg === want ? ' want' : '')); k.style.setProperty('--nc', DEG_COLOR[dg % 12]);
+    k.append(el('span', 'pn-syl', DEG_NAME[dg % 12]), el('span', 'pn-nm', nameOf(P.doM + dg)));
+    k.setAttribute('aria-label', DEG_NAME[dg % 12] + (dg === want ? ', play this one' : ''));
+    k.onclick = () => ezPianoPress(dg); keys.appendChild(k);
+  });
+  box.append(songRow, keys);
+}
+async function ezPianoPress(dg) {
+  await ensureAudio(); const P = EZ.piano; if (!P) return;
+  const m = P.doM + dg;
+  if (dg === P.notes[P.i]) {
+    playedNote(m, 0.6, 0); P.i++;
+    if (P.i >= P.notes.length) { ezStar(); $('#easyPic').textContent = '🎉'; setTimeout(() => { $('#easyPic').textContent = ''; if (EZ.on && EZ.piano === P) ezSongStart(P.sg, true); }, 1500); }
+    ezPianoDraw();
+  } else playTone(m, 0.4, PURE); // any key sounds; no "wrong"
+}
 function ezDone() {
-  guideOff();
+  guideOff(); $('#easyPiano').hidden = true;
   const pct = EZ.voiced ? Math.round(100 * EZ.inTune / EZ.voiced) : 0;
   if (!realStore) { if (!store.easy) store.easy = { days: {} }; const d = today(), rec = store.easy.days[d] || { stars: 0, best: 0, times: 0 }; rec.stars += EZ.stars; rec.best = Math.max(rec.best, pct); rec.times++; store.easy.days[d] = rec; dirty = true; save(); }
-  $('#easyPic').textContent = '🏆'; $('#easyFace').textContent = '';
+  $('#easyPic').textContent = ''; $('#easyFace').textContent = '';
   const days = Object.entries((store.easy || {}).days || {}).sort().slice(-14);
   const w = $('#easyWords'); w.textContent = '';
   const garden = el('div', 'ez-garden'); days.forEach(([d, r]) => { const f = el('span', 'ez-day'); f.title = d + ': ' + r.stars + ' stars, ' + r.best + '% in the band'; f.append(el('span', 'ez-flower', r.best >= 60 ? '🌻' : r.best >= 30 ? '🌷' : '🌱'), el('i', '', '')); f.querySelector('i').style.height = Math.max(4, r.best * 0.6) + 'px'; garden.appendChild(f); });
-  w.append(el('div', 'ez-big', '⭐ × ' + EZ.stars), el('div', 'ez-pct', '🎯 ' + pct + '%'), garden);
-  ezBtns([['🔁', 'Again', () => easyOpen(), true], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
-  const c = $('#easyCanvas'); if (c && c.offsetParent !== null) { sizeCanvas(c); const x = c.getContext('2d'); x.fillStyle = C.surface; x.fillRect(0, 0, c.width, c.height); }
+  const done = el('div', 'ez-done'); done.append(el('div', 'ez-big', '🏆 ⭐ × ' + EZ.stars), el('div', 'ez-pct', '🎯 ' + pct + '%'), garden);
+  w.appendChild(done);
 }
 
 // ---------- What's inside: the whole app at a glance ----------
@@ -4569,7 +4644,7 @@ function renderTour() {
     ...STAGES.map(st => { const us = UNITS.filter(x => x.stage === st.n), open = us.some(unitOpen); return { id: 'stage' + st.n, title: 'Stage ' + st.n + ' · ' + st.title, desc: us.map(x => x.title).join(' · '), lock: open ? null : 'Opens when you finish Stage ' + (st.n - 1), fn: () => openUnit(us.find(unitOpen) || us[0]) }; }),
   ]);
   sec('🌟', 'First Notes', 'An easy start for any new singer: big pictures, no reading needed, one note at a time.', [
-    { id: 'easy', title: 'First Notes', desc: 'Wake up your voice, match a note, up and down, copy two notes, and a simple song.', fn: () => $('#t-easy').click() },
+    { id: 'easy', title: 'First Notes', desc: 'Seven games: wake the bird, mother bird home, balloon ride, frog hops, grow a flower, piano play-along, and sing a song.', fn: () => $('#t-easy').click() },
   ]);
   sec('▶', 'Today\'s session', 'About 11 minutes that run by themselves: warm-up, skill, song and a quick ear game.', [
     { id: 'session', title: 'Start today\'s session', desc: 'With a voice check-in first. A scratchy voice gets a gentle day.', lock: needVoice, fn: () => { $('#t-home').click(); sesOffer(); } },

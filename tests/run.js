@@ -688,18 +688,30 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.idle === 0 && r.on && r.log === 'on,off' && r.after === null, JSON.stringify(r));
   });
 
-  await test('First Notes: five big, picture-led steps that flow on their own, with stars; a simple song; a garden of days', async page => {
+  await test('First Notes: one screen, buttons on top; the daily games flow on their own; seven games to choose from', async page => {
     await voice(page);
     await page.click('#homeCards [data-card="easy"] button');
-    const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, steps: document.querySelectorAll('#easySteps .es').length, btn: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join() }));
-    // a singer who follows whatever the band asks for
-    await page.evaluate(() => { setInterval(() => { const k = ezStep() && ezStep().k; V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
-    // no taps needed: each step demonstrates itself, then starts; the song is picked automatically
-    await page.waitForFunction(() => ezStep() && ezStep().k === 'song', null, { timeout: 90000 });
-    const mid = await page.evaluate(() => ({ stars: EZ.stars, home: EZ.home, songs: document.querySelectorAll('#easyBtns .easy-btn.song').length }));
+    const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, bar: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join(), steps: document.querySelectorAll('#easySteps .es').length, fits: document.documentElement.scrollHeight <= innerHeight + 2 }));
+    // a singer who follows whatever the target asks for
+    await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
+    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 150000 });
+    const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !!document.querySelector('.ez-done') }));
+    expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && routine.stars >= 12 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, routine }));
+    // the games menu, and two of the new games
+    await page.click('#easyBtns >> text=Games');
+    const tiles = await page.evaluate(() => [...document.querySelectorAll('#easyMenu .easy-tile')].map(x => x.dataset.game).join());
+    await page.click('.easy-tile[data-game="piano"]');
+    await page.waitForFunction(() => EZ.piano && !$('#easyPiano').hidden, null, { timeout: 5000 });
+    // tap a wrong key first (it just sounds), then the glowing ones
+    await page.click('.pn-key:nth-child(8)');
+    const n = await page.evaluate(() => EZ.piano.notes.length);
+    for (let i = 0; i < n; i++) await page.click('.pn-key.want');
+    await page.waitForFunction(() => EZ.song && EZ.phase === 'run', null, { timeout: 5000 });
+    const piano = await page.evaluate(() => ({ singAlong: !!EZ.song, stars: EZ.stars }));
+    await page.evaluate(() => easyOpen(['grow']));
     await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 60000 });
-    const end = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], garden: document.querySelectorAll('.ez-day').length, again: !!document.querySelector('#easyBtns [aria-label="Again"]') }));
-    expect(open.screen === 'easy' && open.steps === 5 && /Start/.test(open.btn) && mid.stars >= 9 && end.stars > mid.stars && end.day.best >= 60 && end.garden === 1 && end.again, JSON.stringify({ open, mid, end }));
+    const grow = await page.evaluate(() => EZ.stars);
+    expect(tiles === 'hello,match,updown,echo,grow,piano,song' && piano.singAlong && piano.stars >= 1 && grow >= 3, JSON.stringify({ tiles, piano, grow }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {

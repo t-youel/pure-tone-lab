@@ -22,11 +22,13 @@ Stages 1–2 are planned as the free tier; a `PAYWALL` switch (off for now) lock
 Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a gentle day and the see-a-doctor rule),
 your path, and a song that fits your voice. 
 
-**First Notes:** an easy start offered to everyone on Home, built to need no reading. Five short steps,
-the same each time: wake up your voice (the app finds your easy note), match a note, up and down, copy two notes,
-and a simple original song. A bird rides on your voice; a wide, glowing band shows the target; a big face shows
-😊 / ⬆ / ⬇; every success earns a star and a chime. The note keeps playing to sing along with, there are big
-picture buttons, and each day adds a flower to a garden. A short note for helpers sits underneath.
+**First Notes:** the starting point for every new singer, built to need no reading and to fit on one screen,
+with big picture buttons along the top (Home, Games, Again, Next, Helpers). Seven games: Wake the bird (free play),
+Mother bird home (fly her back to her chicks on the target note), Balloon ride (up to the clouds and back),
+Frog hops (copy two or three lily pads), Grow a flower (hold a steady note), Piano play-along (tap the glowing key
+to play a song, then sing along), and Sing a song. The daily routine plays five of them by itself; each starts after
+a short demo or as soon as the singer makes a sound. Every scale note has its own colour, the scale shows as
+coloured lanes, and labels show the note being sung and the target. Each day adds a flower to a garden.
 Design choices follow research on visual learning strengths, auditory-memory load and common hearing loss in
 Down syndrome, and on app design for people with intellectual disabilities.
 
