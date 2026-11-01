@@ -394,6 +394,7 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .hc.is-later { opacity: .6; }
 .hc h3 { font-size: 1.25rem; }
 .hc .desc { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+.build { text-align: center; color: var(--muted); font: 600 .7rem var(--mono); }
 .hc.checkin.warn { border-color: var(--warn); }
 .hc .acts button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .path-prog { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 8px; max-width: 320px; }
@@ -602,6 +603,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · tester card</p>
 </section>
 
 <!-- YOUR PATH -->
