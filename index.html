@@ -228,6 +228,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .staff .ln { stroke: var(--muted); stroke-width: 1; }
 .staff .glyph { font-family: "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif; fill: var(--ink); }
 .staff .lyr { font: 600 13px var(--body); fill: var(--ink); text-anchor: middle; }
+.staff .brm { font: 700 22px var(--body); fill: var(--accent); text-anchor: middle; }
 .staff .nn { font: 10px var(--mono); fill: var(--muted); text-anchor: middle; }
 .staff .n-done { color: var(--warn); }
 .staff .n-pure { color: var(--pure); }
@@ -313,6 +314,8 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.showcase { display: grid; gap: 8px; border: 2px solid var(--pure); }
+.reflect { width: 100%; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -652,7 +655,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · what's inside</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · style tools</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1616,6 +1619,8 @@ function loadSong(song, keepShift = false) {
   }
   const rest = G.seq.length - ls, chunk = rest <= 12 ? rest : 8;
   for (let a = ls; a < G.seq.length; a += chunk) G.lines.push([a, Math.min(G.seq.length, a + chunk) - 1]);
+  // breath marks: after a word ending in a comma or full stop, and at the end of each line (not after the last note)
+  G.seq.forEach((n, i) => { n.br = i < G.seq.length - 1 && (/[,.;!?]$/.test(n.w) || G.lines.some(([, b]) => b === i)); });
   // Low voices read treble clef an octave up (the small 8 under the clef).
   G.disp = G.seq.reduce((s, n) => s + n.m, 0) / G.seq.length < 60 ? 12 : 0;
   G.fullLen = G.seq.length;
@@ -1822,6 +1827,7 @@ async function startRun() {
   }
   const beat = beatSec(), count = 3;
   G.starts = []; let t = 0; for (const n of G.seq) { G.starts.push(t); t += n.b * beat; }
+  G.tl = []; G.beatS = beat;
   G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
   G.t0 = now() + count * beat + 0.12;
   stopTicks();
@@ -1856,6 +1862,9 @@ function singStep() {
   if (guidePref()) { if (!guideTone) guideOn(n.m); else if (guideTone.midi !== n.m) guideTo(n.m); }
   $('#holdFill').style.width = (100 * clamp(into / dur)) + '%';
   const a = G.acc[i] || (G.acc[i] = { total: 0, voiced: 0, cents: [], attack: [], late: [], db: 0, p: 0, cl: 0, st: 0, fo: 0 });
+  // style: a timeline of voice on/off and loudness, and when the voice arrives on each note
+  if (G.tl) G.tl.push({ e, v: S.rawM != null, db: S.voiced ? 20 * Math.log10(S.rms + 1e-9) : null }); // raw voicing: no hold-over, so short breaths show
+  if (a.on == null && S.voiced) { let ca = (S.midi - n.m) * 100; if ($('#octFree').checked) ca = ((ca % 1200) + 1800) % 1200 - 600; if (Math.abs(ca) <= 100) a.on = into; }
   if (into < Math.min(0.15 * dur + 0.05, 0.3)) {
     // The attack is not scored, but it shows whether the singer slides up into the note.
     if (S.voiced) { let c0 = (S.midi - n.m) * 100; if ($('#octFree').checked) c0 = ((c0 % 1200) + 1800) % 1200 - 600; a.attack.push(c0); }
@@ -1878,7 +1887,7 @@ function finalizeNote(i) {
   if (!a || a.voiced < Math.max(3, a.total * 0.25)) r = { m: n.m, status: 'missed' };
   else {
     const cs = [...a.cents].sort((x, y) => x - y), v = a.voiced;
-    r = { m: n.m, c: cs[cs.length >> 1], p: a.p / v, cl: a.cl / v, st: a.st / v, fo: a.fo / v, ce: a.attack.length >= 2 ? med(a.attack) : null, cLate: a.late.length ? med(a.late) : null, db: a.db / v };
+    r = { on: a.on, m: n.m, c: cs[cs.length >> 1], p: a.p / v, cl: a.cl / v, st: a.st / v, fo: a.fo / v, ce: a.attack.length >= 2 ? med(a.attack) : null, cLate: a.late.length ? med(a.late) : null, db: a.db / v };
     r.status = Math.abs(r.c) <= TOL ? (r.p >= 72 ? 'pure' : 'ok') : r.c < 0 ? 'low' : 'high';
   }
   G.res[i] = r;
@@ -2047,6 +2056,7 @@ function drawStaff() {
     if (sp.acc) g.push(`<text class="glyph" x="${cx - 21}" y="${y + 5}" font-size="16" style="fill:currentColor">${sp.acc}</text>`);
     const lyr = n.cont ? '–' : n.w;
     g.push(`<text class="lyr" x="${cx}" y="128">${lyr.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`);
+    if (n.br && !G.song.lab) g.push(`<text class="brm" x="${cx + 26}" y="34">ʼ</text>`);
     g.push(`<text class="nn" x="${cx}" y="144">${nameOf(n.m)}</text>`);
     out.push(`<g class="${cls}" fill="currentColor">${g.join('')}</g>`);
   }
@@ -2157,7 +2167,26 @@ function runStats() {
     st.monotone = Math.sqrt(mean(d.map(v => v * v))) < 1.0;
   }
   st.skills = computeSkills(st);
+  styleStats(st);
   return st;
+}
+// Phase 6: timing against the beat, breaths at the marks, and the loudness shape of each line.
+function styleStats(st) {
+  const ons = st.all.map((r, i) => G.seq[i] && !G.seq[i].cont && r.status !== 'missed' && r.on != null ? r.on * 1000 : null).filter(v => v != null);
+  if (ons.length >= 4) { st.lateMs = Math.round(med(ons)); st.timingScore = Math.round(100 * clamp(1 - (st.lateMs - 90) / 330)); }
+  const tl = G.tl || [];
+  if (tl.length > 20 && G.starts) {
+    const silent = (a, b) => { let s0 = 0; for (let k = 1; k < tl.length; k++) { const f = tl[k]; if (f.e < a || f.e > b) continue; if (!f.v) s0 += f.e - tl[k - 1].e; } return s0; };
+    let marks = 0, taken = 0, mid = 0;
+    for (let j = 0; j < G.seq.length - 1; j++) {
+      const end = G.starts[j + 1], dur = G.seq[j].b * G.beatS, gap = silent(end - Math.min(0.35, dur * 0.5), end + 0.1);
+      if (G.seq[j].br) { marks++; if (gap >= 0.1) taken++; }
+      else if (gap >= 0.25 && st.all[j + 1] && st.all[j + 1].status !== 'missed') mid++;
+    }
+    st.breath = { marks, taken, mid };
+  }
+  const lines = (G.lines || []).map(([a, b]) => st.all.slice(a, b + 1).filter(r => r.status !== 'missed' && r.db != null).map(r => r.db)).filter(l => l.length >= 3);
+  if (lines.length) { const shaped = lines.filter(l => Math.max(...l) - Math.min(...l) >= 4).length; st.phrase = { lines: lines.length, shaped }; st.phraseScore = Math.round(100 * shaped / lines.length); }
 }
 // Nine things a voice teacher listens for, each 0-100, from the notes of one run.
 const SKILLS = [
@@ -2206,7 +2235,7 @@ function saveRun() {
   if (st.skills) store.skills = st.skills;
   // the first song after Find your voice is the baseline everything later is compared with
   if (store.profile && !store.baseline && !realStore) store.baseline = { id: G.song.id, score: st.score, ok: st.ok, n: st.n, avg: st.avg, at: Date.now(), profile: { low: store.profile.low, high: store.profile.high } };
-  recordTry('song', G.song.id, st.monotone ? 0 : st.score); sesNote(st.monotone ? 0 : st.score);
+  recordTry('song', G.song.id, st.monotone ? 0 : st.score, { timing: st.timingScore, phrase: st.phraseScore, full: !CO.on && G.seq.length >= (G.fullLen || G.seq.length) }); sesNote(st.monotone ? 0 : st.score);
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true; setTimeout(() => checkLevel(), 1500);
 }
@@ -2270,6 +2299,11 @@ function diagnose(st) {
   }
   const LABFOR = [[/flat|sharp/, 'match'], [/varies/, 'match'], [/Higher notes/, 'vowels'], [/Lower notes/, 'scale'], [/Jumps/, 'leaps'], [/scooping/, 'match'], [/Breathy/, 'hold'], [/wobble/, 'hold'], [/noisy or tight/, 'vowels'], [/softly/, 'hold'], [/fade/, 'hold']];
   for (const f of out) { const hit = LABFOR.find(([re]) => re.test(f.title)); if (hit) f.lab = hit[1]; }
+  if (!G.song.lab && !st.monotone) {
+    if (st.lateMs != null && st.lateMs > 160) add(1 + st.lateMs / 400, `Notes arrived about ${st.lateMs} ms after the beat`, 'Arriving late usually means waiting to hear the note before singing it.', 'Tap your foot with the metronome and breathe on the beat before each phrase, so the note starts with the click, not after it.', 'listen');
+    if (st.breath && st.breath.mid >= 2) add(1.2, `${st.breath.mid} breaths in the middle of a line`, 'Breaking a line breaks its meaning, and usually means the breath before it was too small.', 'Breathe low and quickly at each ʼ mark, then let the whole line ride on that one breath.', 'listen');
+    if (st.phrase && st.phrase.lines >= 2 && st.phrase.shaped / st.phrase.lines < 0.5) add(0.8, 'The lines were all one loudness', 'Every line has a high point. Leaning into it and easing off after is what makes singing feel alive.', 'Speak the line first and notice which word you stress. Sing it the same way: a little more on that word, a little less after.', 'listen');
+  }
   return out.sort((a, b) => b.w - a.w).slice(0, 3);
 }
 // Always lead with something true and good, then be honest about the rest.
@@ -2323,7 +2357,11 @@ function renderReport() {
   stat('Pure ✦', st.pure + ' of ' + st.n);
   stat('Try', String(runs.length || 1));
   if (prev && prev.ok != null) stat('Last try', prev.score != null ? String(prev.score) : prev.ok + ' in tune');
+  if (st.lateMs != null && !G.song.lab) stat('Timing', st.lateMs <= 120 ? 'on the beat' : '≈' + st.lateMs + ' ms late');
+  if (st.breath && st.breath.marks && !G.song.lab) stat('Breaths at ʼ', st.breath.taken + ' of ' + st.breath.marks);
+  if (st.phrase && !G.song.lab) stat('Lines shaped', st.phrase.shaped + ' of ' + st.phrase.lines);
   box.appendChild(top);
+  if (!G.song.lab && !CO.on) { const sc = showcasePanel(st); if (sc) box.appendChild(sc); }
   const tiles = document.createElement('div'); tiles.className = 'tiles';
   const LBL = { pure: '✦ pure', ok: '✓ in tune', low: '↑ low', high: '↓ high', missed: 'missed' };
   st.all.forEach((r, i) => {
@@ -3424,6 +3462,32 @@ const DRILLS = {
     },
   },
 };
+// ---------- Showcase: this performance next to your first song ----------
+function showcasePanel(st) {
+  const u12 = UNITS.find(u => u.id === 'u12'), b = store.baseline;
+  if (!b || !unitOpen(u12)) return null;
+  const w = el('div', 'card showcase'); w.dataset.card = 'showcase';
+  w.append(el('h3', '', '🎤 Showcase: you now vs your first song'));
+  const firstName = (SONGS.find(x => x.id === b.id) || {}).name || 'your first song';
+  const pct = (ok, n) => n ? Math.round(100 * ok / n) + '%' : '–';
+  const t = el('table', 'cmp-table'); t.innerHTML = '<thead><tr><th></th><th>First (' + firstName.replace(/</g, '') + ')</th><th>Now</th></tr></thead>';
+  const tb = el('tbody');
+  const rows = [['Score', b.score, st.score], ['Notes in tune', pct(b.ok, b.n), pct(st.ok, st.n)], ['Range', b.profile ? nameOf(b.profile.low) + '–' + nameOf(b.profile.high) : '–', store.profile ? nameOf(store.profile.low) + '–' + nameOf(store.profile.high) : '–']];
+  if (st.lateMs != null) rows.push(['Timing', '–', st.lateMs <= 120 ? 'on the beat' : st.lateMs + ' ms late']);
+  for (const [k, a, z] of rows) { const tr = el('tr'); tr.append(el('td', '', k), el('td', 'mono', String(a)), el('td', 'mono' + (typeof a === 'number' && z > a ? ' up' : ''), String(z) + (typeof a === 'number' && z > a ? ' ↑' : ''))); tb.appendChild(tr); }
+  t.appendChild(tb); w.appendChild(t);
+  const r = el('div', 'row');
+  const first = (store.clips || []).find(c => c.first), b1 = el('button', 'small', '▶ First take'); b1.disabled = !first; b1.onclick = () => first && playClip(first);
+  const b2 = el('button', 'small', '▶ This take'); b2.onclick = () => { const c = [...(store.clips || [])].sort((x, y) => y.at - x.at)[0]; if (c) playClip(c); else toast('This take is still saving. Try again in a moment.'); };
+  r.append(b1, b2); w.appendChild(r);
+  w.appendChild(el('label', 'label', 'What changed since your first song? Two sentences, in your own words.'));
+  const ta = el('textarea', 'reflect'); ta.id = 'reflectText'; ta.rows = 3; ta.maxLength = 600; ta.value = (store.reflection && store.reflection.text) || '';
+  ta.placeholder = 'For example: my breath lasts the whole line now, and I can hear when I go flat.';
+  const sv = el('button', 'primary small', 'Save my reflection'); sv.onclick = () => { const v = ta.value.trim(); if (!v) { toast('Write a sentence or two first.'); return; } store.reflection = { text: v, at: Date.now() }; dirty = true; save(); toast('Saved. Well done.'); setTimeout(() => checkLevel(), 300); };
+  w.append(ta, sv);
+  return w;
+}
+
 // ---------- Phase 5: tone tools ----------
 const dB = r => 20 * Math.log10(r + 1e-9);
 const pctl = (a, q) => { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[Math.min(s2.length - 1, Math.floor(q * (s2.length - 1)))]; };
@@ -3722,7 +3786,7 @@ const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.g
 const ROCK = ['saints', 'rrmorning', 'jukebox'];
 // ---------- The Pure Tone Path: 4 stages, 12 units and a checkpoint ----------
 // Each unit: Experience it, Name it, Practise it. A unit is passed with one score of 70+, or three tries of 50+.
-// Units 10-12 use a song as the skill check until the style tools are built.
+// Stage 4 checks blend the song score with timing (Unit 10) or phrase shape (Unit 11); the Showcase also asks for a short reflection.
 const PAYWALL = false;           // switch on when payments exist: units after Checkpoint A then need Pro
 const PASS = 70, PERSIST = 50, PERSIST_TRIES = 3;
 const STAGES = [
@@ -3772,15 +3836,15 @@ const UNITS = [
     learn: 'Go from soft to loud without strain, and try different colors: light, bright, full and a gentle cry.',
     cue: 'Louder from the breath, not the throat',
     how: 'Volume comes from breath pressure and how firmly the folds close. Color comes from the shape above them. Both can change without the pitch moving.' },
-  { id: 'u10', n: 10, stage: 4, title: 'Rhythm & phrasing', check: { kind: 'song', id: 'jukebox', label: 'Sing Jukebox Jive' }, song: 'jukebox',
+  { id: 'u10', n: 10, stage: 4, title: 'Rhythm & phrasing', check: { kind: 'song', id: 'jukebox', metric: 'timing', label: 'Jukebox Jive, on the beat and in tune', tk: 'u10b' }, song: 'jukebox',
     learn: 'Feel the pulse, land notes on the beat, plan where to breathe, and stress the important words.',
     cue: 'Tap the beat · breathe at the commas',
     how: 'Rhythm is what makes a song move. Phrasing is how you shape lines across the beat, the way you would say them.' },
-  { id: 'u11', n: 11, stage: 4, title: 'Interpretation', check: { kind: 'song', id: '*', label: 'Sing any song with feeling' }, song: null,
+  { id: 'u11', n: 11, stage: 4, title: 'Interpretation', check: { kind: 'song', id: '*', metric: 'phrase', label: 'Any song, with each line shaped', tk: 'u11b' }, song: null,
     learn: 'Sing the words as if you were telling someone the story. Let the feeling shape loud and soft.',
     cue: 'Speak the line first · then sing it the same way',
     how: 'Listeners respond to meaning. A slightly imperfect note sung with intent moves people more than a perfect one sung blankly.' },
-  { id: 'u12', n: 12, stage: 4, title: 'Showcase', check: { kind: 'song', id: '*', label: 'Perform one song, start to finish' }, song: null,
+  { id: 'u12', n: 12, stage: 4, title: 'Showcase', check: { kind: 'song', id: '*', metric: 'showcase', label: 'Perform one song, start to finish, then compare', tk: 'u12b' }, reflect: true, song: null,
     learn: 'Perform one song from start to finish, then compare it with your first recording.',
     cue: 'Warm up · one deep breath · go',
     how: 'Performing is its own skill: you keep going through small slips. Hearing how far you have come is the best motivation there is.' },
@@ -3796,7 +3860,7 @@ const unitCheckNow = u => unitChecks(u).find(c => !checkPassed(u, c)) || u.check
 function unitPassed(u) {
   if (isTester() && (store.devPass || []).includes(u.id)) return true;
   if (u.check.kind === 'u1') return !!store.profile && !!store.baseline;
-  return unitChecks(u).every(c => checkPassed(u, c));
+  return unitChecks(u).every(c => checkPassed(u, c)) && (!u.reflect || !!(store.reflection && store.reflection.text));
 }
 const isPro = () => !PAYWALL || !!store.pro || isTester();
 // Easter egg: a singer named TedY-137 (or a near miss: any case, spaces or dashes, one letter off) can
@@ -3827,14 +3891,21 @@ function unitOpen(u) {
 const currentUnit = () => UNITS.find(u => !unitPassed(u) && unitOpen(u)) || UNITS.find(u => !unitPassed(u)) || UNITS[UNITS.length - 1];
 const unitLabel = u => u.gate ? u.title : 'Unit ' + u.n;
 // One try at a unit's skill check. Called when a drill or a song finishes.
-function recordTry(kind, id, score) {
+function checkScore(c, score, extra) {
+  if (!c.metric || !extra) return score;
+  if (c.metric === 'timing') return extra.timing == null ? Math.round(score * 0.5) : Math.round(0.5 * score + 0.5 * extra.timing);
+  if (c.metric === 'phrase') return extra.phrase == null ? Math.round(score * 0.5) : Math.round(0.5 * score + 0.5 * extra.phrase);
+  if (c.metric === 'showcase') return extra.full ? score : 0;
+  return score;
+}
+function recordTry(kind, id, score, extra) {
   if (realStore) return;
   if (!store.tries) store.tries = {};
   for (const u of UNITS) for (const c of unitChecks(u)) {
     if (c.kind !== kind || !unitOpen(u) || checkPassed(u, c)) continue;
     if (c.id !== id && !(c.id === '*' && kind === 'song' && SONGS.some(x => x.id === id && !x.lab))) continue;
     const k = triesKey(u, c);
-    (store.tries[k] = store.tries[k] || []).push({ s: Math.round(score), at: Date.now() });
+    (store.tries[k] = store.tries[k] || []).push({ s: Math.round(checkScore(c, score, extra)), at: Date.now() });
     if (store.tries[k].length > 30) store.tries[k].shift();
   }
   dirty = true;
@@ -3846,6 +3917,7 @@ function unitStatus(u) {
   if (u.check.kind === 'u1') return !store.profile ? 'Start with Find your voice' : 'Now sing your first song';
   const one = c => { const t = unitTries(u, c), n = t.filter(x => x.s >= PERSIST).length; return checkPassed(u, c) ? 'passed ✓' : t.length ? `best ${unitBest(u, c)} · ${n} of ${PERSIST_TRIES} at ${PERSIST}+` : `score ${PASS}+, or ${PERSIST}+ three times`; };
   if (u.check2) return 'Scale: ' + one(u.check) + ' · Echo: ' + one(u.check2);
+  if (u.reflect && checkPassed(u, u.check) && !(store.reflection && store.reflection.text)) return 'Performed ✓ · now write what changed';
   const s1 = one(u.check); return s1.charAt(0).toUpperCase() + s1.slice(1);
 }
 // Old saves: earlier best scores count as one try each.
@@ -4234,6 +4306,7 @@ function renderProgress() {
     }
     t.appendChild(tb); c.appendChild(t); box.appendChild(c);
   }
+  if (store.reflection && store.reflection.text) { const rf = el('div', 'card'); rf.append(el('h3', '', 'Your showcase reflection'), el('p', '', '"' + store.reflection.text + '"'), el('span', 'muted', new Date(store.reflection.at).toLocaleDateString())); box.appendChild(rf); }
   // comfort this week
   const wk = weekKey(), cm = (store.comfort || {})[wk] || {}, prevK = Object.keys(store.comfort || {}).filter(k => k < wk).sort().pop(), prev = prevK ? store.comfort[prevK] : null;
   const cc = el('div', 'card'); cc.append(el('h3', '', 'How did singing feel this week?'), el('p', 'muted', '1 = hard work, 5 = easy and comfortable.'));

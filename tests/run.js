@@ -623,6 +623,52 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.screen === 'tour' && s.secs === "Your course|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
+  await test('Style tools: timing against the beat; breaths at the ʼ marks; each line shaped; Stage 4 checks use them', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'mary', score: 30, ok: 8, n: 26, at: 1, profile: { low: 45, high: 62 } }; store.tries = {}; save(); });
+    await tab(page, '#t-sing');
+    // a singer who can lag behind, breathe at the marks, and shape each line
+    await page.evaluate(() => {
+      window.SG = { lag: 0, breathe: true, shape: true };
+      setInterval(() => {
+        if (G.run !== 'singing' || !G.starts) { V.on = false; return; }
+        const e = now() - G.t0 - SG.lag; let i = 0; while (i < G.seq.length - 1 && G.starts[i + 1] <= e) i++;
+        const end = i < G.seq.length - 1 ? G.starts[i + 1] : 1e9;
+        V.on = e >= 0 && !(SG.breathe && G.seq[i].br && e > end - 0.22);
+        V.m = G.seq[i].m;
+        const ln = G.lines.find(([a, b]) => i >= a && i <= b) || [0, 1], pos = (i - ln[0]) / Math.max(1, ln[1] - ln[0]);
+        V.vol = SG.shape ? 0.25 + 0.75 * Math.sin(Math.PI * pos) : 1;
+      }, 15);
+    });
+    const sing = async (id, lag) => {
+      await page.evaluate(([id, lag]) => { $('#celebrate').hidden = true; SG.lag = lag; loadSong(SONGS.find(s => s.id === id)); G.tempo = 'slow'; }, [id, lag]);
+      await page.click('#btnSing');
+      await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(400);
+      return page.evaluate(() => { const st = runStats(); return { late: st.lateMs, tim: st.timingScore, br: st.breath, ph: st.phrase, score: st.score, marks: document.querySelectorAll('#staff .brm').length, stats: $('#report .report-top').textContent }; });
+    };
+    const marks = await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'jukebox')); return { drawn: document.querySelectorAll('#staff .brm').length, total: G.seq.filter(n => n.br).length }; });
+    const onTime = await sing('jukebox', 0);
+    const late = await sing('jukebox', 0.4);
+    const u10 = await page.evaluate(() => { const u = UNITS.find(x => x.id === 'u10'); return { tries: unitTries(u, u.check).map(x => x.s), lateCheck: checkScore(u.check, 49, { timing: 0 }) }; });
+    expect(marks.drawn >= 1 && marks.total >= 4 && onTime.late <= 150 && onTime.tim >= 80 && late.late >= 300 && late.tim < onTime.tim - 25 && onTime.br.taken >= onTime.br.marks - 1 && onTime.br.mid <= 1 && onTime.ph.shaped >= onTime.ph.lines - 1 && /Timing/.test(onTime.stats) && /Breaths/.test(onTime.stats) && u10.tries[0] >= 70 && u10.lateCheck < 30, JSON.stringify({ marks, onTime, late, u10 }));
+  });
+
+  await test('Showcase: after a full song, compare with your first song and write what changed; Unit 12 needs the reflection', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'mary', score: 30, ok: 8, n: 26, at: 1, profile: { low: 45, high: 62 } }; store.tries = {}; store.reflection = null; save(); });
+    await tab(page, '#t-sing');
+    await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'mary')); G.tempo = 'normal'; V.follow = true; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(500);
+    const panel = await page.evaluate(() => ({ on: !!$('#report [data-card="showcase"]'), rows: document.querySelectorAll('#report .showcase tbody tr').length }));
+    const u12 = await page.evaluate(() => { const u = UNITS.find(x => x.id === 'u12'); return { tries: unitTries(u, u.check).length, passedBefore: unitPassed(u), status: unitStatus(u) }; });
+    await page.evaluate(() => { $('#celebrate').hidden = true; });
+    await page.fill('#reflectText', 'My notes land where I aim them now.');
+    await page.click('#report >> text=Save my reflection');
+    const after = await page.evaluate(() => ({ saved: store.reflection && store.reflection.text, passed: unitPassed(UNITS.find(x => x.id === 'u12')) }));
+    expect(panel.on && panel.rows >= 3 && u12.tries === 1 && !u12.passedBefore && /write what changed/.test(u12.status) && after.saved && after.passed, JSON.stringify({ panel, u12, after }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
