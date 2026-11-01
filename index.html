@@ -330,7 +330,7 @@ details b { color: var(--ink); }
 .easy-steps .es.done { background: var(--good); color: var(--surface); font-weight: 700; }
 .easy-stars { font-size: 1.6rem; letter-spacing: 2px; min-height: 2rem; }
 .easy-stage { position: relative; background: var(--surface); border: 2px solid var(--line); border-radius: 22px; overflow: hidden; }
-#easyCanvas { display: block; width: 100%; height: min(52vh, 440px); }
+#easyCanvas { display: block; width: 100%; height: min(60vh, 560px); }
 .easy-face { position: absolute; right: 14px; top: 12px; font-size: 4rem; line-height: 1; transition: transform .15s; }
 .easy-face.good { filter: drop-shadow(0 0 12px var(--pure)); }
 .easy-face.pop { animation: ezpop .5s; }
@@ -695,7 +695,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · bird to nest</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · picture cues</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4331,18 +4331,19 @@ async function ezStart() {
   const k = ezStep().k, h = ezHome();
   Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0 });
   guideOff();
-  if (k === 'hello') { EZ.hello = []; EZ.tgt = null; $('#easyWords').textContent = '🎤 ooo…'; }
+  if (k === 'hello') { EZ.hello = []; EZ.tgt = null; $('#easyWords').textContent = ''; }
   if (k === 'match') { ezSetTarget(h); }
   if (k === 'updown') { EZ.seq = [h, h + 4, h, h + 4, h]; EZ.round = 0; ezSetTarget(EZ.seq[0]); }
   if (k === 'echo') { EZ.echo = { notes: [h, h + 2], phase: 'listen', i: 0, res: [] }; EZ.tgt = null; ezEchoPlay(); }
+  $('#easyWords').textContent = '';
   ezRender();
 }
-function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = '👂 🎤 🐦 → 🪺'; }
+function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); EZ.sungT = 0; playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = ''; }
 function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'); f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop'); ezRender(); }
 function ezEchoPlay() {
   const e = EZ.echo; e.phase = 'listen'; e.t0 = now();
   e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1));
-  $('#easyWords').textContent = '👂 ● ●';
+  $('#easyWords').textContent = '';
 }
 function ezNext() {
   guideOff();
@@ -4362,24 +4363,26 @@ function ezTick() {
   if (EZ.phase === 'run') {
     if (k === 'hello') {
       if (v != null) EZ.hello.push(S.rawM);
-      if (EZ.hello.length > 60 && !EZ.helloStar) { EZ.helloStar = true; ezStar(); }
-      if (t - EZ.t0 > 10 || EZ.hello.length > 160) { if (EZ.hello.length > 20) EZ.home = Math.round(pctl(EZ.hello, 0.5)); EZ.helloStar = false; EZ.phase = 'won'; $('#easyWords').textContent = '🎉'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); }
+      if (EZ.hello.length > 40 && !EZ.helloStar) { EZ.helloStar = true; ezStar(); }
+      if (EZ.hello.length > 75) { if (EZ.hello.length > 20) EZ.home = Math.round(pctl(EZ.hello, 0.5)); EZ.helloStar = false; EZ.phase = 'won'; $('#easyWords').textContent = '🎉'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); }
     }
     if ((k === 'match' || k === 'updown') && EZ.tgt != null) {
+      if (v != null) EZ.sungT = (EZ.sungT || 0) + 0.04;
       if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else guideLevel(1);
       const need = k === 'match' ? 2 : 1;
       if (EZ.inBand >= need) {
         ezStar();
         if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
         else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(EZ.seq[EZ.round]); }
-      } else if (t - EZ.tStart > 15) { // no rush, but move along kindly
+      } else if (EZ.sungT > 15) { // after plenty of singing without landing, move along kindly
         if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
         else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(EZ.seq[EZ.round]); }
       }
     }
     if (k === 'echo' && EZ.echo) {
       const e = EZ.echo, et = t - e.t0;
-      if (e.phase === 'listen' && et > e.notes.length * 1.1 + 0.4) { e.phase = 'sing'; e.t0 = t; e.i = 0; e.got = []; EZ.tgt = e.notes[0]; $('#easyWords').textContent = '🎤 ● ●'; }
+      if (e.phase === 'listen' && et > e.notes.length * 1.1 + 0.4) { e.phase = 'sing'; e.t0 = t; e.i = 0; e.got = []; e.wait = true; EZ.tgt = e.notes[0]; }
+      else if (e.phase === 'sing' && e.wait) { if (v != null) { e.wait = false; e.t0 = t; } } // the turn starts when they start singing
       else if (e.phase === 'sing') {
         EZ.tgt = e.notes[e.i];
         if (inb) e.got.push(1);
@@ -4405,20 +4408,20 @@ function ezDraw(v, inb) {
   // before a step starts: a little demonstration of the goal, with no words needed
   const st0 = ezStep();
   if (EZ.phase === 'ready' && st0 && st0.k !== 'hello' && st0.k !== 'song') {
-    const mid0 = ezHome(), span0 = 6, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
+    const mid0 = ezHome(), span0 = 4, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
     const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5;
     const prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
     x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
     for (let k = -span0; k <= span0; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y0(mid0 + k)); x.lineTo(w, Y0(mid0 + k)); x.stroke(); }
     x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(0, Y0(mid0 + 0.5), w, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
-    x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('🪺', w * 0.86, Y0(mid0));
     x.fillText('🐦', w * 0.1 + w * 0.7 * prog, Y0(mid0 + off));
     if (prog >= 1) { x.font = `${60 * d}px system-ui, sans-serif`; x.fillText('⭐', w * 0.86, Y0(mid0) - 60 * d); }
     const face = $('#easyFace'); face.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; face.className = 'easy-face' + (inside ? ' good' : ' off');
     return;
   }
-  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 6;
+  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 4;
   const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => w * 0.08 + (w * 0.72) * (1 - (t - tt) / 4);
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
   for (let k = -span; k <= span; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y(mid + k)); x.lineTo(w, Y(mid + k)); x.stroke(); }
@@ -4429,9 +4432,23 @@ function ezDraw(v, inb) {
     x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(0, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
   }
   const k0 = ezStep() && ezStep().k, nestGame = EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown' || k0 === 'echo');
+  // a picture cue in the open space: 👂 while the note plays, a pulsing 🎤 when it's your turn
+  const cueEar = EZ.phase === 'run' && ((EZ.tgt != null && (k0 === 'match' || k0 === 'updown') && now() - EZ.tStart < 1.5) || (k0 === 'echo' && EZ.echo && EZ.echo.phase === 'listen'));
+  const cueSing = EZ.phase === 'run' && !cueEar && v == null && k0 !== 'song';
+  if (cueEar || cueSing) {
+    const pulse = 1 + 0.12 * Math.sin(t * 5), cx = w * 0.5, cy = h * 0.22;
+    x.save(); x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `${72 * d * pulse}px system-ui, sans-serif`; x.fillText(cueEar ? '👂' : '🎤', cx, cy);
+    x.strokeStyle = C.accent; x.lineWidth = 4 * d; x.globalAlpha = 0.5;
+    for (let r = 0; r < 3; r++) { const rr = (60 + r * 22 + (t * 40) % 22) * d; x.beginPath(); x.arc(cx, cy, rr, cueEar ? -0.5 : -2.6, cueEar ? 0.5 : -0.5); x.stroke(); }
+    x.globalAlpha = 1;
+    if (cueSing) { x.font = `${34 * d}px system-ui, sans-serif`; for (let n = 0; n < 3; n++) { const ph = ((t * 0.6 + n / 3) % 1); x.globalAlpha = 1 - ph; x.fillText('🎵', cx + (n - 1) * 70 * d, cy - 40 * d - ph * 60 * d); } x.globalAlpha = 1; }
+    if (k0 === 'echo' && EZ.echo) { x.font = `${40 * d}px system-ui, sans-serif`; const n2 = EZ.echo.notes.length; for (let j = 0; j < n2; j++) { const lit = EZ.echo.phase === 'listen' ? Math.floor((now() - EZ.echo.t0) / 1.1) === j : EZ.echo.i === j; x.globalAlpha = lit ? 1 : 0.35; x.fillText('●', cx + (j - (n2 - 1) / 2) * 60 * d, cy + 70 * d); } x.globalAlpha = 1; }
+    x.restore();
+  }
   if (nestGame) {
     const need = k0 === 'match' ? 2 : 1, prog = k0 === 'echo' ? Math.min(1, ((EZ.echo && EZ.echo.got) || []).length / 8) : Math.min(1, EZ.inBand / need);
-    x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('🪺', w * 0.86, Y(EZ.tgt));
     const bx = w * 0.1 + w * 0.7 * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + 80 * d);
     if (v != null) EZ.lastBy = by;
@@ -4440,7 +4457,7 @@ function ezDraw(v, inb) {
   }
   const pts = EZ.trail;
   if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
-  if (v != null) { x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), Y(Math.max(mid - span, Math.min(mid + span, v)))); }
+  if (v != null) { x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), Y(Math.max(mid - span, Math.min(mid + span, v)))); }
 }
 function ezSongPick() {
   $('#easyWords').textContent = '🎵 ?';
