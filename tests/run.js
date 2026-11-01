@@ -439,6 +439,23 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(/gentle/i.test(s.title) && s.items === 1 && s.safety, JSON.stringify(s));
   });
 
+  await test('Easter egg: a singer named TedY-137 (or close) can open and skip every unit', async page => {
+    const names = await page.evaluate(() => ['TedY-137', 'tedy 137', 'TEDY137', 'Ted Y-137', 'TedY-138', 'Tedy137!', 'Ted', 'Singer 1', 'Teddy'].map(n => { users.names[users.active] = n; return n + '=' + isTester(); }));
+    const want = 'TedY-137=true,tedy 137=true,TEDY137=true,Ted Y-137=true,TedY-138=true,Tedy137!=true,Ted=false,Singer 1=false,Teddy=false';
+    expect(names.join() === want, names.join());
+    await page.evaluate(() => { users.names[users.active] = 'Singer 1'; store.devPass = []; applyLevel(); });
+    const off = await page.evaluate(() => ({ open: UNITS.filter(unitOpen).length, tools: !!document.querySelector('.tester') }));
+    await page.evaluate(() => { users.names[users.active] = 'TedY-137'; applyLevel(); openUnit(UNITS[0]); });
+    await page.click('.tester-row >> text=Mark passed');
+    const after = await page.evaluate(() => ({ title: $('.unit-card h2').textContent, u1: unitPassed(UNITS[0]), open: UNITS.filter(unitOpen).length }));
+    await page.evaluate(() => { unitView = null; renderPath(); });
+    await page.click('.tester >> text=Mark all passed');
+    const all = await page.evaluate(() => ({ passed: UNITS.filter(unitPassed).length, cel: $('#celebrate').hidden }));
+    await page.evaluate(() => { users.names[users.active] = 'Singer 1'; applyLevel(); });
+    const back = await page.evaluate(() => UNITS.filter(unitPassed).length);
+    expect(off.open === 1 && !off.tools && after.title === 'Posture & breath' && after.u1 && after.open === 13 && all.passed === 13 && all.cel && back === 0, JSON.stringify({ off, after, all, back }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
