@@ -615,6 +615,14 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.topFit >= 0.6 && r.pickFit >= r.topFit - 0.1 && /already sing well/.test(r.card) && r.stars >= 1 && r.stars <= 5 && r.bg.m === 61 && !r.bg.measured && /Tenor/.test(r.tip) && /E4–G4/.test(r.tip) && /A♯2 to C♯4/.test(r.lip) && /E3/.test(r.hum), JSON.stringify(r));
   });
 
+  await test("What's inside: the whole app from Home, later parts greyed with when they open", async page => {
+    await page.click('#btnTour');
+    const s = await page.evaluate(() => ({ screen: document.body.dataset.screen, secs: [...document.querySelectorAll('.tour-sec h3')].map(h => h.textContent).join('|'), labs: document.querySelectorAll('.tour-row[data-item^="lab-"]').length, total: LAB.length, lockedLab: $('.tour-row[data-item="lab-vowels"]').classList.contains('locked') && $('.tour-row[data-item="lab-vowels"] button').disabled, lockTxt: $('.tour-row[data-item="lab-vowels"]').textContent }));
+    await page.click('.tour-row[data-item="lab-match"] button');
+    const opened = await page.evaluate(() => D.id);
+    expect(s.screen === 'tour' && s.secs === "Your course|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

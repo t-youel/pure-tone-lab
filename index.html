@@ -313,6 +313,14 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.tour-box { display: grid; gap: 12px; }
+.tour-sec { display: grid; gap: 6px; }
+.tour-head { display: flex; align-items: center; gap: 10px; }
+.tour-ic { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); font-size: 1rem; }
+.tour-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding: 8px 0; }
+.tour-txt { display: grid; min-width: 0; }
+.tour-row.locked .tour-txt { opacity: .55; }
+.home-foot { justify-content: center; flex-wrap: wrap; }
 .type-tip { border-left: 3px solid var(--accent); padding-left: 10px; max-width: 62ch; }
 .songs button.fit-star { border-color: var(--pure); }
 .ctl-group { display: inline-flex; align-items: center; gap: 4px; }
@@ -458,7 +466,7 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .ses-card .row button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .ses-safety { font-size: .9rem; border-left: 3px solid var(--warn); padding-left: 10px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
-body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live, body[data-screen="progress"] .live { display: none !important; }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live, body[data-screen="progress"] .live, body[data-screen="tour"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
 .vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
@@ -635,6 +643,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">Sing songs</button>
   <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
   <button role="tab" id="t-progress" aria-selected="false" data-tab="progress">Progress</button>
+  <button role="tab" id="t-tour" aria-selected="false" data-tab="tour">What's inside</button>
 </nav>
 
 <!-- HOME -->
@@ -642,8 +651,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="home-head"><h2 id="homeTitle">Let's find your voice</h2><p id="homeSub" class="muted">Four steps, one at a time. Start with number 1.</p></div>
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
-  <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · personal fit</p>
+  <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · what's inside</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -760,6 +769,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 <!-- MY VOICE -->
+<section class="panel" id="tab-tour" hidden><div id="tourBox" class="tour-box"></div></section>
+
 <section class="panel" id="tab-progress" hidden><div id="progBox" class="prog-box"></div></section>
 
 <section class="panel" id="tab-voice" hidden>
@@ -4121,6 +4132,67 @@ function traceSVG(c) {
 }
 const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); return y + '-W' + String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7)).padStart(2, '0'); };
 let storeArmed = null;
+// ---------- What's inside: the whole app at a glance ----------
+// Everything Pure Tone Lab offers, in one place. Parts that open later are shown greyed, with when they open.
+function renderTour() {
+  const box = $('#tourBox'); if (!box) return; box.textContent = '';
+  const p = store.profile, lv = level(), u = currentUnit();
+  const go = (fn) => () => { fn(); };
+  const sec = (icon, title, sub, items) => {
+    const c = el('div', 'card tour-sec'); const h = el('div', 'tour-head'); h.append(el('span', 'tour-ic', icon), el('h3', '', title)); c.appendChild(h);
+    if (sub) c.appendChild(el('p', 'muted', sub));
+    for (const it of items) {
+      const row = el('div', 'tour-row' + (it.lock ? ' locked' : '')); if (it.id) row.dataset.item = it.id;
+      const t = el('div', 'tour-txt'); t.append(el('b', '', it.title), el('span', 'muted', it.lock ? it.lock : it.desc)); row.appendChild(t);
+      const b = el('button', 'small', it.lock ? '🔒' : it.btn || 'Open'); b.disabled = !!it.lock; if (!it.lock && it.fn) b.onclick = it.fn;
+      if (it.lock) b.setAttribute('aria-label', 'Locked: ' + it.lock);
+      row.appendChild(b); c.appendChild(row);
+    }
+    box.appendChild(c);
+  };
+  const needVoice = p ? null : 'Opens after Find your voice';
+  const head = el('div', 'card tour-intro'); head.append(el('h2', '', 'What\'s inside Pure Tone Lab'), el('p', 'muted', 'Everything the app offers. Greyed parts open as you move along your path, so each step builds on the last.'));
+  box.appendChild(head);
+  sec('🧭', 'Your course', '4 stages, 12 units and a checkpoint. Each unit: Experience it, Name it, Practise it.', [
+    { id: 'path', title: 'Your path', desc: UNITS.filter(unitPassed).length + ' of ' + UNITS.length + ' done · now: ' + unitLabel(u) + ' · ' + u.title, fn: () => { unitView = null; $('#t-path').click(); } },
+    ...STAGES.map(st => { const us = UNITS.filter(x => x.stage === st.n), open = us.some(unitOpen); return { id: 'stage' + st.n, title: 'Stage ' + st.n + ' · ' + st.title, desc: us.map(x => x.title).join(' · '), lock: open ? null : 'Opens when you finish Stage ' + (st.n - 1), fn: () => openUnit(us.find(unitOpen) || us[0]) }; }),
+  ]);
+  sec('▶', 'Today\'s session', 'About 11 minutes that run by themselves: warm-up, skill, song and a quick ear game.', [
+    { id: 'session', title: 'Start today\'s session', desc: 'With a voice check-in first. A scratchy voice gets a gentle day.', lock: needVoice, fn: () => { $('#t-home').click(); sesOffer(); } },
+  ]);
+  const groups = [['Rock & roll', x => x.rock], ['Folk & blues', x => x.folk], ['Hymns', x => x.hymn], ['Solfège', x => x.solfa && !x.lab], ['Classics', x => !x.lab && !x.rock && !x.folk && !x.hymn && !x.solfa && x.id !== 'gen']];
+  sec('♪', 'Songs', 'Words and notes on the staff, played for you, and scored as you sing. Your best songs use notes you already sing well.', [
+    ...groups.map(([g, f]) => { const list = SONGS.filter(f); return { id: 'songs-' + g, title: g, desc: list.map(x => x.name).join(' · '), fn: () => { $('#t-sing').click(); loadSong(list[0]); } }; }),
+    { id: 'gen', title: 'A new melody from your pure notes', desc: 'The app composes a tune from the notes you sing best.', fn: () => { $('#t-sing').click(); $('#btnGen').click(); } },
+  ]);
+  sec('🧪', 'Exercises', 'Short drills, each measured live and each telling you one thing to change.', LAB.map(L => {
+    const at = LAB_LEVEL[L.id] || 1;
+    return { id: 'lab-' + L.id, title: L.title, desc: L.blurb, lock: lv < at ? 'Opens in Stage ' + at : null, fn: () => { openLab(L.id, true); $('#t-lab').click(); } };
+  }));
+  sec('🎤', 'Your voice', null, [
+    { id: 'range', title: 'Find your voice', desc: 'Range, voice type, famous voices like yours, and songs that fit.', fn: () => { openLab('range', true); $('#t-lab').click(); ensureListening(); } },
+    { id: 'profile', title: 'Voice profile and voice map', desc: 'Your range, home note, and how each note you sing sounds.', lock: needVoice, fn: () => $('#t-voice').click() },
+  ]);
+  sec('📈', 'Progress', null, [
+    { id: 'progress', title: 'You vs your starting point', desc: 'Range, scores, comfort ratings, and your recordings with keep, delete and storage controls.', fn: () => $('#t-progress').click() },
+  ]);
+  const toSing = () => $('#t-sing').click();
+  sec('🛠', 'Singing tools', 'On the Sing screen, for every song.', [
+    { id: 't-listen', title: '▶ Listen', desc: 'Hear the tune on a warm tone with soft chords, with the words lighting up.', fn: toSing },
+    { id: 't-pipe', title: 'Pitch pipe', desc: 'The first note, the way choir directors give it.', fn: toSing },
+    { id: 't-coach', title: '🛟 Coach', desc: 'A safety net: sing along, echo a few notes, then build up to full speed.', fn: toSing },
+    { id: 't-note', title: '🎵 Note on', desc: 'Keeps each note playing while you sing; the app still hears only you.', fn: toSing },
+    { id: 't-key', title: 'Key picker and Any octave', desc: 'Move a song to the key that suits your voice, with ⓘ help.', fn: toSing },
+    { id: 't-tempo', title: 'Tempo and metronome', desc: 'Very slow to Normal, with a click track and a count-in.', fn: toSing },
+  ]);
+  sec('⚙', 'Settings', null, [
+    { id: 'singers', title: 'Singers', desc: 'Up to three singers on this device, each with their own progress.', fn: () => { $('#t-home').click(); setTimeout(() => $('#btnUser').click(), 50); } },
+    { id: 'storage', title: 'Recordings and storage', desc: 'Record on or off, auto-delete, and space used.', fn: () => { $('#t-progress').click(); setTimeout(() => { const s2 = document.querySelector('[data-card="storage"]'); if (s2) s2.scrollIntoView(); }, 50); } },
+    { id: 'reset', title: 'Start over', desc: 'Reset this singer\'s progress, with undo.', fn: () => $('#t-home').click() },
+  ]);
+}
+$('#btnTour').onclick = () => $('#t-tour').click();
+
 function renderProgress() {
   const box = $('#progBox'); if (!box) return; box.textContent = '';
   const btn = (label, cls, fn) => { const b = el('button', cls, label); b.onclick = fn; return b; };
@@ -4421,11 +4493,12 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'start') renderGuide();
   if (tab === 'path') renderPath();
   if (tab === 'progress') renderProgress();
+  if (tab === 'tour') renderTour();
   if (tab === 'home') renderHome();
-  const scr = { home: 'home', path: 'path', progress: 'progress', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
+  const scr = { home: 'home', path: 'path', progress: 'progress', tour: 'tour', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
   document.body.dataset.screen = scr;
   $('#backBar').hidden = scr === 'home';
-  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', progress: 'Your progress', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
+  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', progress: 'Your progress', tour: 'What\'s inside', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
   window.scrollTo(0, 0);
 };
 $('#btnWarm').onclick = () => openLab('warmup', true);
