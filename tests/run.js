@@ -676,6 +676,18 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(panel.on && panel.rows >= 3 && u12.tries === 1 && !u12.passedBefore && /write what changed/.test(u12.status) && after.saved && after.passed, JSON.stringify({ panel, u12, after }));
   });
 
+  await test('the screen stays awake while singing and lets go afterwards', async page => {
+    const r = await page.evaluate(async () => {
+      const log = []; let held = null;
+      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { log.push('on'); held = { listeners: [], addEventListener(e, f) { this.listeners.push(f); }, release: async () => { log.push('off'); } }; return held; } } });
+      await keepAwake(); const idle = log.length;
+      setMode('mic', 'test'); await keepAwake(); const on = !!WAKE.lock;
+      setMode('idle', ''); await keepAwake();
+      return { idle, on, log: log.join(), after: WAKE.lock };
+    });
+    expect(r.idle === 0 && r.on && r.log === 'on,off' && r.after === null, JSON.stringify(r));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

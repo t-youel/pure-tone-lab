@@ -661,7 +661,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · signs under notes</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · screen stays on</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4623,6 +4623,19 @@ goStep(Math.min(guide.step, STEPS.length));
 G.metro = !(store.settings && store.settings.metro === false); $('#btnMetro').setAttribute('aria-pressed', G.metro);
 seedTries();
 pruneClips().catch(() => {});
+// Keep the screen awake while you're singing: during a session, with the mic on, or while a song plays.
+// The lock lets go when you're done, and is taken again if you leave the app and come back.
+const WAKE = { lock: null, busy: false };
+async function keepAwake() {
+  const want = document.visibilityState === 'visible' && (SES.on || mode === 'mic' || !!playback);
+  if (!('wakeLock' in navigator) || WAKE.busy) return;
+  try {
+    if (want && !WAKE.lock) { WAKE.busy = true; WAKE.lock = await navigator.wakeLock.request('screen'); WAKE.lock.addEventListener('release', () => { WAKE.lock = null; }); }
+    else if (!want && WAKE.lock) { const l = WAKE.lock; WAKE.lock = null; await l.release(); }
+  } catch (e) { WAKE.lock = null; } finally { WAKE.busy = false; }
+}
+setInterval(keepAwake, 2000);
+document.addEventListener('visibilitychange', keepAwake);
 applyLevel();
 checkLevel(true);
 document.body.dataset.screen = 'home';
