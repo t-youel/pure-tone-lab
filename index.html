@@ -331,10 +331,10 @@ details b { color: var(--ink); }
 .easy-stars { font-size: 1.6rem; letter-spacing: 2px; min-height: 2rem; }
 .easy-stage { position: relative; background: var(--surface); border: 2px solid var(--line); border-radius: 22px; overflow: hidden; }
 #easyCanvas { display: block; width: 100%; height: min(52vh, 440px); }
-.easy-face { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 4.5rem; line-height: 1; transition: transform .15s; }
+.easy-face { position: absolute; right: 14px; top: 12px; font-size: 4rem; line-height: 1; transition: transform .15s; }
 .easy-face.good { filter: drop-shadow(0 0 12px var(--pure)); }
 .easy-face.pop { animation: ezpop .5s; }
-@keyframes ezpop { 50% { transform: translateY(-50%) scale(1.4); } }
+@keyframes ezpop { 50% { transform: scale(1.4); } }
 @media (prefers-reduced-motion: reduce) { .easy-face.pop { animation: none; } }
 .easy-pic { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7rem; pointer-events: none; }
 .easy-words { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; font: 700 2rem/1.2 var(--display); text-align: center; min-height: 2.6rem; }
@@ -695,7 +695,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · First Notes</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · bird to nest</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4320,7 +4320,7 @@ function ezRender() {
   if (EZ.phase === 'done') return ezDone();
   $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? s0.icon : '';
   if (EZ.phase === 'ready') {
-    $('#easyWords').textContent = s0.k === 'hello' ? s0.name : s0.name + ': 🐦 → ▬';
+    $('#easyWords').textContent = s0.k === 'hello' ? s0.name : '🐦 → 🪺';
     if (s0.k === 'song') return ezSongPick();
     ezBtns([['▶', 'Start', () => ezStart(), true], ['⏭', 'Skip', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
   } else ezBtns([['🔁', 'Again', () => ezStart()], ['⏭', 'Next', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
@@ -4337,7 +4337,7 @@ async function ezStart() {
   if (k === 'echo') { EZ.echo = { notes: [h, h + 2], phase: 'listen', i: 0, res: [] }; EZ.tgt = null; ezEchoPlay(); }
   ezRender();
 }
-function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = '👂 → 🎤'; }
+function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = '👂 🎤 🐦 → 🪺'; }
 function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'); f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop'); ezRender(); }
 function ezEchoPlay() {
   const e = EZ.echo; e.phase = 'listen'; e.t0 = now();
@@ -4406,13 +4406,15 @@ function ezDraw(v, inb) {
   const st0 = ezStep();
   if (EZ.phase === 'ready' && st0 && st0.k !== 'hello' && st0.k !== 'song') {
     const mid0 = ezHome(), span0 = 6, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
-    const ph = (t % 5) / 5, off = ph < 0.7 ? 3 * Math.cos(ph * 9) * (1 - ph / 0.7) : 0, inside = Math.abs(off) <= 0.5;
+    const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5;
+    const prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
     x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
     for (let k = -span0; k <= span0; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y0(mid0 + k)); x.lineTo(w, Y0(mid0 + k)); x.stroke(); }
     x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(0, Y0(mid0 + 0.5), w, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
     x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('🐦', w * 0.5, Y0(mid0 + off));
-    if (inside) { x.fillText('⭐', w * 0.5 + 60 * d, Y0(mid0) - 40 * d); }
+    x.fillText('🪺', w * 0.86, Y0(mid0));
+    x.fillText('🐦', w * 0.1 + w * 0.7 * prog, Y0(mid0 + off));
+    if (prog >= 1) { x.font = `${60 * d}px system-ui, sans-serif`; x.fillText('⭐', w * 0.86, Y0(mid0) - 60 * d); }
     const face = $('#easyFace'); face.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; face.className = 'easy-face' + (inside ? ' good' : ' off');
     return;
   }
@@ -4425,6 +4427,16 @@ function ezDraw(v, inb) {
     x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
     const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(0, y1, w, y2 - y1, r) : x.rect(0, y1, w, y2 - y1); x.fill(); x.globalAlpha = 1;
     x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(0, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
+  }
+  const k0 = ezStep() && ezStep().k, nestGame = EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown' || k0 === 'echo');
+  if (nestGame) {
+    const need = k0 === 'match' ? 2 : 1, prog = k0 === 'echo' ? Math.min(1, ((EZ.echo && EZ.echo.got) || []).length / 8) : Math.min(1, EZ.inBand / need);
+    x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('🪺', w * 0.86, Y(EZ.tgt));
+    const bx = w * 0.1 + w * 0.7 * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + 80 * d);
+    if (v != null) EZ.lastBy = by;
+    x.globalAlpha = v != null ? 1 : 0.4; x.fillText('🐦', bx, by); x.globalAlpha = 1;
+    return;
   }
   const pts = EZ.trail;
   if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
