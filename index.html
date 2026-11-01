@@ -755,7 +755,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <div class="row sing-controls">
       <button id="btnSing" class="primary small">▶ Sing</button>
       <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
-      <button id="btnVoice" class="small" title="Hear a synthetic voice sing the song, words and all">🎤 Hear it sung</button>
+      <button id="btnVoice" class="small" title="Hear the tune played on a warm tone, with soft chords">🎹 Hear it played</button>
       <button id="btnRef" class="small">Starting note</button>
       <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
       <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
@@ -1963,64 +1963,56 @@ function stopPlayback(quiet) {
   if (!playback) return;
   playback.timers.forEach(clearTimeout); playback.oscs.forEach(o => { try { o.stop(); } catch (e) {} });
   playback = null; G.play = -1; refUntil = 0;
-  $('#btnListen').textContent = '▶ Listen first'; $('#btnVoice').textContent = '🎤 Hear it sung';
+  $('#btnListen').textContent = '▶ Listen first'; $('#btnVoice').textContent = '🎹 Hear it played';
   if (!quiet) renderSing();
 }
-// ---------- a synthetic singer ----------
-// A bright buzzy source (like vocal folds) through three resonances (formants) per vowel, with vibrato.
-// It sings each syllable's vowel and a hint of its first consonant. All Web Audio, so the mic keeps working.
-const FORMANTS = { // male F1, F2, F3 (Hz); a female voice scales them up
-  ah: [730, 1090, 2440], ae: [660, 1720, 2410], eh: [530, 1840, 2480], ee: [270, 2290, 3010], ih: [390, 1990, 2550],
-  oh: [570, 840, 2410], oo: [300, 870, 2240], uh: [640, 1190, 2390], er: [490, 1350, 1690], mm: [250, 1000, 2200] };
-// syllable spelling → [vowel, glide-to vowel or null]
-function vowelOf(w) {
-  const x = (w || '').toLowerCase().replace(/[^a-z']/g, '');
-  if (!x) return ['ah', null];
-  const SOLFA = { do: 'oh', re: 'eh>ee', mi: 'ee', fa: 'ah', so: 'oh', sol: 'oh', la: 'ah', ti: 'ee', you: 'oo' };
-  if (SOLFA[x]) { const [a, b] = SOLFA[x].split('>'); return [a, b || null]; }
-  const R = [[/^m+$|^hm+$|^mm/, 'mm'], [/u[^aeiou]e$|^you/, 'oo'], [/ay|ai|ei(?!r)/, 'eh>ee'], [/wa(?![yi])|qua/, 'ah'], [/igh|^i$|^i'|ie$|y$(?<!ly|ry|py|ty|ny|dy|ky|sy|vy|by)|[^aeiou][i][^aeiou]e$/, 'ah>ee'], [/ay|ai|ei|a[^aeiou]e$/, 'eh>ee'],
-    [/ow|ou(?!r)(?!ld)/, 'ah>oo'], [/oy|oi/, 'oh>ee'], [/ee|ea|ie|ey$|(?:l|r|p|t|n|d|k|s|v|b)y$/, 'ee'], [/oo|ue|ew|^you|^do$|^to$|o$(?<=wh?o)/, 'oo'],
-    [/er|ir|ur|or$(?<=w.r)/, 'er'], [/ar/, 'ah'], [/or|oa|o[^aeiou]e$|o$/, 'oh'], [/a(?=ll|w|lk)/, 'oh'], [/a/, 'ae'], [/e/, 'eh'], [/i/, 'ih'], [/u/, 'uh'], [/o/, 'ah']];
-  for (const [re, v] of R) if (re.test(x)) { const [a, b] = v.split('>'); return [a, b || null]; }
-  return ['uh', null];
-}
-const UNVOICED = /^(sh|ch|th|s|f|h|t|k|p|c(?=[^eiy]))/;
-let noiseBuf = null;
-function sungNote(midi, dur, word, when, female, vowelHint) {
-  const t = ac.currentTime + 0.03 + when, f0 = m2f(midi), k = female ? 1.17 : 1;
-  const [v1, v2] = vowelHint || vowelOf(word);
-  const src = ac.createOscillator();
-  src.setPeriodicWave(makeWave(Array.from({ length: 40 }, (_, i) => 1 / Math.pow(i + 1, 1.1))));
-  src.frequency.setValueAtTime(f0, t);
-  // vibrato eases in after the start of a longer note
-  const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5.3; lg.gain.setValueAtTime(0, t);
-  if (dur > 0.45) lg.gain.linearRampToValueAtTime(f0 * 0.014, t + Math.min(0.6, dur * 0.5));
-  lfo.connect(lg); lg.connect(src.frequency);
-  const env = ac.createGain(), end = t + dur;
-  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(1, t + 0.05); env.gain.setValueAtTime(1, Math.max(t + 0.06, end - 0.07)); env.gain.linearRampToValueAtTime(0, end);
-  const nodes = [src, lfo];
-  [1, 0.5, 0.28].forEach((amp, j) => {
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass';
-    const F = FORMANTS[v1][j] * k; bp.frequency.setValueAtTime(F, t); bp.Q.value = F / [80, 100, 140][j];
-    if (v2) bp.frequency.setTargetAtTime(FORMANTS[v2][j] * k, t + dur * 0.55, dur * 0.12);
-    const g = ac.createGain(); g.gain.value = amp * (v1 === 'mm' && j ? 0.15 : 1);
-    src.connect(bp); bp.connect(g); g.connect(env);
-  });
-  env.connect(toneOut);
-  // a short breath of noise for s, sh, t, k, f, h…
-  const cons = (word || '').toLowerCase().match(UNVOICED);
-  if (cons) {
-    if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-    const n = ac.createBufferSource(), hp = ac.createBiquadFilter(), ng = ac.createGain(), c = cons[1];
-    n.buffer = noiseBuf; hp.type = /s|sh|ch/.test(c) ? 'highpass' : 'bandpass'; hp.frequency.value = /sh|ch/.test(c) ? 2500 : c === 's' ? 4500 : 1800;
-    const len = /s|sh|ch|f|th|h/.test(c) ? 0.07 : 0.025;
-    ng.gain.setValueAtTime(0.5, t - 0.01); ng.gain.linearRampToValueAtTime(0, t + len);
-    n.connect(hp); hp.connect(ng); ng.connect(toneOut); n.start(t - 0.01); n.stop(t + len + 0.02); nodes.push(n);
+// ---------- the backing: a warm melody tone over soft chords ----------
+// The melody is a mellow, flute-like tone (two slightly detuned voices, gentle vibrato, rounded top end).
+// Underneath, quiet sustained chords follow the tune, picked from the song's own key.
+function playedNote(midi, dur, when) {
+  const t = ac.currentTime + 0.03 + when, f0 = m2f(midi), end = t + dur, nodes = [];
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = Math.min(9000, Math.max(1600, f0 * 5)); lp.Q.value = 0.5;
+  const env = ac.createGain();
+  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(0.5, t + 0.045); env.gain.linearRampToValueAtTime(0.4, t + 0.25);
+  env.gain.setValueAtTime(0.4, Math.max(t + 0.26, end - 0.12)); env.gain.linearRampToValueAtTime(0, end);
+  const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5; lg.gain.setValueAtTime(0, t);
+  if (dur > 0.5) lg.gain.linearRampToValueAtTime(f0 * 0.004, t + Math.min(0.7, dur * 0.6));
+  lfo.connect(lg);
+  for (const [det, amp] of [[0, 1], [3, 0.35]]) {
+    const o = ac.createOscillator(); o.setPeriodicWave(makeWave([1, 0.32, 0.12, 0.05, 0.02])); o.frequency.value = f0; o.detune.value = det;
+    lg.connect(o.frequency);
+    const g = ac.createGain(); g.gain.value = amp; o.connect(g); g.connect(lp);
+    o.start(t); o.stop(end + 0.05); nodes.push(o);
   }
-  src.start(t); lfo.start(t); src.stop(end + 0.03); lfo.stop(end + 0.03);
+  lp.connect(env); env.connect(toneOut); lfo.start(t); lfo.stop(end + 0.05); nodes.push(lfo);
   return { stop() { nodes.forEach(o => { try { o.stop(); } catch (e) {} }); } };
 }
-function femaleVoice() { const p = store.profile; return p ? !/Bass|Baritone|Tenor/.test(p.type) : G.seq.reduce((a, n) => a + n.m, 0) / G.seq.length >= 60; }
+// Chords for each stretch of about two beats: the chord from the key that covers most of the melody there.
+function chordPlan(seq, beat, doMidi) {
+  const offs = seq.map(n => ((n.m - doMidi) % 12 + 12) % 12), minor = offs.includes(3) && !offs.includes(4);
+  const CH = minor ? [[0, 3, 7], [5, 8, 0], [7, 11, 2], [8, 0, 3], [10, 2, 5], [7, 10, 2]] : [[0, 4, 7], [5, 9, 0], [7, 11, 2], [9, 0, 4], [2, 5, 9]];
+  const out = []; let i = 0, t = 0, prev = 0;
+  while (i < seq.length) {
+    let win = 0; const w = {}; const t0 = t;
+    while (i < seq.length && (win < 2 || win === 0)) { const pc = offs[i]; w[pc] = (w[pc] || 0) + seq[i].b; win += seq[i].b; t += seq[i].b * beat; i++; }
+    let best = 0, bs = -1;
+    CH.forEach((c, k) => { let sc = c.reduce((a, pc) => a + (w[pc] || 0), 0) + (k === prev ? 0.25 : 0) + (k === 0 ? 0.2 : 0); if (sc > bs) { bs = sc; best = k; } });
+    // end on the home chord
+    if (i >= seq.length && (w[0] || 0) > 0) best = 0;
+    out.push({ t: t0, dur: t - t0, pcs: CH[best], k: best }); prev = best;
+  }
+  return out;
+}
+function padChord(pcs, start, dur, base) {
+  const t = ac.currentTime + 0.03 + start, end = t + dur + 0.25, nodes = [];
+  for (const pc of pcs) {
+    const m = base + ((pc - base) % 12 + 12) % 12;
+    const o = ac.createOscillator(); o.setPeriodicWave(makeWave([1, 0.18, 0.06])); o.frequency.value = m2f(m);
+    const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.18); g.gain.setValueAtTime(0.07, Math.max(t + 0.2, end - 0.3)); g.gain.linearRampToValueAtTime(0, end);
+    o.connect(g); g.connect(toneOut); o.start(t); o.stop(end + 0.05); nodes.push(o);
+  }
+  return { stop() { nodes.forEach(o => { try { o.stop(); } catch (e) {} }); } };
+}
 async function singSong() { await listenFirst(null, true); }
 
 async function listenFirst(then, sung) {
@@ -2029,9 +2021,12 @@ async function listenFirst(then, sung) {
   if (G.run === 'singing' || G.run === 'countin') return;
   const beat = beatSec(); let t = 0.15;
   playback = { timers: [], oscs: [], sung: !!sung };
-  const fem = femaleVoice(); let last = null;
+  if (sung) {
+    let base = G.shift; while (base > 52) base -= 12; while (base < 40) base += 12;
+    for (const c of chordPlan(G.seq, beat, G.shift)) playback.oscs.push(padChord(c.pcs, t + c.t, c.dur, base));
+  }
   G.seq.forEach((n, i) => {
-    if (sung) { const v = n.cont && last ? last : vowelOf(n.w); last = v; playback.oscs.push(sungNote(n.m, n.b * beat * 0.97, n.cont ? '' : n.w, t, fem, v)); }
+    if (sung) playback.oscs.push(playedNote(n.m, n.b * beat * 0.95, t));
     else playback.oscs.push(playTone(n.m, n.b * beat * 0.94, PURE, t));
     playback.timers.push(setTimeout(() => { G.play = i; drawStaff(); showTarget(i); $('#tgtHint').textContent = 'Listen and follow the words'; $('#tgtHint').className = 'hint'; }, t * 1000));
     t += n.b * beat;
@@ -3483,7 +3478,7 @@ function unitPage(u, btn) {
   if (unitStep === 0) {
     body.append(el('p', 'unit-lead', 'First, just hear it and try it. No rules yet.'));
     const r = el('div', 'row');
-    if (u.song) r.appendChild(btn('🎤 Hear ' + songName(u.song) + ' sung', 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
+    if (u.song) r.appendChild(btn('🎹 Hear ' + songName(u.song) + ' played', 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
     if (u.check.lab) r.appendChild(btn('Try the exercise', u.song ? 'small' : 'primary', () => startUnitCheck(u)));
     if (u.check.kind === 'u1' && !store.profile) r.appendChild(btn('Find your voice →', 'primary', () => startUnitCheck(u)));
     if (!r.children.length) r.appendChild(btn('Pick a song and listen', 'primary', () => singSongId(null)));

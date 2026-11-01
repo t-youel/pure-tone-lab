@@ -330,18 +330,21 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.overtones >= 1 && s.vol >= 1.5 && s.guide >= 2, JSON.stringify(s));
   });
 
-  await test('Hear it sung: a synthetic voice sings the song in tune, following the words', async page => {
-    const v = await page.evaluate(() => ['Do', 'Mi', 'saints', 'light', 'you', 'street', 'day', 'mm'].map(w => vowelOf(w).filter(Boolean).join('>')));
-    expect(v.join() === 'oh,ee,eh>ee,ah>ee,oo,ee,eh>ee,mm', 'vowels: ' + v.join());
-    const pitch = await page.evaluate(async () => { await ensureAudio(); toneVol.connect(analyser); setMode('file', 't'); sungNote(57, 1.6, 'saints', 0, false); await new Promise(r => setTimeout(r, 900)); const o = { v: S.voiced, m: S.midi }; toneVol.disconnect(analyser); setMode('idle', ''); return o; });
-    expect(pitch.v && Math.abs(pitch.m - 57) < 0.3, 'sung pitch ' + JSON.stringify(pitch));
+  await test('Hear it played: a warm melody tone in tune, over soft chords that fit the key', async page => {
+    const pitch = await page.evaluate(async () => { await ensureAudio(); toneVol.connect(analyser); setMode('file', 't'); playedNote(57, 1.6, 0); await new Promise(r => setTimeout(r, 900)); const o = { v: S.voiced, m: S.midi }; toneVol.disconnect(analyser); setMode('idle', ''); return o; });
+    expect(pitch.v && Math.abs(pitch.m - 57) < 0.25, 'played pitch ' + JSON.stringify(pitch));
+    const ch = await page.evaluate(() => {
+      const plan = id => { const song = SONGS.find(s => s.id === id); loadSong(song); return chordPlan(G.seq, 0.6, G.shift).map(c => c.k); };
+      return { saints: plan('saints'), sun: plan('risingsun') };
+    });
+    expect(ch.saints[0] === 0 && ch.saints[ch.saints.length - 1] === 0 && new Set(ch.saints).size >= 2 && ch.sun[ch.sun.length - 1] === 0, JSON.stringify(ch));
     await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => loadSong(SONGS.find(s => s.id === 'saints')));
     await page.click('#btnVoice'); await page.waitForTimeout(2500);
-    const mid = await page.evaluate(() => ({ sung: playback && playback.sung, play: G.play, label: $('#btnVoice').textContent }));
+    const mid = await page.evaluate(() => ({ on: playback && playback.sung, play: G.play, label: $('#btnVoice').textContent }));
     await page.click('#btnVoice');
     const end = await page.evaluate(() => ({ pb: !!playback, label: $('#btnVoice').textContent }));
-    expect(mid.sung && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && /Hear it sung/.test(end.label), JSON.stringify({ mid, end }));
+    expect(mid.on && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && /Hear it played/.test(end.label), JSON.stringify({ mid, end }));
   });
 
   await test('Path: a unit passes with 70, or with three tries of 50+; two tries of 50+ are not enough', async page => {
