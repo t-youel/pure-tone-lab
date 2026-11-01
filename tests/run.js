@@ -583,6 +583,18 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.echo >= 70 && !r.afterEcho && r.both, JSON.stringify(r));
   });
 
+  await test('ⓘ help: Any octave explained; the key picker suggests a centered key and switches to it', async page => {
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; save(); $('#t-sing').click(); loadSong(SONGS.find(s => s.id === 'johnhenry')); G.shift += 5; loadSong(G.song, true); });
+    await page.click('#infoOct');
+    const oct = await page.evaluate(() => ({ open: !$('#infoSheet').hidden, txt: $('#infoCard').textContent }));
+    await page.click('#infoCard >> text=Got it');
+    await page.click('#infoKey');
+    const kp = await page.evaluate(() => { const { best } = keyOptions(); return { rows: document.querySelectorAll('.key-row').length, best: best.k, bestRow: !!document.querySelector('.key-row.best'), center: (best.low + best.high) / 2 }; });
+    await page.click('.key-row.best >> text=Use');
+    const after = await page.evaluate(() => ({ shift: G.shift, closed: $('#infoSheet').hidden, label: $('#keyTxt').textContent }));
+    expect(oct.open && /octave/.test(oct.txt) && /in tune/.test(oct.txt) && kp.rows >= 3 && kp.bestRow && Math.abs(kp.center - 53) <= 1.5 && after.shift === kp.best && after.closed && /Do = /.test(after.label), JSON.stringify({ oct: oct.open, kp, after }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

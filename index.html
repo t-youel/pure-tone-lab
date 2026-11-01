@@ -313,6 +313,15 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.ctl-group { display: inline-flex; align-items: center; gap: 4px; }
+.info-i { width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); background: var(--surface); font: italic 700 .9rem Georgia, 'Times New Roman', serif; display: inline-grid; place-items: center; }
+#keyTxt { cursor: pointer; min-height: 0; padding: 3px 8px; border: none; border-bottom: 1.5px dashed var(--accent); border-radius: 4px; background: none; color: var(--ink); min-width: 6.5em; }
+.info-card { max-height: calc(100% - 32px); overflow-y: auto; }
+.key-list { display: grid; gap: 8px; }
+.key-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.key-row.best { border-color: var(--pure); }
+.key-row.cur { border: 2px solid var(--accent); }
+.key-txt { display: grid; gap: 3px; min-width: 0; flex: 1 1 200px; }
 .siren-svg { width: 100%; max-width: 420px; height: 90px; }
 .prog-box { display: grid; gap: 12px; }
 .prog-box .card { display: grid; gap: 10px; }
@@ -632,7 +641,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · tone tools</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · key picker</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -792,11 +801,13 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
-      <button data-min="2" id="kDown" class="small" aria-label="Transpose down a semitone">−</button>
-      <span data-min="2" id="keyTxt" class="keybox">—</span>
-      <button data-min="2" id="kUp" class="small" aria-label="Transpose up a semitone">+</button>
-      <button data-min="2" id="kAuto" class="small" title="Move the song into your best range">Fit</button>
-      <label data-min="2" class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
+      <span class="ctl-group"><button id="kDown" class="small" aria-label="Key down a semitone">−</button>
+      <button id="keyTxt" class="keybox" title="Pick a key for your voice">—</button>
+      <button id="kUp" class="small" aria-label="Key up a semitone">+</button>
+      <button id="kAuto" class="small" title="Move the song into your best range">Fit</button>
+      <button id="infoKey" class="info-i" aria-label="What is a key, and which one should I pick?">i</button></span>
+      <span class="ctl-group"><label class="toggle"><input type="checkbox" id="octFree" checked><span class="switch"></span>Any octave</label>
+      <button id="infoOct" class="info-i" aria-label="What does Any octave mean?">i</button></span>
     </div>
     <div class="coach-bar" id="coachBar" hidden></div>
     <div class="sing-main">
@@ -823,6 +834,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 </div>
+<div id="infoSheet" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="infoTitle"><div class="cel-card ses-card info-card" id="infoCard"></div></div>
 <div id="sesSheet" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="sesTitle"><div class="cel-card ses-card" id="sesCard"></div></div>
 <div id="celebrate" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="celTitle">
   <div class="cel-card"><div class="cel-burst">✦</div><h2 id="celTitle"></h2><p id="celText"></p><p id="celNew"></p>
@@ -2333,7 +2345,63 @@ function renderReport() {
 }
 $('#kUp').onclick = () => { G.shift++; loadSong(G.song, true); };
 $('#kDown').onclick = () => { G.shift--; loadSong(G.song, true); };
-$('#kAuto').onclick = () => loadSong(G.song);
+$('#kAuto').onclick = () => { loadSong(G.song); toast('Key: Do = ' + pcOf(G.shift) + ', the best fit for your voice'); };
+// ---------- help: Any octave and picking a key ----------
+function infoSheet(title, nodes) {
+  const c = $('#infoCard'); c.textContent = '';
+  const h = el('h2', '', title); h.id = 'infoTitle';
+  const close = el('button', 'primary', 'Got it'); close.onclick = () => { $('#infoSheet').hidden = true; };
+  c.append(h, ...nodes, close); $('#infoSheet').hidden = false; close.focus();
+}
+$('#infoSheet').onclick = e => { if (e.target.id === 'infoSheet') $('#infoSheet').hidden = true; };
+$('#infoOct').onclick = () => infoSheet('Any octave', [
+  el('p', '', 'The same note name repeats every 8 white keys: a low C, a middle C, a high C. That distance is an octave. Notes an octave apart sound like "the same note, higher or lower".'),
+  el('p', '', 'Men usually sing songs an octave lower than women and children, and that is still singing in tune. The staff shows this with a small 8 under the clef ("sung an octave lower than written").'),
+  el('p', 'unit-cue', 'On (recommended): sing in whatever octave is comfortable. The app counts it as in tune.'),
+  el('p', 'muted', 'Off: the app wants the exact octave shown. Useful when singing with others in unison, or to stretch your range on purpose.'),
+]);
+// candidate keys for this song, scored by how much of it sits in your comfortable range
+function keyOptions() {
+  const p = store.profile, z = labZone(), comfy = p ? [p.zlo, p.zhi] : [z.lo, z.hi], full = p ? [p.low, p.high] : [z.lo - 3, z.hi + 3];
+  const offs = G.song.notes.map(n => n[0]), beats = G.song.notes.map(n => n[1]), tot = beats.reduce((a, b) => a + b, 0), lo = Math.min(...offs), hi = Math.max(...offs);
+  const out = [];
+  for (let k = full[0] - lo - 4; k <= full[1] - hi + 4; k++) {
+    const comf = offs.reduce((a, o, i) => a + (o + k >= comfy[0] && o + k <= comfy[1] ? beats[i] : 0), 0) / tot;
+    const fits = lo + k >= full[0] && hi + k <= full[1];
+    out.push({ k, comf, fits, low: lo + k, high: hi + k, off: Math.abs((lo + hi) / 2 + k - (comfy[0] + comfy[1]) / 2) });
+  }
+  // most comfortable first; among equals, the key that sits nearest the middle of your comfortable range
+  out.sort((a, b) => (b.fits - a.fits) || (Math.round(b.comf * 20) - Math.round(a.comf * 20)) || (a.off - b.off));
+  return { list: out, best: out[0], hasProfile: !!p };
+}
+function keyPicker() {
+  const { list, best, hasProfile } = keyOptions(), cur = list.find(o => o.k === G.shift) || { k: G.shift, comf: 0, low: Math.min(...G.seq.map(n => n.m)), high: Math.max(...G.seq.map(n => n.m)) };
+  const rows = [best, ...list.filter(o => o !== best && o.fits).slice(0, 4)];
+  if (!rows.includes(list.find(o => o.k === G.shift))) rows.push(cur);
+  rows.sort((a, b) => a.k - b.k);
+  const box = el('div', 'key-list');
+  for (const o of rows) {
+    const r = el('div', 'key-row' + (o.k === G.shift ? ' cur' : '') + (o === best ? ' best' : '')); r.dataset.k = o.k;
+    const t = el('div', 'key-txt');
+    t.append(el('b', '', 'Do = ' + pcOf(o.k) + (o === best ? '  ★ Best fit' : '') + (o.k === G.shift ? '  · now' : '')),
+      el('span', 'muted mono', nameOf(o.low) + ' – ' + nameOf(o.high) + ' · ' + Math.round(o.comf * 100) + '% comfortable' + (o.fits === false ? ' · outside your range' : '')));
+    const bar = el('div', 'path-prog'); const f = el('i'); f.style.width = Math.round(o.comf * 100) + '%'; bar.appendChild(f); t.appendChild(bar);
+    const hear = el('button', 'small', '▶ Top note'); hear.onclick = async () => { await ensureAudio(); playTone(o.high, 1.5, PIPE); };
+    const use = el('button', o.k === G.shift ? 'small' : 'primary small', o.k === G.shift ? 'Chosen' : 'Use'); use.disabled = o.k === G.shift;
+    use.onclick = () => { G.shift = o.k; loadSong(G.song, true); $('#infoSheet').hidden = true; toast('Key: Do = ' + pcOf(o.k)); };
+    const a = el('div', 'row'); a.append(hear, use); r.append(t, a); box.appendChild(r);
+  }
+  const nodes = [
+    el('p', '', 'A key is how high or low the whole song sits. Changing the key moves every note by the same amount, so the tune stays exactly the same, just higher or lower.'),
+    el('p', 'muted', '"Do = ' + pcOf(G.shift) + '" means the song\'s home note, Do, is ' + pcOf(G.shift) + '. − and + move it a half step (semitone). Fit picks the best key for you.'),
+    el('p', 'unit-cue', 'Pick the key where the top note feels easy, not strained. Tap ▶ Top note and try singing it.'),
+  ];
+  if (!hasProfile) { const b = el('button', 'small', 'Find your voice first →'); b.onclick = () => { $('#infoSheet').hidden = true; startUnitCheck(UNITS[0]); }; nodes.push(el('p', 'muted', 'These suggestions use the notes the app has heard so far. Find your voice for a better match.'), b); }
+  nodes.push(box);
+  infoSheet('Pick a key for ' + G.song.name, nodes);
+}
+$('#infoKey').onclick = keyPicker;
+$('#keyTxt').onclick = keyPicker;
 function myTimbre(m) {
   if (!store.discoveries.length) return null;
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
