@@ -696,7 +696,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · contents at top</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · First Notes flows</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4332,6 +4332,7 @@ function easyOpen() {
   if (!$('#easyCanvas')) return;
   EZ.on = true; EZ.i = 0; EZ.stars = 0; EZ.total = 0; EZ.inTune = 0; EZ.voiced = 0; EZ.phase = 'ready'; EZ.home = null;
   clearInterval(EZ.iv); EZ.iv = setInterval(ezTick, 40);
+  if (mode === 'idle') startMic().catch(() => {});
   ezRender();
 }
 function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); }
@@ -4348,12 +4349,14 @@ function ezRender() {
   if (EZ.phase === 'done') return ezDone();
   $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? s0.icon : '';
   if (EZ.phase === 'ready') {
+    if (!EZ.readyAt || EZ.readyStep !== EZ.i) { EZ.readyAt = now(); EZ.readyStep = EZ.i; }
     $('#easyWords').textContent = s0.k === 'hello' ? s0.name : '🐦 → 🪺';
     if (s0.k === 'song') return ezSongPick();
     ezBtns([['▶', 'Start', () => ezStart(), true], ['⏭', 'Skip', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
   } else ezBtns([['🔁', 'Again', () => ezStart()], ['⏭', 'Next', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
 }
 async function ezStart() {
+  if (EZ.starting) return; EZ.starting = true; setTimeout(() => { EZ.starting = false; }, 300);
   if (mode === 'idle') await startMic(); if (mode === 'idle') return;
   await ensureAudio();
   const k = ezStep().k, h = ezHome();
@@ -4374,7 +4377,7 @@ function ezEchoPlay() {
   $('#easyWords').textContent = '';
 }
 function ezNext() {
-  guideOff();
+  guideOff(); EZ.readyAt = 0;
   if (EZ.phase === 'run' || EZ.phase === 'won') EZ.total++;
   EZ.i++; EZ.phase = EZ.i >= EASY_STEPS.length ? 'done' : 'ready';
   ezRender();
@@ -4384,6 +4387,11 @@ function ezVoice(target) { if (S.rawM == null) return null; let m = S.rawM; if (
 function ezTick() {
   if (!EZ.on) return;
   const k = ezStep() && ezStep().k, t = now();
+  if (EZ.phase === 'ready' && k && mode !== 'idle' && EZ.readyAt) {
+    const waited = t - EZ.readyAt, heard = S.rawM != null && waited > 1;
+    if (k === 'song') { if (waited > 7 || heard) { const n = Object.keys((store.easy || {}).days || {}).length; ezSongStart(EASY_SONGS[n % EASY_SONGS.length]); } }
+    else if (waited > (k === 'hello' ? 2 : 4) || heard) ezStart();
+  }
   const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
   if (v != null) EZ.trail.push({ t, m: v }); while (EZ.trail.length && EZ.trail[0].t < t - 4) EZ.trail.shift();
   const off = v != null && EZ.tgt != null ? (v - EZ.tgt) * 100 : null, inb = off != null && Math.abs(off) <= EZ_TOL;
@@ -4497,6 +4505,7 @@ function ezSongPick() {
   const sk = el('button', 'easy-btn'); sk.append(el('span', 'ei', '⏭'), el('span', 'el', 'Skip')); sk.onclick = () => ezNext(); b.appendChild(sk);
 }
 async function ezSongStart(sg) {
+  if (EZ.phase === 'run') return;
   if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
   const h = ezHome(), toks = sg.words.split(/\s+/).filter(x => x && x !== '/');
   EZ.song = { sg, notes: sg.notes.map(([o, b], i) => ({ m: h - 2 + o, b, w: toks[i] || '' })), beat: 1.0, t0: now() + 1.6, res: [] };

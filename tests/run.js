@@ -688,22 +688,18 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.idle === 0 && r.on && r.log === 'on,off' && r.after === null, JSON.stringify(r));
   });
 
-  await test('First Notes: five big, picture-led steps with stars; a simple song; a garden of days', async page => {
+  await test('First Notes: five big, picture-led steps that flow on their own, with stars; a simple song; a garden of days', async page => {
     await voice(page);
     await page.click('#homeCards [data-card="easy"] button');
     const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, steps: document.querySelectorAll('#easySteps .es').length, btn: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join() }));
     // a singer who follows whatever the band asks for
     await page.evaluate(() => { setInterval(() => { const k = ezStep() && ezStep().k; V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
-    for (const k of ['hello', 'match', 'updown', 'echo']) {
-      await page.waitForFunction(k => ezStep() && ezStep().k === k && EZ.phase === 'ready', k, { timeout: 30000 });
-      await page.click('#easyBtns >> text=Start');
-    }
-    await page.waitForFunction(() => ezStep() && ezStep().k === 'song' && EZ.phase === 'ready', null, { timeout: 40000 });
+    // no taps needed: each step demonstrates itself, then starts; the song is picked automatically
+    await page.waitForFunction(() => ezStep() && ezStep().k === 'song', null, { timeout: 90000 });
     const mid = await page.evaluate(() => ({ stars: EZ.stars, home: EZ.home, songs: document.querySelectorAll('#easyBtns .easy-btn.song').length }));
-    await page.click('#easyBtns >> text=Up and Down');
-    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 40000 });
+    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 60000 });
     const end = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], garden: document.querySelectorAll('.ez-day').length, again: !!document.querySelector('#easyBtns [aria-label="Again"]') }));
-    expect(open.screen === 'easy' && open.steps === 5 && /Start/.test(open.btn) && mid.stars >= 9 && mid.songs === 3 && end.stars > mid.stars && end.day.best >= 60 && end.garden === 1 && end.again, JSON.stringify({ open, mid, end }));
+    expect(open.screen === 'easy' && open.steps === 5 && /Start/.test(open.btn) && mid.stars >= 9 && end.stars > mid.stars && end.day.best >= 60 && end.garden === 1 && end.again, JSON.stringify({ open, mid, end }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
