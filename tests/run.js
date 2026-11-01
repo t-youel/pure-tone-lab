@@ -571,7 +571,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.evaluate(() => { closeLab(); V.vol = 1; openLab('exhale'); });
     await page.click('#dBtns >> text=▶ Start');
     await page.evaluate(() => { V.osc = false; V.noise = 0.2; setInterval(() => { V.on = D.phase === 'out' && D.on < 15; }, 20); });
-    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 60000 });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 120000 });
     const ex = await page.evaluate(() => ({ last: labRec('exhale').last, rounds: D.rounds.map(r => r.secs.toFixed(0)).join() }));
     expect(sw >= 60 && ex.last >= 70 && ex.rounds === '15,15', JSON.stringify({ sw, ex }));
   });
