@@ -466,22 +466,29 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(off.open === 1 && !off.tools && after.title === 'Posture & breath' && after.u1 && after.open === 13 && all.passed === 13 && all.cel && back === 1, JSON.stringify({ off, after, all, back }));
   });
 
-  await test('Solfège: hand signs light up the syllable being sung; patterns and Climb the Ladder line up', async page => {
+  await test('Solfège: hand signs under each note (toggle, ⓘ guide); patterns and Climb the Ladder line up; metronome ticks during Listen', async page => {
     await setLevel(page, 1); await tab(page, '#t-sing');
     const r = await page.evaluate(() => {
       const out = {};
       for (const id of ['patterns', 'ladder', 'doremi']) { loadSong(SONGS.find(s => s.id === id)); out[id] = G.seq.length === G.seq.filter(x => x.w).length; }
       loadSong(SONGS.find(s => s.id === 'doremi'));
       const lit = [];
-      for (let i = 0; i < 8; i++) { G.idx = i; drawStaff(); lit.push($('#signs .sgl.on')?.textContent); }
-      out.lit = lit.join(' '); out.signs = document.querySelectorAll('#signs .sg').length; out.shown = !$('#signs').hidden;
-      loadSong(SONGS.find(s => s.id === 'saints')); out.hiddenRock = $('#signs').hidden;
+      for (let i = 0; i < 8; i++) { G.idx = i; drawStaff(); const on = $('#staff .sg.on'); lit.push(on ? SIGN_NAME[signIndex(G.seq[i].m)] : '-'); }
+      out.lit = lit.join(' '); out.signs = document.querySelectorAll('#staff .sg').length; out.shown = out.signs === 8 && $('#signs').hidden;
+      loadSong(SONGS.find(s => s.id === 'saints')); out.hiddenRock = !document.querySelector('#staff .sg');
+      $('#btnSigns').click(); out.rockOn = !!document.querySelector('#staff .sg') && store.settings.signs === true;
+      $('#btnSigns').click(); out.rockOff = !document.querySelector('#staff .sg');
       out.u4 = UNITS[3].song + '/' + UNITS[3].extra; out.lab = !!LAB.find(x => x.id === 'patterns');
       return out;
     });
-    expect(r.patterns && r.ladder && r.doremi && r.lit === 'Do Re Mi Fa So La Ti Do' && r.signs === 8 && r.shown && r.hiddenRock && r.u4 === 'ladder/patterns' && r.lab, JSON.stringify(r));
-    await page.evaluate(() => openLab('patterns'));
-    expect(await page.evaluate(() => D.id === 'patterns' && G.song.id === 'patterns' && !$('#signs').hidden), 'patterns lab did not open with signs');
+    expect(r.patterns && r.ladder && r.doremi && r.lit === 'Do Re Mi Fa So La Ti Do' && r.signs === 8 && r.shown && r.hiddenRock && r.rockOn && r.rockOff && r.u4 === 'ladder/patterns' && r.lab, JSON.stringify(r));
+    await page.evaluate(() => { delete store.settings.signs; openLab('patterns'); });
+    expect(await page.evaluate(() => D.id === 'patterns' && G.song.id === 'patterns' && !!document.querySelector('#staff .sg')), 'patterns lab did not open with signs');
+    await page.click('#infoSigns');
+    expect(await page.evaluate(() => !$('#infoSheet').hidden && document.querySelectorAll('#infoCard .sign-list li').length === 8 && document.querySelectorAll('#infoCard .sg').length === 8), 'hand-sign guide');
+    // the metronome ticks while Listen plays
+    const ticks = await page.evaluate(async () => { $('#infoSheet').hidden = true; await ensureAudio(); G.metro = true; loadSong(SONGS.find(s => s.id === 'ladder')); await listenFirst(); const n = G.ticks.length; stopPlayback(); return { n, after: G.ticks.length }; });
+    expect(ticks.n >= 10 && ticks.after === 0, 'metronome during Listen ' + JSON.stringify(ticks));
   });
 
   await test('Recordings: a sung song is saved on the device with its pitch trace; first and best are kept', async page => {

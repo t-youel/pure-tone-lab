@@ -316,6 +316,12 @@ details b { color: var(--ink); }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
 .showcase { display: grid; gap: 8px; border: 2px solid var(--pure); }
 .reflect { width: 100%; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.staff .sg rect { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.staff .sg .ln { fill: none; stroke: var(--muted); stroke-width: 1; }
+.staff .sg.on rect { fill: color-mix(in srgb, var(--accent) 22%, var(--surface)); stroke: var(--accent); stroke-width: 2; }
+.staff .sg.on .ln { stroke: var(--accent); }
+#btnSigns[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.sign-list { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -655,7 +661,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · style tools</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · signs under notes</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -814,6 +820,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <button id="btnRef" class="small" title="Hear the first note, the way singers and choir directors do with a pitch pipe">Pitch pipe</button>
       <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
       <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
+      <span class="ctl-group"><button id="btnSigns" class="small" aria-pressed="false" title="Show the solfège hand sign under each note">✋ Signs</button><button id="infoSigns" class="info-i" aria-label="Learn the hand signs">i</button></span>
       <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
       <button id="btnMetro" class="small" aria-pressed="false">♩ Metronome</button><span class="beat-dot" id="beatDot" aria-hidden="true"></span>
       <span class="sep"></span>
@@ -1661,7 +1668,7 @@ function renderSing() {
   const hint = $('#tgtHint');
   if (done) { hint.textContent = 'Finished!'; hint.className = 'hint ok'; }
   else if (G.run === 'ready') { hint.textContent = 'Tap ▶ Sing. A count of 3, then the notes move along.'; hint.className = 'hint'; }
-  renderCoach(); renderGuideBtn();
+  renderCoach(); renderGuideBtn(); renderSignsBtn();
   $('#btnSing').textContent = G.run === 'countin' || G.run === 'singing' || G.run === 'echo' ? '■ Stop' : done ? '▶ Sing again' : '▶ Sing';
   const onp = G.res.filter(r => r && (r.status === 'pure' || r.status === 'ok')).length;
   $('#tgtScore').textContent = G.run === 'singing' ? `Note ${G.idx + 1} of ${len} · ${onp} on pitch so far` : done ? '' : 'Try ' + (G.attempt + 1) + ' · ' + len + ' notes';
@@ -2006,8 +2013,14 @@ function signSVG(k) {
   }
   return '';
 }
+// Hand signs show under each note: on by default for solfège songs, and for any song when you switch them on.
+function signsOn() { const v = store.settings && store.settings.signs; return v === true || (v !== false && !!(G.song && G.song.solfa)); }
+function signIndex(m) { const off = m - G.shift; return off === 12 ? 7 : SIGN_DEG.indexOf(((off % 12) + 12) % 12); }
+function renderSignsBtn() { const b = $('#btnSigns'); if (b) { b.setAttribute('aria-pressed', signsOn()); b.textContent = signsOn() ? '✋ Signs on' : '✋ Signs off'; } }
 function drawSigns() {
+  renderSignsBtn();
   const box = $('#signs'); if (!box) return;
+  box.hidden = true; return; // the signs now sit under the notes; the strip below is kept for the ⓘ guide
   const on = !!(G.song && G.song.solfa); box.hidden = !on; if (!on) return;
   const i = G.play >= 0 ? G.play : Math.min(G.idx, G.seq.length - 1), n = G.seq[i];
   let cur = -1;
@@ -2028,7 +2041,7 @@ function drawStaff() {
   const Y = st => 80 - (st - 30) * 5;
   const xs = []; let x = 58 + ks * 10 + 18;
   for (let i = a; i <= b; i++) { xs.push(x); x += 44 + Math.min(G.seq[i].b, 3) * 8; }
-  const W = Math.max(x + 6, 420), H = 150, out = [];
+  const showSigns = signsOn(), W = Math.max(x + 6, 420), H = showSigns ? 192 : 150, out = [];
   for (let k = 0; k < 5; k++) out.push(`<line class="ln" x1="4" x2="${W - 4}" y1="${40 + k * 10}" y2="${40 + k * 10}"/>`);
   out.push(`<line class="ln" x1="${W - 4}" x2="${W - 4}" y1="40" y2="80"/>`);
   out.push(`<text class="glyph" x="6" y="84" font-size="62">𝄞</text>`);
@@ -2058,6 +2071,7 @@ function drawStaff() {
     g.push(`<text class="lyr" x="${cx}" y="128">${lyr.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`);
     if (n.br && !G.song.lab) g.push(`<text class="brm" x="${cx + 26}" y="34">ʼ</text>`);
     g.push(`<text class="nn" x="${cx}" y="144">${nameOf(n.m)}</text>`);
+    if (showSigns) { const k = signIndex(n.m); if (k >= 0) g.push(`<g class="sg${i === cur ? ' on' : ''}" transform="translate(${cx} 172) scale(0.95)">${signSVG(k)}</g>`); }
     out.push(`<g class="${cls}" fill="currentColor">${g.join('')}</g>`);
   }
   G.geo = G.idx >= a && G.idx <= b ? { cx: xs[G.idx - a], tonic, sig } : null;
@@ -2074,6 +2088,7 @@ let playback = null;
 function stopPlayback(quiet) {
   guideOff();
   if (!playback) return;
+  stopTicks();
   playback.timers.forEach(clearTimeout); playback.oscs.forEach(o => { try { o.stop(); } catch (e) {} });
   playback = null; G.play = -1; refUntil = 0;
   $('#btnListen').textContent = '▶ Listen';
@@ -2145,6 +2160,8 @@ async function listenFirst(then) {
     playback.timers.push(setTimeout(() => { G.play = i; drawStaff(); showTarget(i); $('#tgtHint').textContent = 'Listen and follow the words'; $('#tgtHint').className = 'hint'; }, t * 1000));
     t += n.b * beat;
   });
+  // the metronome ticks along with Listen too
+  if (G.metro) { stopTicks(); for (let k = 0; 0.15 + k * beat < t - 0.05; k++) click(0.15 + k * beat, k % 4 === 0); }
   playback.timers.push(setTimeout(() => { stopPlayback(); if (typeof then === 'function') then(); else toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
   $('#btnListen').textContent = '■ Stop';
 }
@@ -2457,6 +2474,19 @@ function keyPicker() {
   infoSheet('Pick a key for ' + G.song.name, nodes);
 }
 $('#infoKey').onclick = keyPicker;
+$('#btnSigns').onclick = () => { if (!store.settings) store.settings = {}; store.settings.signs = !signsOn(); dirty = true; save(); drawStaff(); toast(signsOn() ? 'Hand signs on: make each shape as you sing its note' : 'Hand signs off'); };
+// the ⓘ guide: all eight signs, at rising heights, with how to make each one
+$('#infoSigns').onclick = () => {
+  const W = 90, H = 190, out = [];
+  SIGN_DEG.forEach((d, k) => { const cx = k * W + W / 2, cy = H - 44 - k * 13; out.push(`<g class="sg" transform="translate(${cx} ${cy}) scale(1.6)">${signSVG(k)}</g><text x="${cx}" y="${H - 4}" text-anchor="middle" class="sgl">${SIGN_NAME[k]}</text>`); });
+  const pic = el('div', 'signs'); pic.innerHTML = `<svg viewBox="0 0 ${W * 8} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The eight hand signs, rising from low Do to high Do">${out.join('')}</svg>`;
+  const list = el('ul', 'sign-list'); SIGN_NAME.forEach((nm, k) => { const li = el('li'); li.append(el('b', '', nm + (k === 7 ? ' (high)' : '')), document.createTextNode(': ' + SIGN_HOW[k])); list.appendChild(li); });
+  infoSheet('Hand signs', [
+    el('p', '', 'Each scale note has a hand shape, held higher as the notes go up. Make the shape as you sing the note: your hand helps your ear find it.'),
+    pic, list,
+    el('p', 'muted', 'Fa points down because it tends to fall to Mi; Ti points up because it pulls up to Do. Do is a fist, home. Turn them on for any song with ✋ Signs.'),
+  ]);
+};
 $('#keyTxt').onclick = keyPicker;
 function myTimbre(m) {
   if (!store.discoveries.length) return null;
