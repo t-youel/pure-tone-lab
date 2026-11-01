@@ -23,6 +23,10 @@ Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a g
 your path, and a song that fits your voice. Units 7–12 use their song as the skill check until their own
 measuring drills are built.
 
+**Solfège:** Do-Re-Mi songs and exercises show the Curwen hand signs, drawn at rising heights, with the current
+syllable lit up. *Climb the Ladder* is an original solfège song written for the app, and *Solfège patterns* drills
+steps, skips and turn-arounds (Unit 4 and 5 point to both).
+
 The songs are traditional (When the Saints), public-domain hymns, folk melodies with new verses, and originals
 written for the app; copyrighted hits are not included.
 

@@ -313,6 +313,15 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.signs { display: grid; gap: 2px; }
+.signs svg { width: 100%; max-height: 170px; }
+.signs .sg rect { fill: var(--surface); stroke: var(--muted); stroke-width: 1.6; }
+.signs .sg .ln { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.signs .sg.on rect { fill: color-mix(in srgb, var(--accent) 22%, var(--surface)); stroke: var(--accent); stroke-width: 2.4; }
+.signs .sg.on .ln { stroke: var(--accent); }
+.signs .sgl { font: 600 15px var(--mono); fill: var(--muted); }
+.signs .sgl.on { fill: var(--accent); font-weight: 700; }
+.sg-how { text-align: center; font-size: .85rem; color: var(--muted); }
 .tester { display: grid; gap: 6px; border: 2px dashed var(--pure); }
 .tester-row { border: 1px dashed var(--pure); border-radius: 10px; padding: 6px; }
 .unit-steps button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -603,7 +612,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · one Listen button, pitch pipe</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · hand signs, solfège</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -771,6 +780,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <div class="sing-main">
       <div class="sheet">
         <div class="staff" id="staff" role="img" aria-label="Sheet music for the current line"></div>
+        <div class="signs" id="signs" hidden role="img" aria-label="Solfège hand signs"></div>
         <div class="line-nav"><span class="legend-s"><span class="k-pure">✦ pure</span><span class="k-ok">● on pitch</span><span class="k-off">↑↓ low / high</span><span>○ missed</span></span><span><span id="lineTxt"></span> · <span id="clefTxt"></span><span id="songKind" hidden></span></span></div>
         <div class="report" id="report" hidden></div>
       </div>
@@ -1510,7 +1520,8 @@ document.addEventListener('click', e => { const m = $('#userMenu'); if (!m.hidde
 // Offsets are semitones from the tonic, then length in beats. All public-domain tunes.
 const SONGS = [
   { id: 'check', lab: true, name: 'Quick voice check', kind: '20-second check', check: true, words: 'Do Mi So Do So Mi Do mm', notes: [[0,3],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3],[0,4]] },
-  { id: 'doremi', lab: true, name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, words: 'Do Re Mi Fa So La Ti Do', notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
+  { id: 'doremi', lab: true, solfa: true, name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, words: 'Do Re Mi Fa So La Ti Do', notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
+  { id: 'patterns', lab: true, solfa: true, name: 'Solfège patterns', kind: 'Ear training', words: 'Do Re Mi Re Do / Do Mi So Mi Do / So Fa Mi Re Do / Do So Mi Do / Do Re Mi Fa So Fa Mi Re Do / So La So Mi Do / Do Mi So Do So Mi Do', notes: [[0,1],[2,1],[4,1],[2,1],[0,2],[0,1],[4,1],[7,1],[4,1],[0,2],[7,1],[5,1],[4,1],[2,1],[0,2],[0,1],[7,1],[4,1],[0,2],[0,1],[2,1],[4,1],[5,1],[7,1],[5,1],[4,1],[2,1],[0,2],[7,1],[9,1],[7,1],[4,1],[0,2],[0,1],[4,1],[7,1],[12,1],[7,1],[4,1],[0,2]] },
   { id: 'hum', lab: true, name: 'Five-note hum', kind: 'Warm-up', words: 'mm mm mm mm mm mm mm mm mm', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
   { id: 'arp', lab: true, name: 'Major arpeggio', kind: 'Warm-up', words: 'ah ah ah ah ah ah ah', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
   { id: 'saints', rock: true, name: 'When the Saints Go Marching In', kind: 'Rock & roll · traditional, a hit for Fats Domino', words: 'Oh when the saints go march- ing in, / oh when the saints go march- ing in, / oh Lord, I want to be in that num- ber, / when the saints go march- ing in.', notes: [[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,2],[4,2],[0,2],[4,2],[2,4],[4,1],[4,1],[2,1],[0,3],[0,1],[4,1],[7,2],[7,1],[7,1],[5,4],[4,1],[5,1],[7,2],[4,2],[0,2],[2,2],[0,4]] },
@@ -1524,6 +1535,7 @@ const SONGS = [
   { id: 'joy', hymn: true, name: 'Joy to the World', kind: 'Hymn · words Isaac Watts, 1719', words: "Joy to the world, the Lord is come! / Let earth re- ceive her King; / let ev- 'ry heart pre- pare him room, / and heav'n and na- ture _ _ sing, / and heav'n, and heav'n, and na- ture _ sing.", notes: [[12,2],[11,1.5],[9,0.5],[7,3],[5,1],[4,2],[2,2],[0,3],[7,1],[9,3],[9,1],[11,3],[11,1],[12,4],[12,1],[12,1],[11,1],[9,1],[7,1.5],[7,0.5],[5,1],[4,1],[12,1],[12,1],[11,1],[9,1],[7,1.5],[7,0.5],[5,1],[4,2],[12,1],[9,1],[7,1.5],[5,0.5],[4,1],[5,1],[4,2],[2,2],[0,4]] },
   { id: 'jesusloves', hymn: true, name: 'Jesus Loves Me', kind: 'Hymn · words Anna Warner, 1860', words: "Je- sus loves me, this I know, / for the Bi- ble tells me so. / Lit- tle ones to him be- long; / they are weak, but he is strong. / Yes, Je- sus loves me! / Yes, Je- sus loves me! / Yes, Je- sus loves me! / The Bi- ble tells me so.", notes: [[7,1],[4,1],[4,1],[2,1],[4,1],[7,1],[7,2],[9,1],[9,1],[12,1],[9,1],[9,1],[7,1],[7,2],[7,1],[4,1],[4,1],[2,1],[4,1],[7,1],[7,2],[7,1],[7,1],[4,1],[2,1],[0,1],[2,1],[0,2],[7,2],[4,1],[7,1],[9,1],[12,3],[12,2],[9,1],[7,1],[4,1],[7,3],[7,2],[4,1],[7,1],[9,1],[12,3],[9,1],[7,1],[0,1],[4,1],[2,1],[0,3]] },
   { id: 'michael', hymn: true, name: 'Michael, Row the Boat Ashore', kind: 'Spiritual · Slave Songs of the United States, 1867', words: "Mi- chael, row the boat a- shore, Hal- le- lu- jah! / Mi- chael, row the boat a- shore, Hal- le- lu- jah!", notes: [[0,1],[4,1],[7,2],[4,1],[7,1],[9,1],[7,2],[4,1],[7,1],[9,1],[7,3],[4,1],[7,1],[7,2],[4,1],[4,1],[2,1],[0,2],[2,1],[4,1],[2,1],[0,3]] },
+  { id: 'ladder', solfa: true, name: 'Climb the Ladder', kind: 'Solfège song · written for Pure Tone Lab', words: "Do, Re, Mi, we climb the lad- der, / Fa, So, La, a lit- tle high- er, / Ti, and Do, we've reached the top now! / Do, Ti, La, So, Fa, Mi, Re, Do. / Do, Mi, So, we jump like crick- ets, / So, Mi, Do, we're home a- gain.", notes: [[0,1],[2,1],[4,2],[4,0.5],[5,0.5],[7,1],[5,0.5],[4,1.5],[5,1],[7,1],[9,2],[9,0.5],[11,0.5],[12,1],[11,0.5],[9,1.5],[11,1],[11,0.5],[12,2.5],[12,0.5],[11,0.5],[9,1],[7,0.5],[7,1.5],[12,1],[11,1],[9,1],[7,1],[5,1],[4,1],[2,1],[0,3],[0,1],[4,1],[7,2],[7,0.5],[9,0.5],[7,1],[5,0.5],[4,1.5],[7,1],[4,1],[0,2],[2,0.5],[4,0.5],[2,1],[0,3]] },
   { id: 'row', name: 'Row, Row, Row Your Boat', kind: 'Song', words: 'Row, row, row your boat / gent- ly down the stream. / Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, / life is but a dream.', notes: [[0,1.5],[0,1.5],[0,1],[2,.5],[4,1.5],[4,1],[2,.5],[4,1],[5,.5],[7,3],[12,.5],[12,.5],[12,.5],[7,.5],[7,.5],[7,.5],[4,.5],[4,.5],[4,.5],[0,.5],[0,.5],[0,.5],[7,1],[5,.5],[4,1],[2,.5],[0,3]] },
   { id: 'mary', name: 'Mary Had a Little Lamb', kind: 'Song', words: 'Ma- ry had a lit- tle lamb, / lit- tle lamb, / lit- tle lamb, / Ma- ry had a lit- tle lamb, its / fleece was white as snow.', notes: [[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,2],[2,1],[2,1],[2,2],[4,1],[7,1],[7,2],[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,1],[4,1],[2,1],[2,1],[4,1],[2,1],[0,4]] },
   { id: 'bday', name: 'Happy Birthday', kind: 'Song', words: 'Hap- py birth- day to you, / hap- py birth- day to you, / hap- py birth- day dear friend _, / hap- py birth- day to you.', notes: [[-5,.75],[-5,.25],[-3,1],[-5,1],[0,1],[-1,2],[-5,.75],[-5,.25],[-3,1],[-5,1],[2,1],[0,2],[-5,.75],[-5,.25],[7,1],[4,1],[0,1],[-1,1],[-3,2],[5,.75],[5,.25],[4,1],[0,1],[2,1],[0,3]] },
@@ -1565,8 +1577,8 @@ function loadSong(song, keepShift = false) {
 }
 function renderSongs() {
   const el = $('#songs'); el.textContent = '';
-  const grp = x => x.rock ? 'Rock & roll' : x.folk ? 'Folk & blues' : x.hymn ? 'Hymns' : 'Classics';
-  const order = ['Rock & roll', 'Folk & blues', 'Hymns', 'Classics'];
+  const grp = x => x.rock ? 'Rock & roll' : x.folk ? 'Folk & blues' : x.hymn ? 'Hymns' : x.solfa ? 'Solfège' : 'Classics';
+  const order = ['Rock & roll', 'Folk & blues', 'Hymns', 'Solfège', 'Classics'];
   for (const g of order) {
   const list = SONGS.filter(x => !x.lab && grp(x) === g); if (!list.length) continue;
   const lab = document.createElement('span'); lab.className = 'song-grp'; lab.textContent = g; el.appendChild(lab);
@@ -1912,7 +1924,41 @@ function drawFocus() {
   }
   box.innerHTML = `<svg viewBox="0 0 360 206" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`;
 }
+// ---------- solfège hand signs ----------
+// The classic Curwen hand signs, drawn simply, placed at rising heights the way teachers hold them.
+const SIGN_DEG = [0, 2, 4, 5, 7, 9, 11, 12], SIGN_NAME = ['Do', 'Re', 'Mi', 'Fa', 'So', 'La', 'Ti', 'Do'];
+const SIGN_HOW = ['closed fist', 'flat hand, sloping up', 'flat hand, palm down', 'fist, thumb down', 'flat hand, palm facing you', 'hand hanging down from the wrist', 'fist, pointer finger up', 'closed fist, higher'];
+function signSVG(k) {
+  const fist = '<rect x="-11" y="-9" width="22" height="18" rx="6"/><path d="M-11 -3h22M-11 3h22" class="ln"/><path d="M-11 -9 q-5 4 0 9" class="ln"/>';
+  const flat = '<rect x="-17" y="-6" width="34" height="12" rx="5"/><path d="M5 -2h12M5 2h12" class="ln"/><rect x="-24" y="-4" width="8" height="8" rx="2"/>';
+  const g = (inner, tf) => `<g transform="${tf}">${inner}</g>`;
+  switch (k) {
+    case 0: case 7: return g(fist, '');
+    case 1: return g(flat, 'rotate(-35)');
+    case 2: return g(flat, '');
+    case 3: return g(fist + '<rect x="-4" y="8" width="7" height="11" rx="3"/>', '');
+    case 4: return g(flat, 'rotate(-90)');
+    case 5: return g('<rect x="-16" y="-6" width="16" height="12" rx="4"/><rect x="-24" y="-4" width="8" height="8" rx="2"/>' + g('<rect x="0" y="-6" width="16" height="12" rx="4"/><path d="M4 -2h12M4 2h12" class="ln"/>', 'rotate(55)'), '');
+    case 6: return g(fist + '<rect x="2" y="-24" width="7" height="17" rx="3" transform="rotate(30 5 -8)"/>', '');
+  }
+  return '';
+}
+function drawSigns() {
+  const box = $('#signs'); if (!box) return;
+  const on = !!(G.song && G.song.solfa); box.hidden = !on; if (!on) return;
+  const i = G.play >= 0 ? G.play : Math.min(G.idx, G.seq.length - 1), n = G.seq[i];
+  let cur = -1;
+  if (n && G.run !== 'done') { const off = n.m - G.shift; cur = off === 12 ? 7 : SIGN_DEG.indexOf(((off % 12) + 12) % 12); }
+  const W = 90, H = 190, out = [];
+  SIGN_DEG.forEach((d, k) => {
+    const cx = k * W + W / 2, cy = H - 44 - k * 13, act = k === cur;
+    out.push(`<g class="sg${act ? ' on' : ''}" transform="translate(${cx} ${cy}) scale(1.6)">${signSVG(k)}</g>`);
+    out.push(`<text x="${cx}" y="${H - 4}" text-anchor="middle" class="sgl${act ? ' on' : ''}">${SIGN_NAME[k]}</text>`);
+  });
+  box.innerHTML = `<svg viewBox="0 0 ${W * 8} ${H}" preserveAspectRatio="xMidYMid meet">${out.join('')}</svg>` + (cur >= 0 ? `<p class="sg-how">${SIGN_NAME[cur]}: ${SIGN_HOW[cur]}</p>` : '<p class="sg-how">Hand signs: make each shape as you sing its note.</p>');
+}
 function drawStaff() {
+  drawSigns();
   const box = $('#staff'); if (!box || !G.lines.length) return;
   const cur = G.play >= 0 ? G.play : Math.min(G.idx, G.seq.length - 1), li = lineOf(cur), [a, b] = G.lines[li];
   const tonic = ((G.shift % 12) + 12) % 12, sig = KEYSIG[tonic][1], ks = Math.abs(sig);
@@ -2516,6 +2562,7 @@ const LAB = [
   { id: 'hold', kind: 'drill', title: 'Steady hold', tags: ['Breath', 'Purity'], time: '1 min', blurb: 'Hold one note for 6 seconds, as straight and pure as you can. Shows sagging, wobble and breath.' },
   { id: 'vowels', kind: 'drill', title: 'Vowels & open airway', tags: ['Tone', 'Airway'], time: '1 min', blurb: 'Sing ee, eh, ah, oh, oo on one note. Find your purest vowel and the mouth shape that opens your sound.' },
   { id: 'scale', kind: 'song', song: 'doremi', title: 'Scale climb: Do-Re-Mi', tags: ['Pitch', 'Range'], time: '30 s', blurb: 'Walk up the major scale. Shows whether your higher notes go flat or thin.' },
+  { id: 'patterns', kind: 'song', song: 'patterns', title: 'Solfège patterns', tags: ['Ear', 'Solfège'], time: '1 min', blurb: 'Steps, skips and turn-arounds: Do-Re-Mi-Re-Do, Do-Mi-So, So-Fa-Mi-Re-Do and more, with hand signs.' },
   { id: 'leaps', kind: 'song', song: 'arp', title: 'Leaps: Do-Mi-So-Do', tags: ['Intervals'], time: '30 s', blurb: 'Jump between notes cleanly, without sliding into them.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
@@ -3253,11 +3300,11 @@ const UNITS = [
     learn: 'Start each note gently, with no hard click. Slide on sirens and lip trills to warm the whole range.',
     cue: 'Begin with a soft "m" or "h" · let the note bloom',
     how: 'A hard start slams the folds together; a breathy start lets air leak. A balanced start, where air and folds begin together, is kindest to the voice and lands in tune.' },
-  { id: 'u4', n: 4, stage: 2, title: 'Pitch matching', check: { kind: 'lab', id: 'match', lab: 'match', label: 'Pitch match: 8 notes' }, song: 'jesusloves',
-    learn: 'Hear the note in your head first, then start softly right on it. If you are off, slide slowly until the band turns green.',
+  { id: 'u4', n: 4, stage: 2, title: 'Pitch matching', check: { kind: 'lab', id: 'match', lab: 'match', label: 'Pitch match: 8 notes' }, song: 'ladder', extra: 'patterns',
+    learn: 'Hear the note in your head first, then start softly right on it. If you are off, slide slowly until the band turns green. Make each hand sign as you sing its syllable: your hand helps your ear.',
     cue: 'Hear it · then sing it · relaxed jaw · soft "oo"',
     how: 'Your ear tells your voice where to go and checks where it landed. Matching is a skill of the ear as much as the voice, and it improves fast with short daily practice.' },
-  { id: 'u5', n: 5, stage: 2, title: 'Inner hearing & intervals', check: { kind: 'song', id: 'arp', lab: 'leaps', label: 'Leaps: 7 jumps' }, song: 'johnhenry',
+  { id: 'u5', n: 5, stage: 2, title: 'Inner hearing & intervals', check: { kind: 'song', id: 'arp', lab: 'leaps', label: 'Leaps: 7 jumps' }, song: 'johnhenry', extra: 'patterns',
     learn: 'Jump between notes cleanly: thirds, fifths and the octave. Hear the next note before you sing it.',
     cue: 'Think the next note · no sliding · land it',
     how: 'Singers keep a map of the scale in their head (inner hearing). Solfège names like Do, Mi and So make that map easier to use.' },
@@ -3365,7 +3412,7 @@ function seedTries() {
   store.triesSeeded = true; dirty = true;
 }
 // When each Lab exercise opens (by stage). Songs are all open.
-const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const LAB_LEVEL = { patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
 const SONG_LEVEL = {};
 // The stage of the furthest open unit. Panels and Lab exercises open by stage.
 const level = () => store.unlockAll || isTester() ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
@@ -3500,6 +3547,7 @@ function unitPage(u, btn) {
     const r = el('div', 'row');
     r.appendChild(btn(unitPassed(u) ? 'Practise again' : c.kind === 'u1' ? (store.profile ? 'Sing ' + songName(u.song) + ' →' : 'Find your voice →') : 'Start the skill check →', 'primary', () => startUnitCheck(u)));
     if (u.song && c.id !== u.song) r.appendChild(btn('Sing ' + songName(u.song), 'small', () => singSongId(u.song)));
+    if (u.extra) { const L = LAB.find(x => x.id === u.extra); r.appendChild(btn('Also: ' + L.title, 'small', () => { openLab(u.extra, true); $('#t-lab').click(); })); }
     body.appendChild(r);
   }
   card.appendChild(body); w.appendChild(card);

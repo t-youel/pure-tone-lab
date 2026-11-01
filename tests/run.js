@@ -104,13 +104,13 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(/Strongest notes: Do, Re, Mi, Fa and So\./.test(s.head), JSON.stringify(s));
   });
 
-  await test('every song: words line up with the notes; songs are grouped (rock, folk, hymns, classics)', async page => {
+  await test('every song: words line up with the notes; songs are grouped (rock, folk, hymns, solfège, classics)', async page => {
     await setLevel(page, 1); await tab(page, '#t-sing');
     const s = await page.evaluate(() => SONGS.filter(x => !x.lab && x.id !== 'gen').map(song => { loadSong(song); return { id: song.id, ok: G.seq.length === G.seq.filter(x => x.w || x.cont).length && G.seq.length === song.notes.length }; }));
     const bad = s.filter(x => !x.ok).map(x => x.id);
     const grp = await page.evaluate(() => [...document.querySelectorAll('#songs .song-grp')].map(x => x.textContent).join());
     const n = await page.evaluate(() => ['midnight', 'johnhenry', 'risingsun', 'doxology', 'silent', 'joy', 'jesusloves', 'michael'].filter(id => SONGS.some(x => x.id === id) && (SONG_LEVEL[id] || 1) === 1).length);
-    expect(!bad.length && grp === 'Rock & roll,Folk & blues,Hymns,Classics' && n === 8, JSON.stringify({ bad, grp, n }));
+    expect(!bad.length && grp === 'Rock & roll,Folk & blues,Hymns,Solfège,Classics' && n === 8, JSON.stringify({ bad, grp, n }));
   });
 
   await test('rock songs: words line up with the notes, and each opens at its level', async page => {
@@ -464,6 +464,24 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.evaluate(() => { users.names[users.active] = 'Singer 1'; applyLevel(); });
     const back = await page.evaluate(() => UNITS.filter(unitPassed).length);
     expect(off.open === 1 && !off.tools && after.title === 'Posture & breath' && after.u1 && after.open === 13 && all.passed === 13 && all.cel && back === 1, JSON.stringify({ off, after, all, back }));
+  });
+
+  await test('Solfège: hand signs light up the syllable being sung; patterns and Climb the Ladder line up', async page => {
+    await setLevel(page, 1); await tab(page, '#t-sing');
+    const r = await page.evaluate(() => {
+      const out = {};
+      for (const id of ['patterns', 'ladder', 'doremi']) { loadSong(SONGS.find(s => s.id === id)); out[id] = G.seq.length === G.seq.filter(x => x.w).length; }
+      loadSong(SONGS.find(s => s.id === 'doremi'));
+      const lit = [];
+      for (let i = 0; i < 8; i++) { G.idx = i; drawStaff(); lit.push($('#signs .sgl.on')?.textContent); }
+      out.lit = lit.join(' '); out.signs = document.querySelectorAll('#signs .sg').length; out.shown = !$('#signs').hidden;
+      loadSong(SONGS.find(s => s.id === 'saints')); out.hiddenRock = $('#signs').hidden;
+      out.u4 = UNITS[3].song + '/' + UNITS[3].extra; out.lab = !!LAB.find(x => x.id === 'patterns');
+      return out;
+    });
+    expect(r.patterns && r.ladder && r.doremi && r.lit === 'Do Re Mi Fa So La Ti Do' && r.signs === 8 && r.shown && r.hiddenRock && r.u4 === 'ladder/patterns' && r.lab, JSON.stringify(r));
+    await page.evaluate(() => openLab('patterns'));
+    expect(await page.evaluate(() => D.id === 'patterns' && G.song.id === 'patterns' && !$('#signs').hidden), 'patterns lab did not open with signs');
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
