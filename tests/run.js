@@ -448,6 +448,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.evaluate(() => { users.names[users.active] = 'Tedy-137'; applyLevel(); $('#t-home').click(); });
     const home = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
     expect(home === 'tester,today', 'home in tester mode: ' + home);
+    await page.click('#homeCards [data-card="tester"] >> text=Use a sample voice');
+    const filled = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
+    expect(filled === 'tester,today,checkin,path,songs', 'after sample voice: ' + filled);
+    await page.evaluate(() => { store.devPass = []; store.passed = []; });
     await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
     const after = await page.evaluate(() => ({ title: $('.unit-card h2').textContent, u1: unitPassed(UNITS[0]), open: UNITS.filter(unitOpen).length }));
@@ -456,7 +460,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const all = await page.evaluate(() => ({ passed: UNITS.filter(unitPassed).length, cel: $('#celebrate').hidden }));
     await page.evaluate(() => { users.names[users.active] = 'Singer 1'; applyLevel(); });
     const back = await page.evaluate(() => UNITS.filter(unitPassed).length);
-    expect(off.open === 1 && !off.tools && after.title === 'Posture & breath' && after.u1 && after.open === 13 && all.passed === 13 && all.cel && back === 0, JSON.stringify({ off, after, all, back }));
+    expect(off.open === 1 && !off.tools && after.title === 'Posture & breath' && after.u1 && after.open === 13 && all.passed === 13 && all.cel && back === 1, JSON.stringify({ off, after, all, back }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {

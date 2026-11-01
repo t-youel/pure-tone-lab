@@ -603,7 +603,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · tester card</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · tester card 2</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -3715,7 +3715,9 @@ function renderHome() {
     const ta = el('div', 'acts');
     const b1 = el('button', 'primary', 'Open the Path →'); b1.onclick = () => { unitView = null; $('#t-path').click(); };
     const b2 = el('button', 'small', 'Unit 1 →'); b2.onclick = () => openUnit(UNITS[0]);
-    ta.append(b1, b2); t.appendChild(ta); box.appendChild(t);
+    ta.append(b1, b2);
+    if (!store.profile) { const b3 = el('button', 'small', 'Use a sample voice'); b3.onclick = () => { store.profile = { low: 43, high: 64, natural: 50, speak: 47, xlo: 40, xhi: 67, type: 'Baritone', zlo: 45, zhi: 61, sample: true }; store.baseline = store.baseline || { id: 'saints', score: 40, ok: 18, n: 33, at: Date.now(), sample: true }; dirty = true; save(); renderVoice(); checkLevel(true); applyLevel(); toast('Sample Baritone voice loaded: every screen is now filled in'); }; ta.appendChild(b3); }
+    t.appendChild(ta); box.appendChild(t);
   }
   box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
   if (first) return;
