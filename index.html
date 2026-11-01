@@ -872,7 +872,10 @@ async function ensureAudio() {
     micIn.connect(micIn2); micIn2.connect(analyser);
     // Notes go through a limiter, so they can be loud on a small speaker without crackling.
     toneOut = ac.createDynamicsCompressor(); toneOut.threshold.value = -12; toneOut.knee.value = 6; toneOut.ratio.value = 8; toneOut.attack.value = 0.003; toneOut.release.value = 0.1;
-    toneVol = ac.createGain(); toneVol.gain.value = 1.6; toneOut.connect(toneVol); toneVol.connect(ac.destination);
+    toneVol = ac.createGain(); toneVol.gain.value = 1.6; toneOut.connect(toneVol);
+    // a final safety limiter so loud passages never clip on the speaker
+    const safe = ac.createDynamicsCompressor(); safe.threshold.value = -3; safe.knee.value = 0; safe.ratio.value = 20; safe.attack.value = 0.001; safe.release.value = 0.08;
+    const trim = ac.createGain(); trim.gain.value = 0.8; toneVol.connect(safe); safe.connect(trim); trim.connect(ac.destination);
   }
   if (ac.state !== 'running') { try { await ac.resume(); } catch (e) {} }
 }
@@ -1973,8 +1976,8 @@ function playedNote(midi, dur, when) {
   const t = ac.currentTime + 0.03 + when, f0 = m2f(midi), end = t + dur, nodes = [];
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = Math.min(9000, Math.max(1600, f0 * 5)); lp.Q.value = 0.5;
   const env = ac.createGain();
-  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(0.5, t + 0.045); env.gain.linearRampToValueAtTime(0.4, t + 0.25);
-  env.gain.setValueAtTime(0.4, Math.max(t + 0.26, end - 0.12)); env.gain.linearRampToValueAtTime(0, end);
+  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(0.3, t + 0.045); env.gain.linearRampToValueAtTime(0.24, t + 0.25);
+  env.gain.setValueAtTime(0.24, Math.max(t + 0.26, end - 0.12)); env.gain.linearRampToValueAtTime(0, end);
   const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5; lg.gain.setValueAtTime(0, t);
   if (dur > 0.5) lg.gain.linearRampToValueAtTime(f0 * 0.004, t + Math.min(0.7, dur * 0.6));
   lfo.connect(lg);
@@ -2008,7 +2011,7 @@ function padChord(pcs, start, dur, base) {
   for (const pc of pcs) {
     const m = base + ((pc - base) % 12 + 12) % 12;
     const o = ac.createOscillator(); o.setPeriodicWave(makeWave([1, 0.18, 0.06])); o.frequency.value = m2f(m);
-    const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.07, t + 0.18); g.gain.setValueAtTime(0.07, Math.max(t + 0.2, end - 0.3)); g.gain.linearRampToValueAtTime(0, end);
+    const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.045, t + 0.18); g.gain.setValueAtTime(0.045, Math.max(t + 0.2, end - 0.3)); g.gain.linearRampToValueAtTime(0, end);
     o.connect(g); g.connect(toneOut); o.start(t); o.stop(end + 0.05); nodes.push(o);
   }
   return { stop() { nodes.forEach(o => { try { o.stop(); } catch (e) {} }); } };
