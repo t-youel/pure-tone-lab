@@ -18,6 +18,8 @@ Five short levels, 13 lessons in all. Each exercise is a lesson in one level onl
 4. **Full-speed rock:** a rock song at Normal tempo, and your own melody.
 5. **Advanced:** pure rock tone, and overtone singing.
 
+A synthetic voice can sing any song for you (🎤 Hear it sung): it sings each syllable's vowel with a hint of its first consonant, in your key and tempo, in a male or female voice to match yours.
+
 The rock songs are a traditional song (When the Saints) and originals written for the app; copyrighted hits are not included.
 
 ## Guide tone

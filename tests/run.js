@@ -343,6 +343,20 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.overtones >= 1 && s.vol >= 1.5 && s.guide >= 2, JSON.stringify(s));
   });
 
+  await test('Hear it sung: a synthetic voice sings the song in tune, following the words', async page => {
+    const v = await page.evaluate(() => ['Do', 'Mi', 'saints', 'light', 'you', 'street', 'day', 'mm'].map(w => vowelOf(w).filter(Boolean).join('>')));
+    expect(v.join() === 'oh,ee,eh>ee,ah>ee,oo,ee,eh>ee,mm', 'vowels: ' + v.join());
+    const pitch = await page.evaluate(async () => { await ensureAudio(); toneVol.connect(analyser); setMode('file', 't'); sungNote(57, 1.6, 'saints', 0, false); await new Promise(r => setTimeout(r, 900)); const o = { v: S.voiced, m: S.midi }; toneVol.disconnect(analyser); setMode('idle', ''); return o; });
+    expect(pitch.v && Math.abs(pitch.m - 57) < 0.3, 'sung pitch ' + JSON.stringify(pitch));
+    await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => loadSong(SONGS.find(s => s.id === 'saints')));
+    await page.click('#btnVoice'); await page.waitForTimeout(2500);
+    const mid = await page.evaluate(() => ({ sung: playback && playback.sung, play: G.play, label: $('#btnVoice').textContent }));
+    await page.click('#btnVoice');
+    const end = await page.evaluate(() => ({ pb: !!playback, label: $('#btnVoice').textContent }));
+    expect(mid.sung && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && /Hear it sung/.test(end.label), JSON.stringify({ mid, end }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

@@ -707,6 +707,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <div class="row sing-controls">
       <button id="btnSing" class="primary small">▶ Sing</button>
       <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
+      <button id="btnVoice" class="small" title="Hear a synthetic voice sing the song, words and all">🎤 Hear it sung</button>
       <button id="btnRef" class="small">Starting note</button>
       <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
       <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
@@ -1900,24 +1901,84 @@ function stopPlayback(quiet) {
   if (!playback) return;
   playback.timers.forEach(clearTimeout); playback.oscs.forEach(o => { try { o.stop(); } catch (e) {} });
   playback = null; G.play = -1; refUntil = 0;
-  $('#btnListen').textContent = '▶ Listen first';
+  $('#btnListen').textContent = '▶ Listen first'; $('#btnVoice').textContent = '🎤 Hear it sung';
   if (!quiet) renderSing();
 }
-async function listenFirst(then) {
+// ---------- a synthetic singer ----------
+// A bright buzzy source (like vocal folds) through three resonances (formants) per vowel, with vibrato.
+// It sings each syllable's vowel and a hint of its first consonant. All Web Audio, so the mic keeps working.
+const FORMANTS = { // male F1, F2, F3 (Hz); a female voice scales them up
+  ah: [730, 1090, 2440], ae: [660, 1720, 2410], eh: [530, 1840, 2480], ee: [270, 2290, 3010], ih: [390, 1990, 2550],
+  oh: [570, 840, 2410], oo: [300, 870, 2240], uh: [640, 1190, 2390], er: [490, 1350, 1690], mm: [250, 1000, 2200] };
+// syllable spelling → [vowel, glide-to vowel or null]
+function vowelOf(w) {
+  const x = (w || '').toLowerCase().replace(/[^a-z']/g, '');
+  if (!x) return ['ah', null];
+  const SOLFA = { do: 'oh', re: 'eh>ee', mi: 'ee', fa: 'ah', so: 'oh', sol: 'oh', la: 'ah', ti: 'ee', you: 'oo' };
+  if (SOLFA[x]) { const [a, b] = SOLFA[x].split('>'); return [a, b || null]; }
+  const R = [[/^m+$|^hm+$|^mm/, 'mm'], [/u[^aeiou]e$|^you/, 'oo'], [/ay|ai|ei(?!r)/, 'eh>ee'], [/wa(?![yi])|qua/, 'ah'], [/igh|^i$|^i'|ie$|y$(?<!ly|ry|py|ty|ny|dy|ky|sy|vy|by)|[^aeiou][i][^aeiou]e$/, 'ah>ee'], [/ay|ai|ei|a[^aeiou]e$/, 'eh>ee'],
+    [/ow|ou(?!r)(?!ld)/, 'ah>oo'], [/oy|oi/, 'oh>ee'], [/ee|ea|ie|ey$|(?:l|r|p|t|n|d|k|s|v|b)y$/, 'ee'], [/oo|ue|ew|^you|^do$|^to$|o$(?<=wh?o)/, 'oo'],
+    [/er|ir|ur|or$(?<=w.r)/, 'er'], [/ar/, 'ah'], [/or|oa|o[^aeiou]e$|o$/, 'oh'], [/a(?=ll|w|lk)/, 'oh'], [/a/, 'ae'], [/e/, 'eh'], [/i/, 'ih'], [/u/, 'uh'], [/o/, 'ah']];
+  for (const [re, v] of R) if (re.test(x)) { const [a, b] = v.split('>'); return [a, b || null]; }
+  return ['uh', null];
+}
+const UNVOICED = /^(sh|ch|th|s|f|h|t|k|p|c(?=[^eiy]))/;
+let noiseBuf = null;
+function sungNote(midi, dur, word, when, female, vowelHint) {
+  const t = ac.currentTime + 0.03 + when, f0 = m2f(midi), k = female ? 1.17 : 1;
+  const [v1, v2] = vowelHint || vowelOf(word);
+  const src = ac.createOscillator();
+  src.setPeriodicWave(makeWave(Array.from({ length: 40 }, (_, i) => 1 / Math.pow(i + 1, 1.1))));
+  src.frequency.setValueAtTime(f0, t);
+  // vibrato eases in after the start of a longer note
+  const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 5.3; lg.gain.setValueAtTime(0, t);
+  if (dur > 0.45) lg.gain.linearRampToValueAtTime(f0 * 0.014, t + Math.min(0.6, dur * 0.5));
+  lfo.connect(lg); lg.connect(src.frequency);
+  const env = ac.createGain(), end = t + dur;
+  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(1, t + 0.05); env.gain.setValueAtTime(1, Math.max(t + 0.06, end - 0.07)); env.gain.linearRampToValueAtTime(0, end);
+  const nodes = [src, lfo];
+  [1, 0.5, 0.28].forEach((amp, j) => {
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass';
+    const F = FORMANTS[v1][j] * k; bp.frequency.setValueAtTime(F, t); bp.Q.value = F / [80, 100, 140][j];
+    if (v2) bp.frequency.setTargetAtTime(FORMANTS[v2][j] * k, t + dur * 0.55, dur * 0.12);
+    const g = ac.createGain(); g.gain.value = amp * (v1 === 'mm' && j ? 0.15 : 1);
+    src.connect(bp); bp.connect(g); g.connect(env);
+  });
+  env.connect(toneOut);
+  // a short breath of noise for s, sh, t, k, f, h…
+  const cons = (word || '').toLowerCase().match(UNVOICED);
+  if (cons) {
+    if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const n = ac.createBufferSource(), hp = ac.createBiquadFilter(), ng = ac.createGain(), c = cons[1];
+    n.buffer = noiseBuf; hp.type = /s|sh|ch/.test(c) ? 'highpass' : 'bandpass'; hp.frequency.value = /sh|ch/.test(c) ? 2500 : c === 's' ? 4500 : 1800;
+    const len = /s|sh|ch|f|th|h/.test(c) ? 0.07 : 0.025;
+    ng.gain.setValueAtTime(0.5, t - 0.01); ng.gain.linearRampToValueAtTime(0, t + len);
+    n.connect(hp); hp.connect(ng); ng.connect(toneOut); n.start(t - 0.01); n.stop(t + len + 0.02); nodes.push(n);
+  }
+  src.start(t); lfo.start(t); src.stop(end + 0.03); lfo.stop(end + 0.03);
+  return { stop() { nodes.forEach(o => { try { o.stop(); } catch (e) {} }); } };
+}
+function femaleVoice() { const p = store.profile; return p ? !/Bass|Baritone|Tenor/.test(p.type) : G.seq.reduce((a, n) => a + n.m, 0) / G.seq.length >= 60; }
+async function singSong() { await listenFirst(null, true); }
+
+async function listenFirst(then, sung) {
   if (playback) { stopPlayback(); return; }
   await ensureAudio();
   if (G.run === 'singing' || G.run === 'countin') return;
   const beat = beatSec(); let t = 0.15;
-  playback = { timers: [], oscs: [] };
+  playback = { timers: [], oscs: [], sung: !!sung };
+  const fem = femaleVoice(); let last = null;
   G.seq.forEach((n, i) => {
-    playback.oscs.push(playTone(n.m, n.b * beat * 0.94, PURE, t));
+    if (sung) { const v = n.cont && last ? last : vowelOf(n.w); last = v; playback.oscs.push(sungNote(n.m, n.b * beat * 0.97, n.cont ? '' : n.w, t, fem, v)); }
+    else playback.oscs.push(playTone(n.m, n.b * beat * 0.94, PURE, t));
     playback.timers.push(setTimeout(() => { G.play = i; drawStaff(); showTarget(i); $('#tgtHint').textContent = 'Listen and follow the words'; $('#tgtHint').className = 'hint'; }, t * 1000));
     t += n.b * beat;
   });
   playback.timers.push(setTimeout(() => { stopPlayback(); if (typeof then === 'function') then(); else toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
-  $('#btnListen').textContent = '■ Stop';
+  $(sung ? '#btnVoice' : '#btnListen').textContent = '■ Stop';
 }
 $('#btnListen').onclick = () => listenFirst();
+$('#btnVoice').onclick = () => playback ? stopPlayback() : singSong();
 
 // ---------- end-of-song report ----------
 // A note's score: pitch accuracy (full marks within 15 cents, nothing by 100) times tone quality.
