@@ -354,9 +354,9 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       out.u1 = unitPassed(UNITS[0]); out.u2open = unitOpen(u2); out.u3open0 = unitOpen(u3);
       recordTry('lab', 'hold', 64); out.after64 = unitPassed(u2);
       recordTry('lab', 'hold', 71); out.after71 = unitPassed(u2); out.u3open = unitOpen(u3);
-      recordTry('song', 'hum', 55); recordTry('song', 'hum', 52); out.two50 = unitPassed(u3);
-      recordTry('song', 'hum', 40); out.with40 = unitPassed(u3);
-      recordTry('song', 'hum', 58); out.three50 = unitPassed(u3);
+      recordTry('lab', 'onset', 55); recordTry('lab', 'onset', 52); out.two50 = unitPassed(u3);
+      recordTry('lab', 'onset', 40); out.with40 = unitPassed(u3);
+      recordTry('lab', 'onset', 58); out.three50 = unitPassed(u3);
       out.status = unitStatus(UNITS[3]); out.cur = currentUnit().id;
       return out;
     });
