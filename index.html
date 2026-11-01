@@ -695,7 +695,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · picture cues</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · note colours</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4295,6 +4295,33 @@ const EASY_STEPS = [
 ];
 const EZ = { on: false, i: 0, phase: 'ready', t0: 0, stars: 0, total: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, sidx: 0, sres: [], echo: null, inTune: 0, voiced: 0 };
 const EZ_TOL = 50; // cents: a wider, kinder band
+// Each scale note has its own colour, like the coloured bells in a classroom: Do is always red, Re orange, and so on.
+const DEG_COLOR = { 0: '#e53935', 2: '#fb8c00', 4: '#f2b600', 5: '#43a047', 7: '#00a3b4', 9: '#3f51b5', 11: '#d81b60' };
+const DEG_NAME = { 0: 'Do', 2: 'Re', 4: 'Mi', 5: 'Fa', 7: 'So', 9: 'La', 11: 'Ti' };
+const ezDo = () => EZ.home != null ? EZ.home : ezHome();
+const ezDeg = m => ((Math.round(m) - ezDo()) % 12 + 12) % 12;
+// the scale as lanes: a coloured, labelled line for each scale note; the target lane drawn boldly
+function ezLanes(x, Y, mid, span, w, d, target) {
+  x.save(); x.textBaseline = 'middle';
+  for (let m = Math.ceil(mid - span); m <= Math.floor(mid + span); m++) {
+    const dg = ezDeg(m), col = DEG_COLOR[dg], y = Y(m);
+    if (!col) { x.strokeStyle = C.line; x.globalAlpha = 0.35; x.lineWidth = d; x.beginPath(); x.moveTo(110 * d, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1; continue; }
+    const isT = target != null && Math.round(target) === m;
+    x.strokeStyle = col; x.globalAlpha = isT ? 0.9 : 0.35; x.lineWidth = (isT ? 4 : 2) * d; x.beginPath(); x.moveTo(110 * d, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1;
+    // the label: a coloured dot with the syllable, then the note name
+    x.fillStyle = col; x.beginPath(); x.arc(28 * d, y, (isT ? 20 : 16) * d, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = `700 ${(isT ? 15 : 12) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], 28 * d, y + 1 * d);
+    x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y);
+  }
+  x.restore();
+}
+// a coloured chip with a note's syllable and name, e.g. beside the bird or the nest
+function ezChip(x, cx, cy, m, d, prefix) {
+  const dg = ezDeg(m), col = DEG_COLOR[dg] || C.muted, txt = (prefix || '') + (DEG_NAME[dg] || '♯') + ' ' + nameOf(Math.round(m));
+  x.save(); x.font = `700 ${16 * d}px system-ui, sans-serif`; const tw = x.measureText(txt).width + 18 * d, th = 28 * d;
+  x.fillStyle = col; x.beginPath(); x.roundRect ? x.roundRect(cx - tw / 2, cy - th / 2, tw, th, th / 2) : x.rect(cx - tw / 2, cy - th / 2, tw, th); x.fill();
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, cx, cy + 1 * d); x.restore();
+}
 function ezHome() {
   if (EZ.home != null) return EZ.home;
   const p = store.profile; if (p && p.natural != null) return Math.round(p.natural);
@@ -4408,28 +4435,29 @@ function ezDraw(v, inb) {
   // before a step starts: a little demonstration of the goal, with no words needed
   const st0 = ezStep();
   if (EZ.phase === 'ready' && st0 && st0.k !== 'hello' && st0.k !== 'song') {
-    const mid0 = ezHome(), span0 = 4, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
+    const mid0 = ezHome(), span0 = 5, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
     const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5;
     const prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
     x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
-    for (let k = -span0; k <= span0; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y0(mid0 + k)); x.lineTo(w, Y0(mid0 + k)); x.stroke(); }
-    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(0, Y0(mid0 + 0.5), w, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
+    ezLanes(x, Y0, mid0, span0, w, d, mid0);
+    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(100 * d, Y0(mid0 + 0.5), w - 100 * d, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
     x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('🪺', w * 0.86, Y0(mid0));
-    x.fillText('🐦', w * 0.1 + w * 0.7 * prog, Y0(mid0 + off));
+    ezChip(x, w * 0.86, Y0(mid0) - 48 * d, mid0, d, '🎯 ');
+    x.fillText('🐦', 150 * d + (w * 0.86 - 210 * d) * prog, Y0(mid0 + off));
     if (prog >= 1) { x.font = `${60 * d}px system-ui, sans-serif`; x.fillText('⭐', w * 0.86, Y0(mid0) - 60 * d); }
     const face = $('#easyFace'); face.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; face.className = 'easy-face' + (inside ? ' good' : ' off');
     return;
   }
-  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 4;
-  const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => w * 0.08 + (w * 0.72) * (1 - (t - tt) / 4);
+  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 5;
+  const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => 120 * d + (w * 0.86 - 150 * d) * (1 - (t - tt) / 4);
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
-  for (let k = -span; k <= span; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y(mid + k)); x.lineTo(w, Y(mid + k)); x.stroke(); }
+  ezLanes(x, Y, mid, span, w, d, EZ.tgt);
   if (EZ.tgt != null) {
     const tol = EZ_TOL / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
     x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
-    const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(0, y1, w, y2 - y1, r) : x.rect(0, y1, w, y2 - y1); x.fill(); x.globalAlpha = 1;
-    x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(0, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
+    const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(100 * d, y1, w - 100 * d, y2 - y1, r) : x.rect(100 * d, y1, w - 100 * d, y2 - y1); x.fill(); x.globalAlpha = 1;
+    x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(110 * d, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
   }
   const k0 = ezStep() && ezStep().k, nestGame = EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown' || k0 === 'echo');
   // a picture cue in the open space: 👂 while the note plays, a pulsing 🎤 when it's your turn
@@ -4450,14 +4478,16 @@ function ezDraw(v, inb) {
     const need = k0 === 'match' ? 2 : 1, prog = k0 === 'echo' ? Math.min(1, ((EZ.echo && EZ.echo.got) || []).length / 8) : Math.min(1, EZ.inBand / need);
     x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('🪺', w * 0.86, Y(EZ.tgt));
-    const bx = w * 0.1 + w * 0.7 * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + 80 * d);
+    ezChip(x, w * 0.86, Y(EZ.tgt) - 48 * d, EZ.tgt, d, '🎯 ');
+    const bx = 150 * d + (w * 0.86 - 210 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + 80 * d);
     if (v != null) EZ.lastBy = by;
     x.globalAlpha = v != null ? 1 : 0.4; x.fillText('🐦', bx, by); x.globalAlpha = 1;
+    if (v != null) ezChip(x, bx, by + 46 * d, v, d);
     return;
   }
   const pts = EZ.trail;
   if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
-  if (v != null) { x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), Y(Math.max(mid - span, Math.min(mid + span, v)))); }
+  if (v != null) { const by2 = Y(Math.max(mid - span, Math.min(mid + span, v))); x.font = `${64 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), by2); ezChip(x, X(t), by2 + 46 * d, v, d); }
 }
 function ezSongPick() {
   $('#easyWords').textContent = '🎵 ?';
@@ -4805,7 +4835,7 @@ function renderHome() {
   const box = $('#homeCards'); if (!box) return; box.textContent = '';
   const p = store.profile, u = currentUnit(), done = UNITS.filter(unitPassed).length, first = !p;
   $('#homeTitle').textContent = first ? 'Let\'s find your voice' : unitPassed(u) ? 'You finished the Path!' : 'Today: ' + u.title;
-  $('#homeSub').textContent = first ? 'About 40 seconds. Hum low, high and in between, and we\'ll find your voice type.' : 'About 11 minutes: warm up, today\'s skill, a song, and a quick ear game. It moves on by itself.';
+  $('#homeSub').textContent = first ? 'Start with First Notes: about 5 minutes, no experience needed. Then find your voice.' : 'About 11 minutes: warm up, today\'s skill, a song, and a quick ear game. It moves on by itself.';
   const card = (k, num, title, desc, result, state, go, extras) => {
     const d = el('div', 'hc ' + state); d.dataset.card = k;
     d.append(el('span', 'num', num));
@@ -4817,6 +4847,10 @@ function renderHome() {
     for (const x of extras || []) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
     d.appendChild(acts); return d;
   };
+  // First Notes comes first for a new singer: everyone starts here
+  const easyCard = () => card('easy', '🌟', 'First Notes', 'Start here: easy singing with big pictures, a colour for every note, and a bird that rides on your voice. About 5 minutes.', (store.easy && Object.keys(store.easy.days || {}).length) ? '⭐ ' + Object.values(store.easy.days).reduce((a, r) => a + r.stars, 0) + ' stars so far' : '', !(store.easy && Object.keys(store.easy.days || {}).length) ? 'is-next' : '', '▶ First Notes');
+  const newSinger = !(store.easy && Object.keys(store.easy.days || {}).length);
+  if (newSinger) box.appendChild(easyCard());
   // 1. today's unit
   const tGo = first ? 'Find your voice →' : '▶ Start today\'s session';
   if (isTester()) {
@@ -4828,10 +4862,10 @@ function renderHome() {
     const b2 = el('button', 'small', 'Unit 1 →'); b2.onclick = () => openUnit(UNITS[0]);
     ta.append(b1, b2);
     if (!store.profile) { const b3 = el('button', 'small', 'Use a sample voice'); b3.onclick = () => { store.profile = { low: 43, high: 64, natural: 50, speak: 47, xlo: 40, xhi: 67, type: 'Baritone', zlo: 45, zhi: 61, sample: true }; store.baseline = store.baseline || { id: 'saints', score: 40, ok: 18, n: 33, at: Date.now(), sample: true }; dirty = true; save(); renderVoice(); checkLevel(true); applyLevel(); toast('Sample Baritone voice loaded: every screen is now filled in'); }; ta.appendChild(b3); }
-    t.appendChild(ta); box.appendChild(t);
+    t.appendChild(ta); box.prepend(t);
   }
-  box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
-  box.appendChild(card('easy', '🌟', 'First Notes', 'Easy singing with big pictures and a bird that rides on your voice. A gentle start for any new singer, about 5 minutes.', (store.easy && Object.keys(store.easy.days || {}).length) ? '⭐ ' + Object.values(store.easy.days).reduce((a, r) => a + r.stars, 0) + ' stars so far' : '', '', '▶ First Notes'));
+  box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), newSinger ? '' : 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
+  if (!newSinger) box.appendChild(easyCard());
   if (first) return;
   // 2. voice check-in
   const ci = (store.checkin || {})[today()];

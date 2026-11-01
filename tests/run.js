@@ -57,14 +57,14 @@ async function test(name, fn) {
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
 (async () => {
-  await test('Home: a new singer sees one card, Unit 1 · Find your voice, and nothing else', async page => {
+  await test('Home: a new singer starts with First Notes, then Unit 1 · Find your voice, and nothing else', async page => {
     const s = await page.evaluate(() => {
       const vis = e => !!e && e.offsetParent !== null;
       return { cards: [...document.querySelectorAll('#homeCards .hc h3')].map(h => h.textContent), next: $('#homeCards .hc.is-next h3')?.textContent, btn: $('#homeCards .hc.is-next .primary')?.textContent,
         tabs: vis($('.tabs')), meters: vis($('.live')), status: vis($('.status')), back: vis($('#backBar')) };
     });
-    expect(s.cards.join('|') === 'Unit 1 · Your voice today|First Notes', JSON.stringify(s.cards));
-    expect(s.next === 'Unit 1 · Your voice today' && /Find your voice/.test(s.btn), JSON.stringify(s));
+    expect(s.cards.join('|') === 'First Notes|Unit 1 · Your voice today', JSON.stringify(s.cards));
+    expect(s.next === 'First Notes' && /First Notes/.test(s.btn), JSON.stringify(s));
     expect(!s.tabs && !s.meters && !s.status && !s.back, 'too much on the first screen: ' + JSON.stringify(s));
   });
 
@@ -78,7 +78,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('Home step 1 opens the voice test with its five phases shown; result leads to the first song', async page => {
     await voice(page);
-    await page.click('[data-card="today"] .primary'); await page.waitForTimeout(400);
+    await page.click('[data-card="today"] button'); await page.waitForTimeout(400);
     const chips = await page.evaluate(() => ({ n: document.querySelectorAll('#vfStrip .vf-chip').length, screen: document.body.dataset.screen, title: $('#screenTitle').textContent }));
     expect(chips.n === 5 && chips.screen === 'voice' && /Find your voice/.test(chips.title), JSON.stringify(chips));
     await page.evaluate(() => { store.settings = { speak: false }; setInterval(() => { const ph = D.phase; V.on = ['speak', 'natural', 'low', 'high', 'stretch'].includes(ph); V.m = ph === 'low' ? 43 : ph === 'high' ? 60 : ph === 'stretch' ? 40 + ((performance.now() / 120) % 24) : ph === 'speak' ? 46 + Math.sin(performance.now() / 300) * 2 : 48; }, 30); });
@@ -387,14 +387,14 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   });
 
   await test('Today: unit card first; voice check-in with a safety note; path and song cards', async page => {
-    const first = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), btn: $('#homeCards [data-card="today"] button.primary').textContent }));
+    const first = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), btn: $('#homeCards [data-card="today"] button').textContent }));
     await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; save(); checkLevel(true); $('#t-home').click(); });
     const later = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), title: $('#homeTitle').textContent }));
     await page.click('#homeCards [data-card="checkin"] >> text=Scratchy');
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
     await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
-    expect(first.cards === 'today,easy' && /Find your voice/.test(first.btn) && later.cards === 'today,easy,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+    expect(first.cards === 'easy,today' && /Find your voice/.test(first.btn) && later.cards === 'easy,today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
 
   await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {
@@ -411,7 +411,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test("Today's session: check-in, then warm-up, skill, song and ear run by themselves, with a summary", async page => {
     await voice(page);
     await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; store.passed = ['u1']; store.checkin = {}; save(); WARM.forEach(w => w.secs = 0.4); $('#t-home').click(); });
-    await page.click('#homeCards [data-card="today"] button.primary');
+    await page.click('#homeCards [data-card="today"] >> text=Start today');
     const offer = await page.evaluate(() => ({ open: !$('#sesSheet').hidden, items: [...document.querySelectorAll('#sesCard .ses-plan li')].map(l => l.textContent) }));
     await page.click('#sesCard >> text=😊 Fresh');
     await page.click('#sesGo');
@@ -450,10 +450,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const off = await page.evaluate(() => ({ open: UNITS.filter(unitOpen).length, tools: !!document.querySelector('.tester') }));
     await page.evaluate(() => { users.names[users.active] = 'Tedy-137'; applyLevel(); $('#t-home').click(); });
     const home = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(home === 'tester,today,easy', 'home in tester mode: ' + home);
+    expect(home === 'tester,easy,today', 'home in tester mode: ' + home);
     await page.click('#homeCards [data-card="tester"] >> text=Use a sample voice');
     const filled = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(filled === 'tester,today,easy,checkin,path,progress,songs', 'after sample voice: ' + filled);
+    expect(filled === 'tester,easy,today,checkin,path,progress,songs', 'after sample voice: ' + filled);
     await page.evaluate(() => { store.devPass = []; store.passed = []; });
     await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
