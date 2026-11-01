@@ -8,19 +8,23 @@ A browser app that listens to your voice and gives instant feedback on pitch, to
 
 It's one file, `index.html`, with no build step. All audio analysis runs in your browser, and your data stays in that browser's local storage. The microphone needs https or a local file.
 
-## Levels
+## The Pure Tone Path
 
-Five short levels, 13 lessons in all. Each exercise is a lesson in one level only, and rock & roll starts in Level 1:
+A 12-unit course in four stages, following the usual teaching order (body, ear, tone, style and performance):
 
-1. **Foundations:** find your voice, Do-Re-Mi, match a note, and your first song (When the Saints Go Marching In).
-2. **Breath & tone:** a steady hold, open-airway vowels, Rock and Roll Morning (a 12-bar blues).
-3. **Pitch & leaps:** leaps, Jukebox Jive.
-4. **Full-speed rock:** a rock song at Normal tempo, and your own melody.
-5. **Advanced:** pure rock tone, and overtone singing.
+1. **Body:** your voice today (range, voice type and a baseline song), posture & breath, finding the sound.
+2. **Ear:** pitch matching, inner hearing & intervals, then **Checkpoint A** (the scale in solfège).
+3. **Tone:** vowels & resonance, registers, blending the passage, dynamics & tone color.
+4. **Style & performance:** rhythm & phrasing, interpretation, showcase.
 
-A synthetic voice can sing any song for you (🎤 Hear it sung): it sings each syllable's vowel with a hint of its first consonant, in your key and tempo, in a male or female voice to match yours.
+Each unit runs Experience → Name it → Practise. A unit is passed with one skill-check score of **70+**, or with **three tries of 50+**.
+Stages 1–2 are planned as the free tier; a `PAYWALL` switch (off for now) locks later units behind Pro.
+Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a gentle day and the see-a-doctor rule),
+your path, and a song that fits your voice. Units 7–12 use their song as the skill check until their own
+measuring drills are built.
 
-The rock songs are a traditional song (When the Saints) and originals written for the app; copyrighted hits are not included.
+The songs are traditional (When the Saints), public-domain hymns, folk melodies with new verses, and originals
+written for the app; copyrighted hits are not included.
 
 ## Guide tone
 

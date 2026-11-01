@@ -2591,7 +2591,7 @@ function dShow(nodes, again) {
   const box = $('#dResult'); box.textContent = ''; box.hidden = false; $('#lane').hidden = true;
   dSet({ step: 'Finished', prompt: 'Results ✓', sub: 'Your results and what to work on are on the right. Each try is saved, so you can watch your score grow.', live: '', prog: -1 });
   for (const n of nodes) box.appendChild(n);
-  if (D.id === 'range') { dBtns([{ label: 'Next: find your best notes →', primary: true, fn: () => { closeLab(); $('#t-home').click(); startHome('notes'); } }, { label: 'Try again', fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } }, { label: '← Home', fn: () => { closeLab(); $('#t-home').click(); } }]); return; }
+  if (D.id === 'range') { dBtns([{ label: 'Next: sing your first song →', primary: true, fn: () => { closeLab(); startUnitCheck(UNITS[0]); } }, { label: 'Try again', fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } }, { label: '← Home', fn: () => { closeLab(); $('#t-home').click(); } }]); return; }
   dBtns([{ label: 'Try again', primary: true, fn: () => { $('#dResult').hidden = true; $('#lane').hidden = false; again(); } },
     { label: 'Take it to a song →', fn: () => { closeLab(); $('#t-sing').click(); } }, { label: D.fromPath ? '← Home' : '← All exercises', fn: closeLab }]);
 }

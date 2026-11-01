@@ -38,7 +38,7 @@ async function voice(page) {
     }, 25);
   });
 }
-const setLevel = (page, n) => page.evaluate(n => { store.level = n; if (!store.lessons || !store.lessons.length) store.lessons = ['1.0']; save(); applyLevel(); }, n);
+const setLevel = (page, n) => page.evaluate(n => { store.unlockAll = n >= 4; save(); applyLevel(); }, n);
 const tab = (page, id) => page.evaluate(id => $(id).click(), id);
 
 async function test(name, fn) {
@@ -57,28 +57,28 @@ async function test(name, fn) {
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
 (async () => {
-  await test('Home: four numbered steps, "Find your voice" first, nothing else on screen', async page => {
+  await test('Home: a new singer sees one card, Unit 1 · Find your voice, and nothing else', async page => {
     const s = await page.evaluate(() => {
       const vis = e => !!e && e.offsetParent !== null;
       return { cards: [...document.querySelectorAll('#homeCards .hc h3')].map(h => h.textContent), next: $('#homeCards .hc.is-next h3')?.textContent, btn: $('#homeCards .hc.is-next .primary')?.textContent,
         tabs: vis($('.tabs')), meters: vis($('.live')), status: vis($('.status')), back: vis($('#backBar')) };
     });
-    expect(s.cards.join('|') === 'Find your voice|Find your best notes|Practise|Sing songs', JSON.stringify(s.cards));
-    expect(s.next === 'Find your voice' && /Start/.test(s.btn), JSON.stringify(s));
+    expect(s.cards.join('|') === 'Unit 1 · Your voice today', JSON.stringify(s.cards));
+    expect(s.next === 'Unit 1 · Your voice today' && /Find your voice/.test(s.btn), JSON.stringify(s));
     expect(!s.tabs && !s.meters && !s.status && !s.back, 'too much on the first screen: ' + JSON.stringify(s));
   });
 
-  await test('Level 1 lessons start with Find your voice, then Do-Re-Mi; no giant markers', async page => {
-    const s = await page.evaluate(() => LEVELS[0].lessons.slice(0, 2).map(x => x.title));
-    expect(s[0] === 'Find your voice' && s[1] === 'Sing Do-Re-Mi', JSON.stringify(s));
-    await setLevel(page, 3);
-    const big = await page.evaluate(() => { $('#t-path').click(); document.querySelectorAll('details').forEach(d => d.open = true); return Math.max(0, ...[...document.querySelectorAll('.lv-num, .ls-ic')].map(e => e.getBoundingClientRect().width)); });
+  await test('Path: 12 units and Checkpoint A in 4 stages, Unit 1 first; small markers', async page => {
+    const s = await page.evaluate(() => ({ n: UNITS.length, stages: STAGES.length, first: UNITS[0].title, gate: UNITS.findIndex(u => u.gate), labs: UNITS.filter(u => u.check.lab).map(u => u.check.lab) }));
+    expect(s.n === 13 && s.stages === 4 && s.first === 'Your voice today' && s.gate === 5 && new Set(s.labs).size === s.labs.length, JSON.stringify(s));
+    await setLevel(page, 10);
+    const big = await page.evaluate(() => { $('#t-path').click(); return Math.max(0, ...[...document.querySelectorAll('.u-num')].map(e => e.getBoundingClientRect().width)); });
     expect(big <= 34, 'markers too big: ' + big);
   });
 
-  await test('Home step 1 opens the voice test with its five phases shown; result leads to step 2', async page => {
+  await test('Home step 1 opens the voice test with its five phases shown; result leads to the first song', async page => {
     await voice(page);
-    await page.click('[data-card="voice"] .primary'); await page.waitForTimeout(400);
+    await page.click('[data-card="today"] .primary'); await page.waitForTimeout(400);
     const chips = await page.evaluate(() => ({ n: document.querySelectorAll('#vfStrip .vf-chip').length, screen: document.body.dataset.screen, title: $('#screenTitle').textContent }));
     expect(chips.n === 5 && chips.screen === 'voice' && /Find your voice/.test(chips.title), JSON.stringify(chips));
     await page.evaluate(() => { store.settings = { speak: false }; setInterval(() => { const ph = D.phase; V.on = ['speak', 'natural', 'low', 'high', 'stretch'].includes(ph); V.m = ph === 'low' ? 43 : ph === 'high' ? 60 : ph === 'stretch' ? 40 + ((performance.now() / 120) % 24) : ph === 'speak' ? 46 + Math.sin(performance.now() / 300) * 2 : 48; }, 30); });
@@ -86,44 +86,22 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 120000 });
     const done = await page.evaluate(() => [...document.querySelectorAll('#vfStrip .vf-chip.done')].length);
     expect(done === 5, 'chips done: ' + done);
-    await page.click('#dBtns >> text=Next: find your best notes');
+    await page.click('#dBtns >> text=Next: sing your first song');
     await page.waitForTimeout(400);
-    const s = await page.evaluate(() => ({ id: D.id, screen: document.body.dataset.screen, home: $('#homeCards [data-card="voice"] .result')?.textContent }));
-    expect(s.id === 'scale' && s.screen === 'notes', JSON.stringify(s));
+    const s = await page.evaluate(() => ({ song: G.song.id, screen: document.body.dataset.screen }));
+    expect(s.song === 'saints' && s.screen === 'songs', JSON.stringify(s));
   });
 
   await test('first lesson: Do-Re-Mi with words, then "Strongest notes: …"', async page => {
     await voice(page);
-    await page.click('[data-card="notes"] button'); await page.waitForTimeout(400);
+    await page.evaluate(() => { openLab('scale', true); $('#t-lab').click(); }); await page.waitForTimeout(400);
     const words = await page.evaluate(() => [D.id, G.song.id, [...document.querySelectorAll('#staff .lyr')].map(t => t.textContent).join(' ')]);
     expect(words[0] === 'scale' && /Do Re Mi Fa So La Ti Do/.test(words[2]), JSON.stringify(words));
     await page.evaluate(() => { window.badNotes = [5, 6]; setInterval(() => { const tg = G.seq[G.idx]; V.on = G.run === 'singing'; if (tg) V.m = tg.m + (badNotes.includes(G.idx) ? 1.2 : 0); }, 25); });
     await page.click('[data-tempo="normal"]'); await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(1800);
-    const s = await page.evaluate(() => ({ head: document.querySelector('.cheer-big').textContent, done: (store.lessons || []).includes('1.2') }));
-    expect(/Strongest notes: Do, Re, Mi, Fa and So\./.test(s.head) && s.done, JSON.stringify(s));
-    await page.click('#btnHome'); await page.waitForTimeout(300);
-    const after = await page.evaluate(() => ({ screen: document.body.dataset.screen, r: $('#homeCards [data-card="notes"] .result')?.textContent }));
-    expect(after.screen === 'home' && /Strongest notes: Do, Re, Mi, Fa and So/.test(after.r), JSON.stringify(after));
-  });
-
-  await test('Level 1 is four lessons, then Level 2 opens; no exercise repeats across levels; rock from Level 1', async page => {
-    const shape = await page.evaluate(() => {
-      const labs = LEVELS.flatMap(L => L.lessons.filter(x => x.kind === 'lab').map(x => x.lab));
-      const songs = LEVELS.flatMap(L => L.lessons.map(x => x.title + '|' + x.goal));
-      return { n1: LEVELS[0].lessons.length, total: LEVELS.reduce((a, L) => a + L.lessons.length, 0), labsUnique: new Set(labs).size === labs.length, songsUnique: new Set(songs).size === songs.length, days: LEVELS.some(L => L.lessons.some(x => x.kind === 'days')), rock1: LEVELS[0].lessons.some(x => x.kind === 'song' && x.songs.includes('saints')) };
-    });
-    expect(shape.n1 === 4 && shape.total <= 14 && shape.labsUnique && shape.songsUnique && !shape.days && shape.rock1, JSON.stringify(shape));
-    await page.evaluate(() => {
-      store.profile = { low: 41, high: 63, type: 'Bass', zlo: 43, zhi: 60 };
-      store.lab = { match: { best: 55 } };
-      store.runs = [{ id: 'doremi', ok: 6, pure: 4, n: 8, avg: 80 }]; checkLevel();
-    });
-    const lv = await page.evaluate(() => level());
-    expect(lv === 1, 'moved on before the first song: ' + lv);
-    await page.evaluate(() => { store.runs.push({ id: 'saints', ok: 20, pure: 10, n: 33, avg: 80 }); checkLevel(); });
-    const s = await page.evaluate(() => ({ lv: level(), cel: !$('#celebrate').hidden, live: $('.live').hidden }));
-    expect(s.lv === 2 && s.cel && !s.live, JSON.stringify(s));
+    const s = await page.evaluate(() => ({ head: document.querySelector('.cheer-big').textContent }));
+    expect(/Strongest notes: Do, Re, Mi, Fa and So\./.test(s.head), JSON.stringify(s));
   });
 
   await test('every song: words line up with the notes; songs are grouped (rock, folk, hymns, classics)', async page => {
@@ -131,13 +109,13 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const s = await page.evaluate(() => SONGS.filter(x => !x.lab && x.id !== 'gen').map(song => { loadSong(song); return { id: song.id, ok: G.seq.length === G.seq.filter(x => x.w || x.cont).length && G.seq.length === song.notes.length }; }));
     const bad = s.filter(x => !x.ok).map(x => x.id);
     const grp = await page.evaluate(() => [...document.querySelectorAll('#songs .song-grp')].map(x => x.textContent).join());
-    const n = await page.evaluate(() => ['midnight', 'johnhenry', 'risingsun', 'doxology', 'silent', 'joy', 'jesusloves', 'michael'].filter(id => SONGS.some(x => x.id === id) && SONG_LEVEL[id] === 1).length);
+    const n = await page.evaluate(() => ['midnight', 'johnhenry', 'risingsun', 'doxology', 'silent', 'joy', 'jesusloves', 'michael'].filter(id => SONGS.some(x => x.id === id) && (SONG_LEVEL[id] || 1) === 1).length);
     expect(!bad.length && grp === 'Rock & roll,Folk & blues,Hymns,Classics' && n === 8, JSON.stringify({ bad, grp, n }));
   });
 
   await test('rock songs: words line up with the notes, and each opens at its level', async page => {
     const s = await page.evaluate(() => ROCK.map(id => { const song = SONGS.find(x => x.id === id); loadSong(song); return { id, n: G.seq.length, words: G.seq.filter(x => x.w || x.cont).length, lv: SONG_LEVEL[id] }; }));
-    expect(s.length === 3 && s.every(x => x.n === x.words && x.n >= 30) && s.map(x => x.lv).join() === '1,2,3', JSON.stringify(s));
+    expect(s.length === 3 && s.every(x => x.n === x.words && x.n >= 30) && s.every(x => (x.lv || 1) === 1), JSON.stringify(s));
   });
 
   await test('gold band covers only the voice types the singer falls into', async page => {
@@ -176,7 +154,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('vocal warm-up: 8 timed exercises, breathing guide, finishes on its own', async page => {
     await voice(page);
-    await page.click('[data-card="practice"] >> text=Warm up'); await page.waitForTimeout(300);
+    await page.evaluate(() => openLab('warmup', true)); await page.waitForTimeout(300);
     await page.click('#dBtns >> text=Start the warm-up'); await page.waitForTimeout(300);
     const first = await page.evaluate(() => [D.id, D.wi, $('#dPrompt').textContent]);
     expect(first[0] === 'warmup' && first[1] === 0 && /Release/.test(first[2]), JSON.stringify(first));
@@ -563,11 +541,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('first song lesson: When the Saints sung through', async page => {
     await voice(page);
-    await page.evaluate(() => startLesson(LEVELS[0].lessons[3])); await page.waitForTimeout(300);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = null; startUnitCheck(UNITS[0]); }); await page.waitForTimeout(300);
     await page.click('[data-tempo="normal"]'); await page.evaluate(() => { V.follow = true; });
     await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(2000);
-    const s = await page.evaluate(() => ({ song: G.song.id, done: store.lessons.includes('1.4'), lv: level() }));
+    const s = await page.evaluate(() => ({ song: G.song.id, done: unitPassed(UNITS[0]) }));
     expect(s.song === 'saints' && s.done, JSON.stringify(s));
   });
 
@@ -614,10 +592,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     }
   });
 
-  await test('locked songs and exercises cannot be opened early', async page => {
+  await test('later exercises stay locked until their stage; every song is open', async page => {
     await setLevel(page, 1);
-    const s = await page.evaluate(() => { openLab('vowels'); return { lab: D.id, twinkle: [...document.querySelectorAll('#songs button')].find(b => b.textContent.startsWith('Twinkle'))?.disabled }; });
-    expect(s.lab !== 'vowels' && s.twinkle === true, JSON.stringify(s));
+    const s = await page.evaluate(() => { openLab('vowels'); return { lab: D.id, locked: [...document.querySelectorAll('#songs button')].filter(b => b.disabled).length }; });
+    expect(s.lab !== 'vowels' && s.locked === 0, JSON.stringify(s));
   });
 
   await test('Sing screen fits an iPad screen; phone has no sideways scroll', async (page, browser) => {
