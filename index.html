@@ -4318,9 +4318,9 @@ function ezRender() {
   $('#easyStars').textContent = '⭐'.repeat(Math.min(EZ.stars, 20)) + (EZ.stars > 20 ? ' +' + (EZ.stars - 20) : '');
   const s0 = ezStep();
   if (EZ.phase === 'done') return ezDone();
-  $('#easyPic').textContent = EZ.phase === 'ready' ? s0.icon : '';
+  $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? s0.icon : '';
   if (EZ.phase === 'ready') {
-    $('#easyWords').textContent = s0.name;
+    $('#easyWords').textContent = s0.k === 'hello' ? s0.name : s0.name + ': 🐦 → ▬';
     if (s0.k === 'song') return ezSongPick();
     ezBtns([['▶', 'Start', () => ezStart(), true], ['⏭', 'Skip', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
   } else ezBtns([['🔁', 'Again', () => ezStart()], ['⏭', 'Next', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
@@ -4402,6 +4402,20 @@ function ezDraw(v, inb) {
   const c = $('#easyCanvas'); if (!c || c.offsetParent === null) return;
   sizeCanvas(c);
   const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
+  // before a step starts: a little demonstration of the goal, with no words needed
+  const st0 = ezStep();
+  if (EZ.phase === 'ready' && st0 && st0.k !== 'hello' && st0.k !== 'song') {
+    const mid0 = ezHome(), span0 = 6, Y0 = m => h / 2 - (m - mid0) / span0 * (h / 2 - 20 * d);
+    const ph = (t % 5) / 5, off = ph < 0.7 ? 3 * Math.cos(ph * 9) * (1 - ph / 0.7) : 0, inside = Math.abs(off) <= 0.5;
+    x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+    for (let k = -span0; k <= span0; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y0(mid0 + k)); x.lineTo(w, Y0(mid0 + k)); x.stroke(); }
+    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(0, Y0(mid0 + 0.5), w, Y0(mid0 - 0.5) - Y0(mid0 + 0.5)); x.globalAlpha = 1;
+    x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('🐦', w * 0.5, Y0(mid0 + off));
+    if (inside) { x.fillText('⭐', w * 0.5 + 60 * d, Y0(mid0) - 40 * d); }
+    const face = $('#easyFace'); face.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; face.className = 'easy-face' + (inside ? ' good' : ' off');
+    return;
+  }
   const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 6;
   const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => w * 0.08 + (w * 0.72) * (1 - (t - tt) / 4);
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
