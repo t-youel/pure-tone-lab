@@ -330,7 +330,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.overtones >= 1 && s.vol >= 1.5 && s.guide >= 2, JSON.stringify(s));
   });
 
-  await test('Hear it played: a warm melody tone in tune, over soft chords that fit the key', async page => {
+  await test('Listen: one button plays a warm melody tone in tune over soft chords; Pitch pipe gives the first note', async page => {
     const pitch = await page.evaluate(async () => { await ensureAudio(); toneVol.connect(analyser); setMode('file', 't'); playedNote(57, 1.6, 0); await new Promise(r => setTimeout(r, 900)); const o = { v: S.voiced, m: S.midi }; toneVol.disconnect(analyser); setMode('idle', ''); return o; });
     expect(pitch.v && Math.abs(pitch.m - 57) < 0.25, 'played pitch ' + JSON.stringify(pitch));
     const ch = await page.evaluate(() => {
@@ -340,11 +340,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(ch.saints[0] === 0 && ch.saints[ch.saints.length - 1] === 0 && new Set(ch.saints).size >= 2 && ch.sun[ch.sun.length - 1] === 0, JSON.stringify(ch));
     await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => loadSong(SONGS.find(s => s.id === 'saints')));
-    await page.click('#btnVoice'); await page.waitForTimeout(2500);
-    const mid = await page.evaluate(() => ({ on: playback && playback.sung, play: G.play, label: $('#btnVoice').textContent }));
-    await page.click('#btnVoice');
-    const end = await page.evaluate(() => ({ pb: !!playback, label: $('#btnVoice').textContent }));
-    expect(mid.on && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && /Hear it played/.test(end.label), JSON.stringify({ mid, end }));
+    await page.click('#btnListen'); await page.waitForTimeout(2500);
+    const mid = await page.evaluate(() => ({ on: playback && playback.sung, play: G.play, label: $('#btnListen').textContent }));
+    await page.click('#btnListen');
+    const end = await page.evaluate(() => ({ pb: !!playback, label: $('#btnListen').textContent, one: !$('#btnVoice'), pipe: $('#btnRef').textContent }));
+    expect(mid.on && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && end.label === '▶ Listen' && end.one && end.pipe === 'Pitch pipe', JSON.stringify({ mid, end }));
   });
 
   await test('Path: a unit passes with 70, or with three tries of 50+; two tries of 50+ are not enough', async page => {

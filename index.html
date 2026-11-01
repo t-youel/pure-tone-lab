@@ -603,7 +603,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · tester card 2</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · one Listen button, pitch pipe</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -754,9 +754,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="card" id="singCard">
     <div class="row sing-controls">
       <button id="btnSing" class="primary small">▶ Sing</button>
-      <button id="btnListen" class="small" title="Hear the whole song once in a pure tone">▶ Listen first</button>
-      <button id="btnVoice" class="small" title="Hear the tune played on a warm tone, with soft chords">🎹 Hear it played</button>
-      <button id="btnRef" class="small">Starting note</button>
+      <button id="btnListen" class="small" title="Hear the tune played on a warm tone, with soft chords">▶ Listen</button>
+      <button id="btnRef" class="small" title="Hear the first note, the way singers and choir directors do with a pitch pipe">Pitch pipe</button>
       <button id="btnCoach" class="small" aria-pressed="false" title="Break the song into small steps with a safety net">🛟 Coach</button>
       <button id="btnGuide" class="small" aria-pressed="false" title="Keep each note playing the whole time you sing it">🎵 Note on</button>
       <span class="seg" role="group" aria-label="Tempo"><button class="small" data-tempo="vslow">Very slow</button><button class="small" data-tempo="slow">Slow</button><button class="small" data-tempo="medium">Medium</button><button class="small" data-tempo="normal">Normal</button></span>
@@ -1765,7 +1764,7 @@ async function startRun() {
   stopTicks();
   for (let k = 0; k < count; k++) click(0.12 + k * beat, k === 0);
   // The starting note plays under the count-in, so the first note is never a guess.
-  playTone(G.seq[0].m, count * beat - 0.35, PURE, 0.12);
+  playTone(G.seq[0].m, count * beat - 0.35, PIPE, 0.12);
   if (G.metro) for (let k = 0; k * beat < t - 0.01; k++) click(0.12 + (count + k) * beat, false);
   G.run = 'countin'; $('#cheer').textContent = '';
   renderSing();
@@ -1958,15 +1957,16 @@ function drawStaff() {
   $('#clefTxt').textContent = KEYSIG[tonic][0] + ' major' + (G.disp ? ' · sung an octave lower than written' : '');
 }
 
-// "Listen first": the whole song once in a clean, near-sine tone, with the staff following along.
+// "Listen": the whole song once on a warm tone over soft chords, with the staff following along.
 const PURE = [1, 0.7, 0.45, 0.25, 0.12];
+const PIPE = [1, 0.75, 0.6, 0.45, 0.32, 0.22, 0.15, 0.1, 0.06]; // reedy, like a harmonica-style pitch pipe
 let playback = null;
 function stopPlayback(quiet) {
   guideOff();
   if (!playback) return;
   playback.timers.forEach(clearTimeout); playback.oscs.forEach(o => { try { o.stop(); } catch (e) {} });
   playback = null; G.play = -1; refUntil = 0;
-  $('#btnListen').textContent = '▶ Listen first'; $('#btnVoice').textContent = '🎹 Hear it played';
+  $('#btnListen').textContent = '▶ Listen';
   if (!quiet) renderSing();
 }
 // ---------- the backing: a warm melody tone over soft chords ----------
@@ -2016,9 +2016,10 @@ function padChord(pcs, start, dur, base) {
   }
   return { stop() { nodes.forEach(o => { try { o.stop(); } catch (e) {} }); } };
 }
-async function singSong() { await listenFirst(null, true); }
+async function singSong() { await listenFirst(); }
 
-async function listenFirst(then, sung) {
+async function listenFirst(then) {
+  const sung = true; // one listen button: the warm tone with soft chords
   if (playback) { stopPlayback(); return; }
   await ensureAudio();
   if (G.run === 'singing' || G.run === 'countin') return;
@@ -2035,10 +2036,9 @@ async function listenFirst(then, sung) {
     t += n.b * beat;
   });
   playback.timers.push(setTimeout(() => { stopPlayback(); if (typeof then === 'function') then(); else toast('Your turn. Sing it from the first note.'); }, t * 1000 + 250));
-  $(sung ? '#btnVoice' : '#btnListen').textContent = '■ Stop';
+  $('#btnListen').textContent = '■ Stop';
 }
 $('#btnListen').onclick = () => listenFirst();
-$('#btnVoice').onclick = () => playback ? stopPlayback() : singSong();
 
 // ---------- end-of-song report ----------
 // A note's score: pitch accuracy (full marks within 15 cents, nothing by 100) times tone quality.
@@ -2119,10 +2119,10 @@ const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 function diagnose(st) {
   const out = [], add = (w, title, why, tryThis, act) => out.push({ w, title, why, tryThis, act });
   const sung = st.sung, n = st.n;
-  if (st.monotone) add(99, 'You held one note through a moving tune', 'Each word sits on its own note. A single held pitch can be pure, but it isn\'t the song.', 'Tap ▶ Listen first and follow the dots on the staff. Then try Pitch match: hear a note, sing it back.', 'listen');
+  if (st.monotone) add(99, 'You held one note through a moving tune', 'Each word sits on its own note. A single held pitch can be pure, but it isn\'t the song.', 'Tap ▶ Listen and follow the dots on the staff. Then try Pitch match: hear a note, sing it back.', 'listen');
   if (st.missed / n > 0.2) add(st.missed / n * 4, `${st.missed} of ${n} notes weren't heard`,
     G.tempo !== 'slow' ? 'The tempo may be too quick to get each note started.' : 'A note only counts when it has a clear, steady sound.',
-    'Switch to Slow, tap ▶ Listen first, then sing every word out clearly, a little louder than feels natural.', G.tempo !== 'slow' ? 'slow' : 'listen');
+    'Switch to Slow, tap ▶ Listen, then sing every word out clearly, a little louder than feels natural.', G.tempo !== 'slow' ? 'slow' : 'listen');
   if (sung.length >= 3) {
     const cs = sung.map(r => r.c), bias = Math.round(med(cs)), spread = Math.round(med(cs.map(c => Math.abs(c - bias))));
     if (Math.abs(bias) > 20 && spread < 70) add(Math.abs(bias) / 25,
@@ -2131,7 +2131,7 @@ function diagnose(st) {
       bias < 0 ? 'Take a deeper belly breath before each line. Lift the back of your mouth as if starting a yawn, raise your eyebrows slightly, and aim for the top edge of each note.'
                : 'Sing a little softer, relax your jaw and shoulders, and let each note settle into place instead of reaching up for it.');
     if (spread >= 45) add(spread / 35, `Pitch varies from note to note (±${spread}¢)`, 'Some notes land, others drift, so the tune isn\'t settled in your ear yet.',
-      'Tap ▶ Listen first and hum along quietly. Then tap Starting note and copy it, and sing each orange note again slowly.', 'listen');
+      'Tap ▶ Listen and hum along quietly. Then tap Pitch pipe and copy it, and sing each orange note again slowly.', 'listen');
     const mid = med(sung.map(r => r.m)), hi = sung.filter(r => r.m > mid), lo = sung.filter(r => r.m <= mid);
     if (hi.length >= 2 && lo.length >= 2) {
       const bh = med(hi.map(r => r.c)), bl = med(lo.map(r => r.c)), ph = mean(hi.map(r => r.p)), pl = mean(lo.map(r => r.p));
@@ -2179,10 +2179,10 @@ function positive(st) {
   return best[0] >= 60 ? `${best[1]} (${best[0]}).` : 'You gave it a go: every try trains your ear.';
 }
 function encouragement(st, prev, isBest) {
-  if (st.monotone) return `${positive(st)} But it sounded like one held note, and this tune moves up and down. Tap ▶ Listen first, then follow the notes.`;
+  if (st.monotone) return `${positive(st)} But it sounded like one held note, and this tune moves up and down. Tap ▶ Listen, then follow the notes.`;
   if (st.ok === st.n && st.pure === st.n) return 'Wow! Every note in tune and pure.' + (diagnose(st).length ? ' A little fine-tuning below.' : ' You nailed it!');
   const m = [];
-  if (st.ok === 0) return `${positive(st)} The notes didn't line up with the tune yet. Tap ▶ Listen first, use Starting note, then try again at Slow.`;
+  if (st.ok === 0) return `${positive(st)} The notes didn't line up with the tune yet. Tap ▶ Listen, use the Pitch pipe, then try again at Slow.`;
   const good = strongSyl(st);
   if (good.length && st.ok < st.n) m.push(`Strongest notes: ${listJoin(good)}.`);
   if (!prev || prev.ok == null) m.push(`First try: ${st.ok} of ${st.n} notes in tune.`);
@@ -2247,7 +2247,7 @@ function renderReport() {
   if (!found.length) found = [{ good: true, title: st.ok === st.n ? 'Clean and consistent' : 'No single problem stands out', why: st.ok === st.n ? 'Pitch and tone held up across the whole song.' : 'Your misses are spread out rather than following a pattern.',
     tryThis: st.ok === st.n ? 'Stretch yourself: switch to Medium tempo, or move the key up one step with +.' : 'Sing it again at the same tempo; repetition will settle the tune.', act: st.ok === st.n ? 'medium' : null }];
   const ACTS = { slow: ['Switch to Slow', () => { G.tempo = 'slow'; G.run = 'ready'; renderSing(); }], medium: ['Switch to Medium', () => { G.tempo = 'medium'; G.run = 'ready'; renderSing(); }],
-    listen: ['▶ Listen first', () => { G.run = 'ready'; G.res = []; renderSing(); listenFirst(); }], arp: ['Practise the arpeggio', () => loadSong(SONGS.find(x => x.id === 'arp'))],
+    listen: ['▶ Listen', () => { G.run = 'ready'; G.res = []; renderSing(); listenFirst(); }], arp: ['Practise the arpeggio', () => loadSong(SONGS.find(x => x.id === 'arp'))],
     down: ['Lower the key', () => { G.shift--; loadSong(G.song, true); }], up: ['Raise the key', () => { G.shift++; loadSong(G.song, true); }] };
   for (const f of found) {
     const d = document.createElement('div'); d.className = 'fix' + (f.good ? ' good' : '');
@@ -2266,8 +2266,8 @@ function myTimbre(m) {
   if (!store.discoveries.length) return null;
   return store.discoveries.reduce((a, b) => Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a).amps;
 }
-// Starting note: the first note of the song (or the note being sung right now), on its own.
-$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[G.run === 'singing' ? Math.min(G.idx, G.seq.length - 1) : 0].m; playTone(m, 2, PURE); };
+// Pitch pipe: the first note of the song (or the note being sung right now), on its own, as a choir director gives it.
+$('#btnRef').onclick = async () => { await ensureAudio(); const m = G.seq[G.run === 'singing' ? Math.min(G.idx, G.seq.length - 1) : 0].m; playTone(m, 2, PIPE); };
 $('#btnMetro').onclick = () => { G.metro = !G.metro; if (!store.settings) store.settings = {}; store.settings.metro = G.metro; dirty = true; $('#btnMetro').setAttribute('aria-pressed', G.metro); if (G.run === 'singing' || G.run === 'countin') toast('Metronome ' + (G.metro ? 'on' : 'off') + ' from the next run'); };
 $('#btnGen').onclick = () => {
   const z = strongZone(); const lo = z ? z.lo : 50, hi = z ? z.hi : 62;
@@ -2374,7 +2374,7 @@ const STEPS = [
     done: () => 'Copy that sound whenever you warm up. Open the My voice map tab any time to see your full range.' },
 
   { key: 'song', short: 'First melody', title: 'Sing your first melody',
-    how: ['Tap <b>▶ Listen first</b> to hear the tune, then tap <b>▶ Sing</b>.', 'After a count of 3 the notes move along by themselves. Sing each word as it lights up; the gold "you" note shows where your voice is.', 'Don\'t worry about being perfect. Each note is marked as you go, and you can sing it again to do better.'],
+    how: ['Tap <b>▶ Listen</b> to hear the tune, then tap <b>▶ Sing</b>.', 'After a count of 3 the notes move along by themselves. Sing each word as it lights up; the gold "you" note shows where your voice is.', 'Don\'t worry about being perfect. Each note is marked as you go, and you can sing it again to do better.'],
     why: 'This short scale has already been moved into your strongest zone, so it should feel easy. After this, try the songs in the Sing tab.',
     goal: 'Sing through the Five-note hum once.',
     enter: () => { loadSong(SONGS.find(x => x.id === 'hum')); placeSingCard('guide'); },
@@ -3481,7 +3481,7 @@ function unitPage(u, btn) {
   if (unitStep === 0) {
     body.append(el('p', 'unit-lead', 'First, just hear it and try it. No rules yet.'));
     const r = el('div', 'row');
-    if (u.song) r.appendChild(btn('🎹 Hear ' + songName(u.song) + ' played', 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
+    if (u.song) r.appendChild(btn('▶ Listen to ' + songName(u.song), 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
     if (u.check.lab) r.appendChild(btn('Try the exercise', u.song ? 'small' : 'primary', () => startUnitCheck(u)));
     if (u.check.kind === 'u1' && !store.profile) r.appendChild(btn('Find your voice →', 'primary', () => startUnitCheck(u)));
     if (!r.children.length) r.appendChild(btn('Pick a song and listen', 'primary', () => singSongId(null)));
