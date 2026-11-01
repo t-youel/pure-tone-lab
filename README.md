@@ -23,6 +23,12 @@ Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a g
 your path, and a song that fits your voice. Units 7–12 use their song as the skill check until their own
 measuring drills are built.
 
+**Progress & recordings:** every song you sing through is recorded on the device (compressed audio, about
+0.5 MB a minute) with a small pitch trace. Your first and best takes are always kept, and you can star others.
+Progress compares you with your starting point (range, scores, notes in tune), keeps weekly 1–5 comfort scores,
+and has a Storage panel: space used, delete per take, "Delete all but kept", recording on/off, and auto-delete of
+unkept takes after 30 days (on by default).
+
 **Solfège:** Do-Re-Mi songs and exercises show the Curwen hand signs, drawn at rising heights, with the current
 syllable lit up. *Climb the Ladder* is an original solfège song written for the app, and *Solfège patterns* drills
 steps, skips and turn-arounds (Unit 4 and 5 point to both).

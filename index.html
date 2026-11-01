@@ -313,6 +313,24 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.prog-box { display: grid; gap: 12px; }
+.prog-box .card { display: grid; gap: 10px; }
+.prog-range { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+.prog-range > span.mono { grid-column: 1 / -1; }
+.rbar { position: relative; height: 14px; border-radius: 7px; background: var(--line); }
+.rbar i { position: absolute; top: 2px; height: 10px; border-radius: 5px; }
+.rbar i.then { background: var(--muted); } .rbar i.now { background: var(--accent); }
+.cmp-table { border-collapse: collapse; width: 100%; max-width: 560px; }
+.cmp-table th, .cmp-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.cmp-table th { font: 600 .7rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.cmp-table td.up { color: var(--good); font-weight: 700; }
+.comfort-row { align-items: center; }
+.comfort-row .cf-l { width: 60px; font-weight: 700; }
+.comfort-row button.on, .clip-acts button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.clip { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.clip-info { display: grid; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.clip-info .trace { width: 160px; height: 34px; max-width: 100%; }
+button.warn { border-color: var(--warn); color: var(--warn); }
 .signs { display: grid; gap: 2px; }
 .signs svg { width: 100%; max-height: 170px; }
 .signs .sg rect { fill: var(--surface); stroke: var(--muted); stroke-width: 1.6; }
@@ -428,7 +446,7 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .ses-card .row button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .ses-safety { font-size: .9rem; border-left: 3px solid var(--warn); padding-left: 10px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
-body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live { display: none !important; }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live, body[data-screen="progress"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
 .vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
@@ -604,6 +622,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <button role="tab" id="t-lab" aria-selected="false" data-tab="lab">Voice Lab</button>
   <button role="tab" id="t-sing" aria-selected="false" data-tab="sing">Sing songs</button>
   <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
+  <button role="tab" id="t-progress" aria-selected="false" data-tab="progress">Progress</button>
 </nav>
 
 <!-- HOME -->
@@ -612,7 +631,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · hand signs, solfège</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · progress & recordings</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -729,6 +748,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 <!-- MY VOICE -->
+<section class="panel" id="tab-progress" hidden><div id="progBox" class="prog-box"></div></section>
+
 <section class="panel" id="tab-voice" hidden>
   <div class="card" id="vtCard"></div>
   <div class="card">
@@ -906,7 +927,7 @@ document.addEventListener('pointerdown', () => {
 async function rebuildAudio() {
   try { await ac.close(); } catch (e) {}
   ac = null; await ensureAudio();
-  guideTone = null;
+  guideTone = null; recDest = null;
   if (stream) { const src = ac.createMediaStreamSource(stream); src.connect(micIn); liveNodes = [src]; }
 }
 let micWatch = 0, liveHelp = false;
@@ -1558,7 +1579,7 @@ function autoShift(song) {
 }
 function loadSong(song, keepShift = false) {
   G.song = song; if (!keepShift) G.shift = autoShift(song);
-  stopPlayback(true); stopTicks();
+  stopPlayback(true); stopTicks(); recAbort();
   G.seq = song.notes.map(([o, b]) => ({ m: o + G.shift, b, w: '', cont: false }));
   // Words: one token per note, "_" holds the previous syllable over another note, "/" ends a line.
   G.lines = []; let ni = 0, ls = 0;
@@ -1701,7 +1722,7 @@ $('#btnGuide').onclick = () => {
 function startEcho() {
   stopPlayback(true); stopTicks();
   G.res = []; G.acc = []; G.streak = 0; G.idx = 0;
-  G.run = 'echo'; G.echo = { i: 0, phase: 'hear', t0: 0, retried: false }; CO.msg = '';
+  G.run = 'echo'; G.echo = { i: 0, phase: 'hear', t0: 0, retried: false }; CO.msg = ''; recStart();
   $('#cheer').textContent = ''; renderSing(); echoHear();
 }
 function echoHear() {
@@ -1760,7 +1781,7 @@ async function startRun() {
   }
   if (CO.on && G.run === 'done') loadSong(G.song, true);
   if (CO.on) CO.msg = '';
-  if (G.run === 'countin' || G.run === 'singing') { stopTicks(); guideOff(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
+  if (G.run === 'countin' || G.run === 'singing') { stopTicks(); guideOff(); recAbort(); G.run = 'ready'; G.idx = 0; G.res = []; G.acc = []; renderSing(); return; }
   stopPlayback(true);
   if (mode === 'idle') await startMic();
   if (mode === 'idle') return;
@@ -1778,11 +1799,12 @@ async function startRun() {
   // The starting note plays under the count-in, so the first note is never a guess.
   playTone(G.seq[0].m, count * beat - 0.35, PIPE, 0.12);
   if (G.metro) for (let k = 0; k * beat < t - 0.01; k++) click(0.12 + (count + k) * beat, false);
-  G.run = 'countin'; $('#cheer').textContent = '';
+  G.run = 'countin'; $('#cheer').textContent = ''; recStart();
   renderSing();
 }
 function singStep() {
   if (!singActive() || G.play >= 0) return;
+  recSample();
   if (G.run === 'echo') return echoStep();
   if (G.run === 'countin' || G.run === 'singing') { const ph = (((now() - G.t0) / beatSec()) % 1 + 1) % 1; $('#beatDot').classList.toggle('on', ph < 0.18); }
   const hint = $('#tgtHint');
@@ -1838,7 +1860,9 @@ function finalizeNote(i) {
 function finishRun() {
   stopTicks(); guideOff();
   G.run = 'done'; G.idx = G.seq.length; G.attempt++;
+  const firstSong = !store.baseline;
   saveRun();
+  recFinish(runStats(), firstSong && !!store.baseline);
   if (CO.on) coachAfter(runStats());
   renderSing();
 }
@@ -3593,6 +3617,179 @@ function updateFind() {
 }
 $('#lvlBadge').onclick = () => $('#t-path').click();
 // Home: the four steps at a glance. Each card says what it is, shows its result once done, and has one obvious button.
+// ---------- recordings: saved on this device ----------
+// Each sung-through song is recorded (compressed, about 0.5 MB a minute) with a small pitch trace.
+// Your first and best recordings are always kept, and so is anything you star. Others can auto-delete after 30 days.
+const REC = { mr: null, chunks: [], t0: 0, trace: [], lastT: 0 };
+let recDest = null, idbP = null;
+function idb() {
+  if (!idbP) idbP = new Promise((res, rej) => { try { const r = indexedDB.open('pureToneLab.clips', 1); r.onupgradeneeded = () => r.result.createObjectStore('clips'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
+  return idbP;
+}
+const idbDo = (mode, fn) => idb().then(db => new Promise((res, rej) => { const tx = db.transaction('clips', mode), st = tx.objectStore('clips'), rq = fn(st); tx.oncomplete = () => res(rq && rq.result); tx.onerror = () => rej(tx.error); }));
+const clipKey = id => KEY + ':' + id;
+function recStart() {
+  recAbort();
+  if (realStore || !ac || typeof MediaRecorder === 'undefined' || (store.settings && store.settings.record === false)) return;
+  try {
+    if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); }
+    const mt = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+    const mr = new MediaRecorder(recDest.stream, mt ? { mimeType: mt, audioBitsPerSecond: 64000 } : { audioBitsPerSecond: 64000 });
+    Object.assign(REC, { mr, chunks: [], t0: now(), trace: [], lastT: 0, song: G.song.id });
+    mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+    mr.start(1000);
+  } catch (e) { REC.mr = null; }
+}
+function recAbort() { if (REC.mr) { const mr = REC.mr; REC.mr = null; mr.onstop = null; try { mr.stop(); } catch (e) {} } }
+function recSample() {
+  if (!REC.mr || now() - REC.lastT < 0.1 || !(G.run === 'singing' || G.run === 'echo')) return;
+  REC.lastT = now(); REC.trace.push(S.voiced ? Math.round(S.midi * 10) / 10 : null);
+  if (REC.trace.length > 3000) REC.trace.shift();
+}
+function recFinish(st, isFirst) {
+  const mr = REC.mr; if (!mr) return Promise.resolve(null);
+  REC.mr = null;
+  const secs = now() - REC.t0, trace = REC.trace.slice(), song = REC.song, chunks = REC.chunks;
+  return new Promise(res => {
+    mr.onstop = async () => {
+      const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+      if (!blob.size) return res(null);
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const meta = { id, song, at: Date.now(), score: st.monotone ? 0 : st.score, ok: st.ok, n: st.n, secs: Math.round(secs), size: blob.size, type: blob.type, star: false, first: !!isFirst, target: G.seq.map(n => n.m), trace };
+      try { await idbDo('readwrite', s2 => s2.put(blob, clipKey(id))); } catch (e) { return res(null); }
+      if (!store.clips) store.clips = [];
+      store.clips.push(meta); dirty = true; save();
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+      await pruneClips();
+      if (document.body.dataset.screen === 'progress') renderProgress();
+      res(meta);
+    };
+    try { mr.stop(); } catch (e) { res(null); }
+  });
+}
+const bestClip = () => (store.clips || []).reduce((b, c) => !b || c.score > b.score ? c : b, null);
+const clipKept = c => c.star || c.first || c === bestClip();
+async function deleteClip(c) {
+  try { await idbDo('readwrite', s2 => s2.delete(clipKey(c.id))); } catch (e) {}
+  store.clips = (store.clips || []).filter(x => x.id !== c.id); dirty = true; save();
+}
+// auto-delete: unkept clips older than 30 days (when on), and never more than 40 unkept clips
+async function pruneClips() {
+  const auto = !(store.settings && store.settings.autoDel === false), cut = Date.now() - 30 * 864e5;
+  const unkept = (store.clips || []).filter(c => !clipKept(c)).sort((a, b) => a.at - b.at);
+  const drop = unkept.filter((c, i) => (auto && c.at < cut) || i < unkept.length - 40);
+  for (const c of drop) await deleteClip(c);
+  return drop.length;
+}
+let clipAudio = null, clipPlaying = null;
+async function playClip(c) {
+  if (clipAudio) { clipAudio.pause(); URL.revokeObjectURL(clipAudio.src); clipAudio = null; }
+  if (clipPlaying === c.id) { clipPlaying = null; renderProgress(); return; }
+  let blob = null; try { blob = await idbDo('readonly', s2 => s2.get(clipKey(c.id))); } catch (e) {}
+  if (!blob) { toast('That recording is no longer on this device.'); return; }
+  clipAudio = new Audio(URL.createObjectURL(blob)); clipPlaying = c.id;
+  clipAudio.onended = () => { clipPlaying = null; renderProgress(); };
+  clipAudio.play().catch(() => {}); renderProgress();
+}
+// a tiny picture of a take: the tune's notes as grey steps, your voice as a line
+function traceSVG(c) {
+  const tr = c.trace || [], tg = c.target || []; if (!tr.length) return '';
+  const vals = tr.filter(v => v != null).concat(tg); if (!vals.length) return '';
+  const fold = v => { const mid = (Math.min(...tg) + Math.max(...tg)) / 2; let x = v; while (x - mid > 6) x -= 12; while (mid - x > 6) x += 12; return x; };
+  const lo = Math.min(...tg) - 2, hi = Math.max(...tg) + 2, W = 160, H = 34, Y = v => H - 2 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1) * (H - 4);
+  let d = '', pen = false; tr.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + (i / (tr.length - 1 || 1) * W).toFixed(1) + ' ' + Y(fold(v)).toFixed(1); pen = true; });
+  return `<svg class="trace" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>`;
+}
+const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); return y + '-W' + String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7)).padStart(2, '0'); };
+let storeArmed = null;
+function renderProgress() {
+  const box = $('#progBox'); if (!box) return; box.textContent = '';
+  const btn = (label, cls, fn) => { const b = el('button', cls, label); b.onclick = fn; return b; };
+  const b = store.baseline, p = store.profile;
+  const head = el('div', 'card prog-head'); head.append(el('h2', '', 'Your progress'), el('p', 'muted', 'Always compared with your own starting point, never with other singers.'));
+  box.appendChild(head);
+  if (!b) {
+    const c = el('div', 'card'); c.append(el('p', 'unit-lead', 'Sing your first song to set your starting point.'), btn(p ? 'Sing your first song →' : 'Find your voice →', 'primary', () => startUnitCheck(UNITS[0])));
+    box.appendChild(c);
+  } else {
+    // you vs Unit 1
+    const runs = store.runs || [], sameSong = runs.filter(r => r.id === b.id && r.at > (b.at || 0)), recent = runs.filter(r => !SONGS.find(s => s.id === r.id && s.lab)).slice(-10);
+    const latest = sameSong[sameSong.length - 1], bestRecent = recent.reduce((m, r) => Math.max(m, r.score || 0), 0);
+    const pct = r => r && r.n ? Math.round(100 * (r.ok || 0) / r.n) : null, bestPct = recent.reduce((m, r) => Math.max(m, pct(r) || 0), 0);
+    const songName = (SONGS.find(s => s.id === b.id) || {}).name || 'your first song';
+    const rows = [
+      [songName + ' score', b.score, latest ? latest.score : null],
+      ['Best song score (last 10)', b.score, recent.length ? bestRecent : null],
+      ['Notes in tune', b.n ? Math.round(100 * (b.ok || 0) / b.n) + '%' : '–', recent.length ? bestPct + '%' : null, b.n ? Math.round(100 * (b.ok || 0) / b.n) : null, bestPct],
+      ['Pitch match best', '–', labBestOf('match') || null],
+      ['Steady hold best', '–', labBestOf('hold') || null],
+      ['Days practised', 1, Math.max(1, daysPractised())],
+      ['Sessions completed', 0, (store.sessions || []).length],
+    ];
+    const c = el('div', 'card'); c.append(el('h3', '', 'You vs your starting point'));
+    if (b.profile && p) {
+      const lo = Math.min(b.profile.low, p.low) - 2, hi = Math.max(b.profile.high, p.high) + 2, X = m => (100 * (m - lo) / (hi - lo)).toFixed(1) + '%';
+      const bar = (q, cls) => { const r = el('div', 'rbar'); const i = el('i', cls); i.style.left = X(q.low); i.style.width = `calc(${X(q.high)} - ${X(q.low)})`; r.appendChild(i); return r; };
+      const rg = el('div', 'prog-range'); rg.append(el('span', 'muted', 'Range at the start'), bar(b.profile, 'then'), el('span', 'muted', 'Range now'), bar(p, 'now'), el('span', 'mono muted', nameOf(b.profile.low) + '–' + nameOf(b.profile.high) + ' → ' + nameOf(p.low) + '–' + nameOf(p.high)));
+      c.appendChild(rg);
+    }
+    const t = el('table', 'cmp-table'); t.innerHTML = '<thead><tr><th></th><th>Start</th><th>Now</th></tr></thead>';
+    const tb = el('tbody');
+    for (const [name, then, nw, tn, nn] of rows) {
+      const tr = el('tr'); const a = tn != null ? tn : typeof then === 'number' ? then : null, z = nn != null ? nn : nw;
+      const up = nw != null && a != null && typeof z === 'number' && z > a;
+      tr.append(el('td', '', name), el('td', 'mono', then == null ? '–' : String(then)), el('td', 'mono' + (up ? ' up' : ''), nw == null ? '–' : String(nw) + (up ? ' ↑' : '')));
+      tb.appendChild(tr);
+    }
+    t.appendChild(tb); c.appendChild(t); box.appendChild(c);
+  }
+  // comfort this week
+  const wk = weekKey(), cm = (store.comfort || {})[wk] || {}, prevK = Object.keys(store.comfort || {}).filter(k => k < wk).sort().pop(), prev = prevK ? store.comfort[prevK] : null;
+  const cc = el('div', 'card'); cc.append(el('h3', '', 'How did singing feel this week?'), el('p', 'muted', '1 = hard work, 5 = easy and comfortable.'));
+  for (const [k, label] of [['breath', 'Breath'], ['pitch', 'Pitch'], ['ease', 'Ease']]) {
+    const r = el('div', 'row comfort-row'); r.dataset.k = k; r.appendChild(el('span', 'cf-l', label));
+    for (let v = 1; v <= 5; v++) { const x = btn(String(v), 'small' + (cm[k] === v ? ' on' : ''), () => { if (!store.comfort) store.comfort = {}; store.comfort[wk] = { ...(store.comfort[wk] || {}), [k]: v }; dirty = true; save(); renderProgress(); }); x.setAttribute('aria-pressed', cm[k] === v); r.appendChild(x); }
+    if (prev && prev[k]) r.appendChild(el('span', 'muted', 'last time ' + prev[k]));
+    cc.appendChild(r);
+  }
+  box.appendChild(cc);
+  // recordings
+  const clips = [...(store.clips || [])].sort((a, b2) => b2.at - a.at), best = bestClip();
+  const rc = el('div', 'card'); rc.append(el('h3', '', 'Your recordings'), el('p', 'muted', clips.length ? 'Saved on this device only. ★ Star a take to keep it.' : 'Every song you sing through is recorded here, on this device only. Sing a song to make your first one.'));
+  for (const c of clips) {
+    const row = el('div', 'clip'); row.dataset.clip = c.id;
+    const tags = (c.first ? '📌 First · ' : '') + (c === best ? '🏆 Best · ' : '');
+    const info = el('div', 'clip-info'); info.append(el('b', '', tags + ((SONGS.find(s => s.id === c.song) || {}).name || c.song)), el('span', 'muted mono', new Date(c.at).toLocaleDateString() + ' · score ' + c.score + ' · ' + fmt(c.secs) + ' · ' + Math.max(1, Math.round(c.size / 1024)) + ' KB'));
+    info.insertAdjacentHTML('beforeend', traceSVG(c));
+    const acts = el('div', 'row clip-acts');
+    acts.append(btn(clipPlaying === c.id ? '■ Stop' : '▶ Play', 'small', () => playClip(c)),
+      btn(c.star ? '★ Kept' : '☆ Keep', 'small' + (c.star ? ' on' : ''), () => { c.star = !c.star; dirty = true; save(); renderProgress(); }));
+    const del = btn(storeArmed === c.id ? 'Delete?' : '🗑', 'small' + (storeArmed === c.id ? ' warn' : ''), async () => { if (storeArmed !== c.id) { storeArmed = c.id; renderProgress(); setTimeout(() => { if (storeArmed === c.id) { storeArmed = null; renderProgress(); } }, 3500); return; } storeArmed = null; await deleteClip(c); renderProgress(); });
+    del.setAttribute('aria-label', 'Delete this recording'); acts.appendChild(del);
+    row.append(info, acts); rc.appendChild(row);
+  }
+  box.appendChild(rc);
+  // storage
+  const used = (store.clips || []).reduce((a, c) => a + (c.size || 0), 0);
+  const sc = el('div', 'card'); sc.dataset.card = 'storage'; sc.append(el('h3', '', 'Storage'), el('p', '', 'Recordings use ' + (used / 1048576).toFixed(1) + ' MB on this device (' + (store.clips || []).length + ' takes).'));
+  const est = el('p', 'muted'); sc.appendChild(est);
+  try { if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(e => { if (e && e.quota) est.textContent = 'This browser can use up to ' + Math.round(e.quota / 1048576) + ' MB here.'; }); } catch (e) {}
+  const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'autoDel'; cb.checked = !(store.settings && store.settings.autoDel === false);
+  cb.onchange = async () => { if (!store.settings) store.settings = {}; store.settings.autoDel = cb.checked; dirty = true; save(); if (cb.checked) { const n = await pruneClips(); if (n) toast(n + ' old take' + (n > 1 ? 's' : '') + ' deleted'); renderProgress(); } };
+  lab.append(cb, document.createTextNode(' Auto-delete takes older than 30 days (first, best and starred are always kept)'));
+  const lab2 = el('label', 'guide-tog'), cb2 = el('input'); cb2.type = 'checkbox'; cb2.id = 'recOn'; cb2.checked = !(store.settings && store.settings.record === false);
+  cb2.onchange = () => { if (!store.settings) store.settings = {}; store.settings.record = cb2.checked; dirty = true; save(); };
+  lab2.append(cb2, document.createTextNode(' Record my songs'));
+  const unkept = (store.clips || []).filter(c => !clipKept(c));
+  const all = btn(storeArmed === 'all' ? 'Tap again to delete ' + unkept.length + ' take' + (unkept.length === 1 ? '' : 's') : 'Delete all but kept', 'small' + (storeArmed === 'all' ? ' warn' : ''), async () => {
+    if (!unkept.length) { toast('Nothing to delete: every take is kept.'); return; }
+    if (storeArmed !== 'all') { storeArmed = 'all'; renderProgress(); setTimeout(() => { if (storeArmed === 'all') { storeArmed = null; renderProgress(); } }, 3500); return; }
+    storeArmed = null; for (const c of unkept) await deleteClip(c); toast(unkept.length + ' take' + (unkept.length === 1 ? '' : 's') + ' deleted'); renderProgress();
+  });
+  sc.append(lab2, lab, all);
+  box.appendChild(sc);
+}
+
 // ---------- Today's session: warm-up 3 min · skill 4 min · song 3 min · ear 1 min ----------
 // Each block opens the right exercise and starts it. When it ends, a short countdown moves on (or goes again
 // while there's time), so you can keep your eyes off the screen. Nothing interrupts you mid-exercise.
@@ -3730,6 +3927,7 @@ function startHome(k) {
   const u = currentUnit();
   if (k === 'today') { if (!store.profile) startUnitCheck(u); else sesOffer(); }
   else if (k === 'path') $('#t-path').click();
+  else if (k === 'progress') $('#t-progress').click();
   else if (k === 'songs') singSongId(null);
 }
 const today = () => new Date().toISOString().slice(0, 10);
@@ -3783,7 +3981,10 @@ function renderHome() {
   const pc = card('path', '🧭', 'Your path', 'Stage ' + st.n + ' · ' + st.title + ' · ' + done + ' of ' + UNITS.length + ' done', '', '', 'See the path');
   const bar = el('div', 'path-prog'); const fill = el('i'); fill.style.width = Math.round(100 * done / UNITS.length) + '%'; bar.appendChild(fill); pc.children[1].appendChild(bar);
   box.appendChild(pc);
-  // 4. a song for you
+  // 4. progress
+  const nClips = (store.clips || []).length;
+  box.appendChild(card('progress', '📈', 'Your progress', store.baseline ? 'You vs your first song' + (nClips ? ' · ' + nClips + ' recording' + (nClips > 1 ? 's' : '') : '') : 'Starts with your first song', '', '', 'See progress'));
+  // 5. a song for you
   const fits = songFits(p), fit = fits.find(f => f.s.rock) || fits[0];
   box.appendChild(card('songs', '♪', 'A song for you', fit ? fit.s.name + ' fits your voice.' : 'Pick any song.', '', '', 'Sing →'));
 }
@@ -3800,11 +4001,12 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'voice') renderVoice();
   if (tab === 'start') renderGuide();
   if (tab === 'path') renderPath();
+  if (tab === 'progress') renderProgress();
   if (tab === 'home') renderHome();
-  const scr = { home: 'home', path: 'path', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
+  const scr = { home: 'home', path: 'path', progress: 'progress', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
   document.body.dataset.screen = scr;
   $('#backBar').hidden = scr === 'home';
-  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
+  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', progress: 'Your progress', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
   window.scrollTo(0, 0);
 };
 $('#btnWarm').onclick = () => openLab('warmup', true);
@@ -3825,6 +4027,7 @@ renderLab();
 goStep(Math.min(guide.step, STEPS.length));
 G.metro = !(store.settings && store.settings.metro === false); $('#btnMetro').setAttribute('aria-pressed', G.metro);
 seedTries();
+pruneClips().catch(() => {});
 applyLevel();
 checkLevel(true);
 document.body.dataset.screen = 'home';

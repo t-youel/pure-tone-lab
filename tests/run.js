@@ -394,7 +394,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
     await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
-    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
 
   await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {
@@ -453,7 +453,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(home === 'tester,today', 'home in tester mode: ' + home);
     await page.click('#homeCards [data-card="tester"] >> text=Use a sample voice');
     const filled = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(filled === 'tester,today,checkin,path,songs', 'after sample voice: ' + filled);
+    expect(filled === 'tester,today,checkin,path,progress,songs', 'after sample voice: ' + filled);
     await page.evaluate(() => { store.devPass = []; store.passed = []; });
     await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
@@ -482,6 +482,42 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.patterns && r.ladder && r.doremi && r.lit === 'Do Re Mi Fa So La Ti Do' && r.signs === 8 && r.shown && r.hiddenRock && r.u4 === 'ladder/patterns' && r.lab, JSON.stringify(r));
     await page.evaluate(() => openLab('patterns'));
     expect(await page.evaluate(() => D.id === 'patterns' && G.song.id === 'patterns' && !$('#signs').hidden), 'patterns lab did not open with signs');
+  });
+
+  await test('Recordings: a sung song is saved on the device with its pitch trace; first and best are kept', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = null; store.clips = []; save(); });
+    await tab(page, '#t-sing');
+    await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'mary')); G.tempo = 'normal'; V.follow = true; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 });
+    await page.waitForFunction(() => (store.clips || []).length === 1, null, { timeout: 10000 });
+    const c = await page.evaluate(async () => { const m = store.clips[0]; const blob = await idbDo('readonly', s => s.get(clipKey(m.id))); return { first: m.first, song: m.song, size: blob && blob.size, trace: m.trace.filter(v => v != null).length, kept: clipKept(m) }; });
+    expect(c.first && c.song === 'mary' && c.size > 1000 && c.trace > 20 && c.kept, JSON.stringify(c));
+  });
+
+  await test('Progress: you vs your starting point, comfort scores, star, delete and storage controls', async page => {
+    await page.evaluate(async () => {
+      store.profile = { low: 41, high: 66, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 };
+      store.baseline = { id: 'mary', score: 40, ok: 10, n: 26, at: 1, profile: { low: 43, high: 63 } };
+      store.runs = [{ id: 'mary', at: 5, score: 72, ok: 20, n: 26 }]; store.lab = { match: { best: 64 } };
+      const mk = (id, at, score, extra) => ({ id, song: 'mary', at, score, ok: 1, n: 26, secs: 20, size: 4096, star: false, first: false, target: [60, 62, 64], trace: [60, 61, null, 62], ...extra });
+      const old = Date.now() - 40 * 864e5;
+      store.clips = [mk('a', old, 40, { first: true }), mk('b', old, 90), mk('c', old, 50), mk('d', Date.now(), 55), mk('e', old, 45, { star: true })];
+      for (const c of store.clips) await idbDo('readwrite', s => s.put(new Blob(['x'.repeat(100)]), clipKey(c.id)));
+      save(); $('#t-progress').click();
+    });
+    const v = await page.evaluate(() => ({ rows: [...document.querySelectorAll('.cmp-table tbody tr')].map(r => r.textContent), clips: document.querySelectorAll('.clip').length, range: !!document.querySelector('.prog-range'), screen: document.body.dataset.screen }));
+    expect(v.screen === 'progress' && v.range && v.clips === 5 && v.rows.some(r => /score4072/.test(r.replace(/\s|↑/g, ''))), JSON.stringify(v));
+    await page.click('.comfort-row[data-k="breath"] >> text=4');
+    await page.click('.clip[data-clip="d"] >> text=☆ Keep');
+    await page.click('.clip[data-clip="c"] button[aria-label="Delete this recording"]');
+    await page.click('.clip[data-clip="c"] >> text=Delete?');
+    await page.waitForFunction(() => !store.clips.some(c => c.id === 'c'), null, { timeout: 3000 }).catch(() => {});
+    const after = await page.evaluate(() => ({ comfort: store.comfort[weekKey()].breath, starred: store.clips.find(c => c.id === 'd').star, ids: store.clips.map(c => c.id).join() }));
+    // auto-delete is on by default: old, unkept takes go; first (a), best (b) and starred (e, d) stay
+    const pruned = await page.evaluate(async () => { store.clips.push({ id: 'f', song: 'mary', at: Date.now() - 31 * 864e5, score: 10, star: false, first: false, size: 10 }); const n = await pruneClips(); return { n, ids: store.clips.map(c => c.id).join() }; });
+    expect(after.comfort === 4 && after.starred && after.ids === 'a,b,d,e' && pruned.n === 1 && pruned.ids === 'a,b,d,e', JSON.stringify({ after, pruned }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
