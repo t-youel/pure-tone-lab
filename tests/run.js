@@ -366,6 +366,67 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(mid.sung && mid.play >= 1 && /Stop/.test(mid.label) && !end.pb && /Hear it sung/.test(end.label), JSON.stringify({ mid, end }));
   });
 
+  await test('Path: a unit passes with 70, or with three tries of 50+; two tries of 50+ are not enough', async page => {
+    const r = await page.evaluate(() => {
+      store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; store.tries = {}; store.passed = [];
+      const u2 = UNITS[1], u3 = UNITS[2], out = {};
+      out.u1 = unitPassed(UNITS[0]); out.u2open = unitOpen(u2); out.u3open0 = unitOpen(u3);
+      recordTry('lab', 'hold', 64); out.after64 = unitPassed(u2);
+      recordTry('lab', 'hold', 71); out.after71 = unitPassed(u2); out.u3open = unitOpen(u3);
+      recordTry('song', 'hum', 55); recordTry('song', 'hum', 52); out.two50 = unitPassed(u3);
+      recordTry('song', 'hum', 40); out.with40 = unitPassed(u3);
+      recordTry('song', 'hum', 58); out.three50 = unitPassed(u3);
+      out.status = unitStatus(UNITS[3]); out.cur = currentUnit().id;
+      return out;
+    });
+    expect(r.u1 && r.u2open && !r.u3open0 && !r.after64 && r.after71 && r.u3open && !r.two50 && !r.with40 && r.three50 && r.cur === 'u4' && /Score 70\+/.test(r.status), JSON.stringify(r));
+  });
+
+  await test('Path: tries only count for open units; paywall switch locks units after Checkpoint A', async page => {
+    const r = await page.evaluate(() => {
+      store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; store.tries = {}; store.passed = [];
+      recordTry('lab', 'vowels', 95);
+      const early = unitTries(UNITS.find(u => u.id === 'u6')).length;
+      const paid = UNITS.filter(u => unitPaid(u)).map(u => u.id).join();
+      store.unlockAll = true; const allOpen = UNITS.every(unitOpen);
+      return { early, paid, allOpen, pay: PAYWALL };
+    });
+    expect(r.early === 0 && r.paid === 'u6,u7,u8,u9,u10,u11,u12' && r.allOpen && r.pay === false, JSON.stringify(r));
+  });
+
+  await test('Path: the first song after Find your voice becomes the baseline and passes Unit 1', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = null; store.passed = []; save(); });
+    await tab(page, '#t-sing');
+    await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'mary')); G.tempo = 'normal'; V.follow = true; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(2000);
+    const s = await page.evaluate(() => ({ base: store.baseline && store.baseline.id, u1: unitPassed(UNITS[0]), cel: !$('#celebrate').hidden, cur: currentUnit().id }));
+    expect(s.base === 'mary' && s.u1 && s.cel && s.cur === 'u2', JSON.stringify(s));
+  });
+
+  await test('Today: unit card first; voice check-in with a safety note; path and song cards', async page => {
+    const first = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), btn: $('#homeCards [data-card="today"] button.primary').textContent }));
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; save(); checkLevel(true); $('#t-home').click(); });
+    const later = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), title: $('#homeTitle').textContent }));
+    await page.click('#homeCards [data-card="checkin"] >> text=Scratchy');
+    const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
+    await page.click('#homeCards [data-card="today"] button.primary');
+    const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
+    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+  });
+
+  await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; save(); openUnit(UNITS[1]); });
+    const steps = await page.evaluate(() => [...document.querySelectorAll('.unit-steps button')].map(b => b.textContent).join('|'));
+    await page.click('.unit-body >> text=Next: Name it');
+    const name = await page.evaluate(() => ({ lead: $('.unit-lead').textContent, how: !!$('.unit-how') }));
+    await page.click('.unit-body >> text=Next: Practise');
+    await page.click('.unit-body >> text=Start the skill check');
+    const d = await page.evaluate(() => D.id);
+    expect(/Experience/.test(steps) && /Name it/.test(steps) && /Practise/.test(steps) && /breathe in low/.test(name.lead) && name.how && d === 'hold', JSON.stringify({ steps, name, d }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

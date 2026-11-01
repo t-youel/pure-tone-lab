@@ -295,6 +295,31 @@ details b { color: var(--ink); }
 .lv-dots { display: flex; gap: 5px; }
 .lv-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
 .lv-dots span.d-done { background: var(--pure); } .lv-dots span.d-now { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.path-box { display: grid; gap: 12px; }
+.path-hero h2 { font-size: 1.6rem; }
+.stage-card { display: grid; gap: 6px; }
+.stage-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+.unit-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 0; font: inherit; color: var(--ink); cursor: pointer; }
+.unit-row:disabled { opacity: .55; cursor: default; }
+.unit-row.now { border: 2px solid var(--accent); }
+.unit-row.gate { border-style: dashed; border-color: var(--pure); }
+.unit-row .u-num { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 700 .9rem var(--display); background: var(--line); }
+.unit-row.now .u-num { background: var(--accent); color: var(--accent-ink); }
+.unit-row.is-done .u-num { background: var(--pure); color: var(--surface); }
+.unit-row .u-txt { display: grid; min-width: 0; flex: 1; }
+.pro-badge { font: 700 .7rem var(--mono); border: 1px solid var(--pure); color: var(--pure); border-radius: 999px; padding: 3px 8px; }
+.path-foot { justify-content: center; }
+.unit-page { display: grid; gap: 10px; }
+.unit-top { align-items: center; }
+.unit-card { display: grid; gap: 12px; }
+.unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.unit-steps button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.unit-steps button.seen { border-color: var(--good); color: var(--good); }
+.unit-body { display: grid; gap: 12px; justify-items: start; }
+.unit-lead { font: 700 1.15rem/1.35 var(--display); max-width: 60ch; }
+.unit-cue { border-left: 3px solid var(--pure); padding-left: 10px; font-weight: 700; }
+.unit-how summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+.unit-how p { margin-top: 6px; max-width: 62ch; }
 #lvCurrent h2 { font-size: 1.7rem; }
 .lv-intro { font-size: 1.05rem; max-width: 56ch; }
 .lv-goal { font-size: 0.95rem; } .lv-goal b { color: var(--accent); }
@@ -367,13 +392,17 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .hc.is-later { opacity: .6; }
 .hc h3 { font-size: 1.25rem; }
 .hc .desc { color: var(--muted); font-size: 0.95rem; margin-top: 2px; }
+.hc.checkin.warn { border-color: var(--warn); }
+.hc .acts button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.path-prog { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 8px; max-width: 320px; }
+.path-prog i { display: block; height: 100%; background: var(--accent); }
 .hc .result { font: 700 1.05rem/1.3 var(--display); color: var(--ink); margin-top: 6px; }
 .hc .result b { color: var(--pure); font-size: 1.35rem; }
 .hc .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .hc .acts .primary { font-size: 1.05rem; padding: 13px 22px; }
 .back-bar { display: flex; align-items: center; gap: 12px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
-body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live { display: none !important; }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
 .vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
@@ -560,10 +589,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 
 <!-- YOUR PATH -->
 <section class="panel" id="tab-path" hidden>
-  <div class="card hero" id="lvCurrent"></div>
+  <div id="pathBox" class="path-box"></div>
   <div class="card" id="findCard" hidden></div>
-  <details class="card path-more" id="lvLessons"><summary id="lvLessonsSum">Your lessons</summary><div class="lessons" id="lessonList"></div></details>
-  <details class="card path-more"><summary>What's ahead: 5 levels</summary><div class="lv-list" id="lvList"></div><div class="row"><button id="btnUnlockAll" class="small">I'm experienced: unlock every level</button></div></details>
 </section>
 
 <!-- START HERE (older guided session, kept for its demo) -->
@@ -2058,6 +2085,9 @@ function saveRun() {
   const good = strongSyl(st);
   store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo, good, score: st.score, mono: !!st.monotone });
   if (st.skills) store.skills = st.skills;
+  // the first song after Find your voice is the baseline everything later is compared with
+  if (store.profile && !store.baseline && !realStore) store.baseline = { id: G.song.id, score: st.score, ok: st.ok, n: st.n, avg: st.avg, at: Date.now(), profile: { low: store.profile.low, high: store.profile.high } };
+  recordTry('song', G.song.id, st.monotone ? 0 : st.score);
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true; setTimeout(() => checkLevel(), 1500);
 }
@@ -2479,7 +2509,7 @@ function labSave(id, score, extra) {
   if (!store.lab) store.lab = {};
   const r = store.lab[id] || { best: 0, tries: 0 };
   r.last = score; r.best = Math.max(r.best, score); r.tries++; r.at = Date.now(); Object.assign(r, extra || {});
-  store.lab[id] = r; dirty = true; setTimeout(() => checkLevel(), 1500); return r;
+  store.lab[id] = r; recordTry('lab', id, score); dirty = true; setTimeout(() => checkLevel(), 1500); return r;
 }
 function labBest(L) {
   if (L.kind === 'song') { const rs = (store.runs || []).filter(r => r.id === L.song); return rs.length ? Math.max(...rs.map(r => r.avg)) : null; }
@@ -3180,143 +3210,248 @@ const bestRun = (ids, f) => Math.max(0, ...runsOf(ids).map(f));
 const labBestOf = id => (labRec(id) || {}).best || 0;
 const daysPractised = () => (store.days || []).length;
 const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.good ? r.good : []; };
-// Each exercise is a lesson in one level only, and rock & roll starts in Level 1.
 const ROCK = ['saints', 'rrmorning', 'jukebox'];
-const LEVELS = [
-  { title: 'Foundations', short: 'Foundations', intro: 'Find your voice, your best notes, and sing your first rock & roll song.',
-    lessons: [
-      { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
-      { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
-        pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'Strongest notes: ' + listJoin(g) + '.' : 'You sang it through.'; } },
-      { title: 'Match a note', kind: 'lab', lab: 'match', goal: 'Score 50 or more', pass: () => labBestOf('match') >= 50, won: () => 'Best score: ' + labBestOf('match') + '.' },
-      { title: 'Your first song: When the Saints', kind: 'song', songs: ['saints', 'row', 'mary'], goal: 'Sing When the Saints (or Row, Row or Mary) through once', pass: () => runsOf(['saints', 'row', 'mary']).length > 0, won: () => 'Your first song is done!' },
-    ] },
-  { title: 'Breath & tone', short: 'Breath & tone', intro: 'Steady breath makes a steady, pure tone, and a strong rock voice.',
-    adds: 'The Purity and Tone color panels, Steady hold, Vowels & open airway, and Rock and Roll Morning.',
-    lessons: [
-      { title: 'Breath control: a steady hold', kind: 'lab', lab: 'hold', goal: '50% pure and steady', pass: () => labBestOf('hold') >= 50, won: () => 'Best: ' + labBestOf('hold') + '%.' },
-      { title: 'Open airway: vowels', kind: 'lab', lab: 'vowels', goal: 'Average purity 60 or more', pass: () => labBestOf('vowels') >= 60, won: () => 'Purest vowel: "' + (labRec('vowels') || {}).bestVowel + '".' },
-      { title: 'Rock and Roll Morning', kind: 'song', songs: ['rrmorning'], goal: '60% of notes on pitch', pass: () => bestRun(['rrmorning'], r => (r.ok || 0) / r.n) >= 0.6, won: () => 'A 12-bar blues, sung.' },
-    ] },
-  { title: 'Pitch & leaps', short: 'Pitch & leaps', intro: 'Land every note, even after a jump. The tuner joins in.',
-    adds: 'The tuner needle and Sounding now panel, Leaps, and Jukebox Jive.',
-    lessons: [
-      { title: 'Leaps', kind: 'lab', lab: 'leaps', goal: '5 of 7 leaps on pitch', pass: () => bestRun(['arp'], r => r.ok || 0) >= 5, won: () => bestRun(['arp'], r => r.ok || 0) + ' of 7 leaps.' },
-      { title: 'Jukebox Jive', kind: 'song', songs: ['jukebox'], goal: '70% of notes on pitch', pass: () => bestRun(['jukebox'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'Jukebox Jive, on pitch.' },
-    ] },
-  { title: 'Full-speed rock', short: 'Full speed', intro: 'Rock & roll at the real tempo, from the first note to the last.',
-    adds: 'Your own melodies, composed from your pure notes.',
-    lessons: [
-      { title: 'Rock at full speed', kind: 'song', songs: ROCK, goal: '70% on pitch at Normal tempo in a rock song', pass: () => bestRun(ROCK, r => r.tempo === 'normal' ? (r.ok || 0) / r.n : 0) >= 0.7, won: () => 'Rock & roll at full speed.' },
-      { title: 'Your own melody', kind: 'song', songs: ['gen'], goal: 'Compose one and sing it through', pass: () => runsOf(['gen']).length > 0, won: () => 'Your own tune.' },
-    ] },
-  { title: 'Advanced', short: 'Advanced', intro: 'Professional tone, and the strange and beautiful: overtone singing.',
-    adds: 'Explore: the spectrogram, overtone singing, the demo voice and recordings.',
-    lessons: [
-      { title: 'Pure rock tone', kind: 'song', songs: ROCK, goal: '70% of notes pure ✦ in a rock song', pass: () => bestRun(ROCK, r => (r.pure || 0) / r.n) >= 0.7, won: () => 'Pure tone, rock & roll.' },
-      { title: 'Overtone singing', kind: 'lab', lab: 'explore', goal: 'Hold a whistle overtone for 2 seconds', pass: () => !!store.overtone, won: () => 'Two notes at once!' },
-    ] },
+// ---------- The Pure Tone Path: 4 stages, 12 units and a checkpoint ----------
+// Each unit: Experience it, Name it, Practise it. A unit is passed with one score of 70+, or three tries of 50+.
+// Units 7-12 use their song as the skill check until their own measuring drills are built.
+const PAYWALL = false;           // switch on when payments exist: units after Checkpoint A then need Pro
+const PASS = 70, PERSIST = 50, PERSIST_TRIES = 3;
+const STAGES = [
+  { n: 1, title: 'Body', sub: 'Healthy, free sound' },
+  { n: 2, title: 'Ear', sub: 'Hear it, then sing it' },
+  { n: 3, title: 'Tone', sub: 'Color, registers, dynamics' },
+  { n: 4, title: 'Style & performance', sub: 'Make it yours' },
 ];
-LEVELS.forEach((L, i) => { L.n = i + 1; L.lessons.forEach((x, j) => { x.id = L.n + '.' + (j + 1); }); });
-// When each Lab exercise and song opens up.
-const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
-const SONG_LEVEL = { midnight: 1, johnhenry: 1, risingsun: 1, doxology: 1, silent: 1, joy: 1, jesusloves: 1, michael: 1, saints: 1, row: 1, mary: 1, rrmorning: 2, twinkle: 2, jukebox: 3, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
-const level = () => Math.min(store.level || 1, LEVELS.length);
+const UNITS = [
+  { id: 'u1', n: 1, stage: 1, title: 'Your voice today', check: { kind: 'u1' }, song: 'saints',
+    learn: 'Find your range and voice type, then sing one song. That song is your starting point: everything later is compared with it.',
+    cue: 'Relaxed shoulders · easy breath · no pushing',
+    how: 'Your voice is two small folds in your throat. Breath makes them vibrate; your throat and mouth shape the sound. Sip water through the day, and rest when your voice feels tired.' },
+  { id: 'u2', n: 2, stage: 1, title: 'Posture & breath', check: { kind: 'lab', id: 'hold', lab: 'hold', label: 'Steady hold: 6 seconds in the green band' }, song: 'doxology',
+    learn: 'Stand tall, breathe in low and quiet, then let the air out slowly and evenly, like a slow leak.',
+    cue: 'Belly out as you breathe in · ribs stay wide · shoulders down',
+    how: 'The diaphragm under your lungs drops when you breathe in. Keeping the ribs wide as you sing lets the air leave at an even pressure, and even pressure gives a steady note.' },
+  { id: 'u3', n: 3, stage: 1, title: 'Finding the sound', check: { kind: 'song', id: 'hum', lab: 'hum', label: 'Five-note hum' }, song: 'michael',
+    learn: 'Start each note gently, with no hard click. Slide on sirens and lip trills to warm the whole range.',
+    cue: 'Begin with a soft "m" or "h" · let the note bloom',
+    how: 'A hard start slams the folds together; a breathy start lets air leak. A balanced start, where air and folds begin together, is kindest to the voice and lands in tune.' },
+  { id: 'u4', n: 4, stage: 2, title: 'Pitch matching', check: { kind: 'lab', id: 'match', lab: 'match', label: 'Pitch match: 8 notes' }, song: 'jesusloves',
+    learn: 'Hear the note in your head first, then start softly right on it. If you are off, slide slowly until the band turns green.',
+    cue: 'Hear it · then sing it · relaxed jaw · soft "oo"',
+    how: 'Your ear tells your voice where to go and checks where it landed. Matching is a skill of the ear as much as the voice, and it improves fast with short daily practice.' },
+  { id: 'u5', n: 5, stage: 2, title: 'Inner hearing & intervals', check: { kind: 'song', id: 'arp', lab: 'leaps', label: 'Leaps: 7 jumps' }, song: 'johnhenry',
+    learn: 'Jump between notes cleanly: thirds, fifths and the octave. Hear the next note before you sing it.',
+    cue: 'Think the next note · no sliding · land it',
+    how: 'Singers keep a map of the scale in their head (inner hearing). Solfège names like Do, Mi and So make that map easier to use.' },
+  { id: 'cpA', n: 'A', stage: 2, gate: true, title: 'Checkpoint A', check: { kind: 'song', id: 'doremi', lab: 'scale', label: 'The major scale in solfège' }, song: null,
+    learn: 'Sing the major scale in solfège, Do to Do. This checks your ear and voice together.',
+    cue: 'Do Re Mi Fa So La Ti Do · even and unhurried',
+    how: 'The scale is the ladder every melody is built from. Singing it in tune means you can find your way in almost any song.' },
+  { id: 'u6', n: 6, stage: 3, title: 'Vowels & resonance', check: { kind: 'lab', id: 'vowels', lab: 'vowels', label: 'Vowels: average purity' }, song: 'silent',
+    learn: 'Shape pure vowels with mouth and tongue, and find a bright, forward placement.',
+    cue: 'Tall "ah" · smiling "ee" · round "oo"',
+    how: 'Each vowel is a shape of your throat and mouth that boosts certain overtones. Clear vowels carry further and sound more in tune.' },
+  { id: 'u7', n: 7, stage: 3, title: 'Registers', check: { kind: 'song', id: 'risingsun', label: 'Sing House of the Rising Sun' }, song: 'risingsun',
+    learn: 'Feel chest voice and head voice, and find the place where your voice changes gear.',
+    cue: 'Slide slowly on "oo" · let it get lighter as you go up',
+    how: 'Low notes use thicker vibrating folds (chest voice), high notes thinner ones (head voice). The change happens around a "break" that every voice has.' },
+  { id: 'u8', n: 8, stage: 3, title: 'Blending the passage', check: { kind: 'song', id: 'joy', label: 'Sing Joy to the World' }, song: 'joy',
+    learn: 'Lighten gradually through your break so no one can hear the gear change. Speaking ease, no pushing.',
+    cue: 'Lighter as you climb · keep the jaw loose · never push',
+    how: 'Pushing more air at the break makes it louder and harder. Letting the voice thin out gradually lets chest and head voice overlap smoothly.' },
+  { id: 'u9', n: 9, stage: 3, title: 'Dynamics & tone color', check: { kind: 'song', id: 'rrmorning', label: 'Sing Rock and Roll Morning' }, song: 'rrmorning',
+    learn: 'Go from soft to loud without strain, and try different colors: light, bright, full and a gentle cry.',
+    cue: 'Louder from the breath, not the throat',
+    how: 'Volume comes from breath pressure and how firmly the folds close. Color comes from the shape above them. Both can change without the pitch moving.' },
+  { id: 'u10', n: 10, stage: 4, title: 'Rhythm & phrasing', check: { kind: 'song', id: 'jukebox', label: 'Sing Jukebox Jive' }, song: 'jukebox',
+    learn: 'Feel the pulse, land notes on the beat, plan where to breathe, and stress the important words.',
+    cue: 'Tap the beat · breathe at the commas',
+    how: 'Rhythm is what makes a song move. Phrasing is how you shape lines across the beat, the way you would say them.' },
+  { id: 'u11', n: 11, stage: 4, title: 'Interpretation', check: { kind: 'song', id: '*', label: 'Sing any song with feeling' }, song: null,
+    learn: 'Sing the words as if you were telling someone the story. Let the feeling shape loud and soft.',
+    cue: 'Speak the line first · then sing it the same way',
+    how: 'Listeners respond to meaning. A slightly imperfect note sung with intent moves people more than a perfect one sung blankly.' },
+  { id: 'u12', n: 12, stage: 4, title: 'Showcase', check: { kind: 'song', id: '*', label: 'Perform one song, start to finish' }, song: null,
+    learn: 'Perform one song from start to finish, then compare it with your first recording.',
+    cue: 'Warm up · one deep breath · go',
+    how: 'Performing is its own skill: you keep going through small slips. Hearing how far you have come is the best motivation there is.' },
+];
+UNITS.forEach((u, i) => { u.i = i; });
+const unitTries = u => ((store.tries || {})[u.id]) || [];
+const unitBest = u => Math.max(0, ...unitTries(u).map(t => t.s));
+function unitPassed(u) {
+  if (u.check.kind === 'u1') return !!store.profile && !!store.baseline;
+  const t = unitTries(u);
+  return t.some(x => x.s >= PASS) || t.filter(x => x.s >= PERSIST).length >= PERSIST_TRIES;
+}
+const isPro = () => !PAYWALL || !!store.pro;
+const unitPaid = u => u.i > UNITS.findIndex(x => x.id === 'cpA');
+function unitOpen(u) {
+  if (store.unlockAll) return !unitPaid(u) || isPro();
+  if (u.i > 0 && !unitPassed(UNITS[u.i - 1])) return false;
+  return !unitPaid(u) || isPro();
+}
+const currentUnit = () => UNITS.find(u => !unitPassed(u) && unitOpen(u)) || UNITS.find(u => !unitPassed(u)) || UNITS[UNITS.length - 1];
+const unitLabel = u => u.gate ? u.title : 'Unit ' + u.n;
+// One try at a unit's skill check. Called when a drill or a song finishes.
+function recordTry(kind, id, score) {
+  if (realStore) return;
+  if (!store.tries) store.tries = {};
+  for (const u of UNITS) {
+    const c = u.check; if (c.kind !== kind || !unitOpen(u) || unitPassed(u)) continue;
+    if (c.id !== id && !(c.id === '*' && kind === 'song' && SONGS.some(x => x.id === id && !x.lab))) continue;
+    (store.tries[u.id] = store.tries[u.id] || []).push({ s: Math.round(score), at: Date.now() });
+    if (store.tries[u.id].length > 30) store.tries[u.id].shift();
+  }
+  dirty = true;
+}
+// What the Path says about a unit's progress.
+function unitStatus(u) {
+  if (unitPassed(u)) return u.check.kind === 'u1' ? 'Done ✓' : 'Passed ✓ · best ' + unitBest(u);
+  if (!unitOpen(u)) return unitPaid(u) && !isPro() ? 'Pro' : 'Locked';
+  if (u.check.kind === 'u1') return !store.profile ? 'Start with Find your voice' : 'Now sing your first song';
+  const t = unitTries(u), n = t.filter(x => x.s >= PERSIST).length;
+  return t.length ? `Best ${unitBest(u)} · ${n} of ${PERSIST_TRIES} tries at ${PERSIST}+` : `Score ${PASS}+, or ${PERSIST}+ three times`;
+}
+// Old saves: earlier best scores count as one try each.
+function seedTries() {
+  if (store.triesSeeded || realStore) return;
+  store.tries = store.tries || {};
+  if (store.profile && !store.baseline) { const r = (store.runs || [])[0]; if (r) store.baseline = { id: r.id, score: r.score || 0, ok: r.ok, n: r.n, at: r.at }; }
+  for (const u of UNITS) {
+    const c = u.check; let best = 0;
+    if (c.kind === 'lab') best = labBestOf(c.id);
+    else if (c.kind === 'song' && c.id !== '*') best = Math.max(0, ...runsOf([c.id]).map(r => r.score || 0));
+    if (best > 0) store.tries[u.id] = [{ s: best, at: Date.now() }];
+  }
+  store.triesSeeded = true; dirty = true;
+}
+// When each Lab exercise opens (by stage). Songs are all open.
+const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const SONG_LEVEL = {};
+// The stage of the furthest open unit. Panels and Lab exercises open by stage.
+const level = () => store.unlockAll ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
+const LEVELS = STAGES; // older code reads LEVELS.length
 
 function applyLevel() {
-  const lv = level();
+  const lv = level(), u = currentUnit();
   document.querySelectorAll('[data-min]').forEach(e => { e.hidden = lv < +e.dataset.min; });
-  $('#lvlBadge').textContent = 'Level ' + lv + ' · ' + LEVELS[lv - 1].short;
+  $('#lvlBadge').textContent = unitPassed(u) ? 'Path complete' : unitLabel(u) + ' · ' + u.title;
   $('#btnHelp').hidden = mode === 'idle' || lv < 2;
   renderPath(); renderLab(); renderSongs(); renderHome();
 }
 function checkLevel(quiet) {
-  if (realStore) return; // demos never move you up
-  if (!store.lessons) store.lessons = [];
-  let fresh = [];
-  for (const L of LEVELS.slice(0, level())) for (const x of L.lessons) if (x.pass() && !store.lessons.includes(x.id)) { store.lessons.push(x.id); fresh.push(x); }
-  if (fresh.length) { dirty = true; if (!quiet) toast('Lesson done ✓ ' + fresh[fresh.length - 1].title); }
-  let moved = 0;
-  while (level() < LEVELS.length && LEVELS[level() - 1].lessons.every(x => x.pass())) {
-    const done = LEVELS[level() - 1];
-    store.level = level() + 1; moved++; dirty = true;
-    if (!quiet) { celebrate(done, LEVELS[level() - 1]); break; }
-  }
-  if (moved && quiet) toast('Welcome back: you are on Level ' + level());
-  if (fresh.length || moved) { save(); applyLevel(); }
+  if (realStore) return; // demos never move you on
+  if (!store.passed) store.passed = [];
+  const fresh = UNITS.filter(u => unitPassed(u) && !store.passed.includes(u.id));
+  if (!fresh.length) return;
+  fresh.forEach(u => store.passed.push(u.id)); dirty = true; save();
+  const last = fresh[fresh.length - 1], next = UNITS[last.i + 1];
+  if (!quiet) celebrate(last, next);
+  applyLevel();
 }
 function celebrate(done, next) {
-  $('#celTitle').textContent = 'Level ' + done.n + ' complete: ' + done.title + '!';
-  $('#celText').textContent = done.lessons.filter(x => x.won).slice(0, 3).map(x => x.won()).join(' ');
-  $('#celNew').textContent = 'Next, Level ' + next.n + ': ' + next.title + '. ' + (next.adds || '');
-  $('#celNext').textContent = 'Start Level ' + next.n + ' →';
-  $('#celNext').onclick = () => { $('#celebrate').hidden = true; $('#t-path').click(); };
+  const t = unitTries(done), viaPersist = done.check.kind !== 'u1' && !t.some(x => x.s >= PASS);
+  $('#celTitle').textContent = (done.gate ? done.title : 'Unit ' + done.n + ' · ' + done.title) + ' complete!';
+  $('#celText').textContent = done.check.kind === 'u1' ? 'Your starting point is saved. Every later song is compared with it.' : viaPersist ? `Three solid tries at ${PERSIST}+. Persistence counts: you've earned the next step.` : `Best score ${unitBest(done)}.`;
+  $('#celNew').textContent = next ? 'Next: ' + unitLabel(next) + ' · ' + next.title + '. ' + next.learn : 'You have finished the whole Path.';
+  $('#celNext').textContent = next ? 'Open ' + unitLabel(next) + ' →' : 'See your path';
+  $('#celNext').onclick = () => { $('#celebrate').hidden = true; if (next) openUnit(next); else $('#t-path').click(); };
   $('#celebrate').hidden = false; $('#celNext').focus();
 }
 $('#celStay').onclick = () => { $('#celebrate').hidden = true; };
 let findOpen = false;
-function startLesson(x) {
-  if (x.kind === 'find') { findOpen = true; $('#t-path').click(); renderPath(); ensureListening(); $('#findCard').scrollIntoView({ block: 'nearest' }); }
-  else if (x.kind === 'lab') openLab(x.lab, true);
-  else if (x.kind === 'song') {
-    const ids = x.songs.filter(id => level() >= (SONG_LEVEL[id] || 1) || id === 'doremi');
-    if (ids[0] === 'doremi') { openLab('scale', true); ensureListening(); return; }
-    if (ids[0] === 'gen') { $('#t-sing').click(); $('#btnGen').click(); return; }
-    $('#t-sing').click(); loadSong(SONGS.find(s => s.id === ids[0]));
-  } else $('#t-path').click();
+// Practise a unit: its skill check, or its song.
+function startUnitCheck(u) {
+  const c = u.check;
+  if (c.kind === 'u1') { if (!store.profile) { openLab('range', true); $('#t-lab').click(); ensureListening(); } else singSongId(u.song); return; }
+  if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); ensureListening(); return; }
+  singSongId(c.id === '*' ? null : c.id);
 }
+function singSongId(id) {
+  $('#t-sing').click();
+  let s = id && SONGS.find(x => x.id === id);
+  if (!s && store.profile) { const fs = songFits(store.profile); const f = fs.find(f => f.s.rock) || fs[0]; if (f) { G.shift = f.k; loadSong(f.s, true); return; } }
+  if (s) loadSong(s);
+}
+// back-compat for older callers
+function startLesson(x) { if (x && x.check) return startUnitCheck(x); $('#t-path').click(); }
 
 const WAVE = '<div class="hero-wave" aria-hidden="true"><svg viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0 60 Q 50 10 100 60 T 200 60 T 300 60 T 400 60 T 500 60 T 600 60 T 700 60 T 800 60" fill="none" stroke="var(--accent)" stroke-width="5"/><path d="M0 60 Q 50 95 100 60 T 200 60 T 300 60 T 400 60 T 500 60 T 600 60 T 700 60 T 800 60" fill="none" stroke="var(--pure)" stroke-width="4"/></svg></div>';
+let unitView = null, unitStep = 0;
+function openUnit(u) { unitView = u.id; unitStep = 0; $('#t-path').click(); renderPath(); window.scrollTo({ top: 0 }); }
 function renderPath() {
-  const lv = level(), cur = $('#lvCurrent'), L = LEVELS[lv - 1];
-  const fresh = !(store.lessons || []).length;
-  document.body.classList.toggle('fresh', fresh);
-  const doneN = L.lessons.filter(x => x.pass()).length;
-  const next = L.lessons.find(x => !x.pass() && x.kind !== 'days'), days = L.lessons.find(x => x.kind === 'days');
-  cur.textContent = ''; cur.insertAdjacentHTML('beforeend', WAVE);
+  const box = $('#pathBox'); if (!box) return; box.textContent = '';
   const btn = (label, cls, fn) => { const b = el('button', cls, label); b.onclick = fn; return b; };
-  const cta = el('div', 'cta');
-  if (fresh) {
-    cur.append(el('span', 'label', 'Welcome'), el('h2', '', 'Everyone has a pure note. Let\'s find yours.'),
-      el('p', 'lv-intro', 'Sing Do-Re-Mi along with the app. In about a minute you\'ll see which notes you already sing well.'));
-    cta.append(btn('♪ Let\'s sing Do-Re-Mi', 'primary', () => startLesson(L.lessons[0])), btn('Just hum instead', 'small', () => startLesson(LEVELS[0].lessons.find(x => x.kind === 'find'))));
-    cur.append(cta, el('p', 'fine', 'No experience needed · headphones help · nothing is recorded or uploaded'));
-  } else if (next) {
-    const last = [...L.lessons].reverse().find(x => x.pass() && x.won);
-    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title + ' · ' + doneN + ' of ' + L.lessons.length + ' done'), el('h2', '', 'Next: ' + next.title),
-      el('p', 'lv-intro', (last ? last.won() + ' ' : '') + 'Goal: ' + next.goal.charAt(0).toLowerCase() + next.goal.slice(1) + '.'));
-    cta.append(btn('Let\'s go →', 'primary', () => startLesson(next)));
-    cur.appendChild(cta);
-  } else if (days && !days.pass()) {
-    const left = days.need - daysPractised();
-    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title), el('h2', '', 'Lessons done. Now let it settle.'),
-      el('p', 'lv-intro', 'Come back on ' + left + ' more day' + (left > 1 ? 's' : '') + ' to finish Level ' + lv + '. A minute or two of singing counts. Voices grow between sessions, not just during them.'));
-    cta.append(btn('Sing a song', 'primary', () => $('#t-sing').click()), btn('Practise in the Lab', 'small', () => $('#t-lab').click()));
-    cur.appendChild(cta);
+  const u = unitView && UNITS.find(x => x.id === unitView);
+  if (u) { box.appendChild(unitPage(u, btn)); return; }
+  const cur = currentUnit(), done = UNITS.filter(unitPassed).length;
+  const hero = el('div', 'card hero path-hero'); hero.insertAdjacentHTML('beforeend', WAVE);
+  hero.append(el('span', 'label', 'Your path · ' + done + ' of ' + UNITS.length + ' done'), el('h2', '', unitPassed(cur) ? 'You finished the Path!' : 'Next: ' + unitLabel(cur) + ' · ' + cur.title), el('p', 'lv-intro', cur.learn));
+  const cta = el('div', 'cta'); cta.append(btn('Open ' + unitLabel(cur) + ' →', 'primary', () => openUnit(cur))); hero.appendChild(cta);
+  box.appendChild(hero);
+  for (const st of STAGES) {
+    const card = el('div', 'card stage-card'); card.dataset.stage = st.n;
+    const us = UNITS.filter(x => x.stage === st.n), sd = us.filter(unitPassed).length;
+    const head = el('div', 'stage-head'); head.append(el('span', 'label', 'Stage ' + st.n + ' · ' + sd + ' of ' + us.length), el('h3', '', st.title), el('span', 'muted', st.sub)); card.appendChild(head);
+    for (const x of us) {
+      const ok = unitPassed(x), open = unitOpen(x), now = x === cur && !ok;
+      const row = el('button', 'unit-row' + (ok ? ' is-done' : now ? ' now' : !open ? ' locked' : '') + (x.gate ? ' gate' : ''));
+      row.type = 'button'; row.dataset.unit = x.id; row.disabled = !open && !ok;
+      row.append(el('span', 'u-num', ok ? '✓' : String(x.n)));
+      const t = el('span', 'u-txt'); t.append(el('b', '', x.title), el('span', 'muted', unitStatus(x))); row.appendChild(t);
+      if (!open && unitPaid(x) && !isPro()) row.appendChild(el('span', 'pro-badge', 'Pro'));
+      row.onclick = () => openUnit(x);
+      card.appendChild(row);
+    }
+    box.appendChild(card);
+  }
+  const more = el('div', 'row path-foot');
+  more.appendChild(btn(store.unlockAll ? 'Every unit is open' : 'I\'m experienced: open every unit', 'small', function () {
+    if (store.unlockAll) return;
+    if (!this.dataset.armed) { this.dataset.armed = '1'; this.textContent = 'Tap again to open all 12 units'; setTimeout(() => { delete this.dataset.armed; this.textContent = 'I\'m experienced: open every unit'; }, 3500); return; }
+    store.unlockAll = true; save(); applyLevel(); toast('Every unit is open');
+  }));
+  box.appendChild(more);
+}
+// A unit page: Experience · Name it · Practise
+function unitPage(u, btn) {
+  const w = el('div', 'unit-page');
+  const top = el('div', 'row unit-top'); top.append(btn('← Path', 'small', () => { unitView = null; renderPath(); }), el('span', 'label', 'Stage ' + u.stage + ' · ' + STAGES[u.stage - 1].title + ' · ' + unitLabel(u)));
+  w.appendChild(top);
+  const card = el('div', 'card unit-card');
+  card.append(el('h2', '', u.title), el('p', 'muted unit-status', unitStatus(u)));
+  const steps = ['Experience', 'Name it', 'Practise'], stepper = el('div', 'unit-steps');
+  steps.forEach((name, i) => { const b = btn((i + 1) + ' · ' + name, 'small' + (i === unitStep ? ' on' : i < unitStep ? ' seen' : ''), () => { unitStep = i; renderPath(); }); b.setAttribute('aria-pressed', i === unitStep); stepper.appendChild(b); });
+  card.appendChild(stepper);
+  const body = el('div', 'unit-body');
+  const songName = id => (SONGS.find(x => x.id === id) || {}).name;
+  if (unitStep === 0) {
+    body.append(el('p', 'unit-lead', 'First, just hear it and try it. No rules yet.'));
+    const r = el('div', 'row');
+    if (u.song) r.appendChild(btn('🎤 Hear ' + songName(u.song) + ' sung', 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
+    if (u.check.lab) r.appendChild(btn('Try the exercise', u.song ? 'small' : 'primary', () => startUnitCheck(u)));
+    if (u.check.kind === 'u1' && !store.profile) r.appendChild(btn('Find your voice →', 'primary', () => startUnitCheck(u)));
+    if (!r.children.length) r.appendChild(btn('Pick a song and listen', 'primary', () => singSongId(null)));
+    body.appendChild(r);
+    body.appendChild(btn('Next: Name it →', 'small', () => { unitStep = 1; renderPath(); }));
+  } else if (unitStep === 1) {
+    body.append(el('p', 'unit-lead', u.learn), el('p', 'unit-cue', u.cue));
+    const d = el('details', 'unit-how'); d.append(el('summary', '', 'How the voice does this'), el('p', '', u.how)); body.appendChild(d);
+    body.appendChild(btn('Next: Practise →', 'primary', () => { unitStep = 2; renderPath(); }));
   } else {
-    cur.append(el('span', 'label', 'Level ' + lv + ' · ' + L.title), el('h2', '', 'Everything is open.'), el('p', 'lv-intro', 'Keep your best scores climbing in the Lab and in songs.'));
+    const c = u.check;
+    body.append(el('p', 'unit-lead', c.kind === 'u1' ? (store.profile ? 'Now sing one song all the way through. It becomes your starting point.' : 'Start with Find your voice: about 40 seconds.') : 'Skill check: ' + c.label + '.'));
+    if (c.kind !== 'u1') body.appendChild(el('p', 'muted', `Pass with a score of ${PASS} or more, or with ${PERSIST_TRIES} tries of ${PERSIST}+. ${unitStatus(u)}.`));
+    const t = unitTries(u);
+    if (t.length) { const ch = el('div', 'chips-row'); t.slice(-8).forEach(x => ch.appendChild(el('span', 'r-chip ' + (x.s >= PASS ? 'pure' : x.s >= PERSIST ? 'ok' : 'near'), String(x.s)))); body.appendChild(ch); }
+    const r = el('div', 'row');
+    r.appendChild(btn(unitPassed(u) ? 'Practise again' : c.kind === 'u1' ? (store.profile ? 'Sing ' + songName(u.song) + ' →' : 'Find your voice →') : 'Start the skill check →', 'primary', () => startUnitCheck(u)));
+    if (u.song && c.id !== u.song) r.appendChild(btn('Sing ' + songName(u.song), 'small', () => singSongId(u.song)));
+    body.appendChild(r);
   }
-  // lessons checklist, folded
-  $('#lvLessonsSum').textContent = 'Level ' + lv + ' lessons · ' + doneN + ' of ' + L.lessons.length + ' done';
-  const list = $('#lessonList'); list.textContent = '';
-  for (const x of L.lessons) {
-    const ok = x.pass(), row = el('div', 'lesson' + (ok ? ' is-done' : x === next ? ' next' : ''));
-    row.append(el('span', 'ls-ic', ok ? '✓' : x.kind === 'days' ? '◷' : '○'));
-    const t = el('div', 'ls-txt');
-    t.append(el('b', '', x.title), el('span', 'muted', ok && x.won ? x.won() : x.kind === 'days' ? daysPractised() + ' of ' + x.need + ' days so far' : x.goal));
-    row.appendChild(t);
-    if (x.kind !== 'days') row.appendChild(btn(ok ? 'Again' : 'Start', x === next ? 'primary small' : 'small', () => startLesson(x)));
-    list.appendChild(row);
-  }
-  const fc = $('#findCard'); fc.textContent = ''; fc.hidden = !findOpen;
-  if (findOpen) { const h = el('div', 'card-head'); h.append(el('h3', '', 'Find your pure notes'), btn('Close', 'small', () => { findOpen = false; renderPath(); })); fc.append(h, el('p', 'lv-intro', 'Hum or sing any comfortable note. When the ring glows gold, your note is pure. Hold it there.'), findUI()); }
-  const ll = $('#lvList'); ll.textContent = '';
-  for (const x of LEVELS) {
-    const row = el('div', 'lv-row' + (x.n < lv ? ' is-done' : x.n === lv ? ' now' : ' locked'));
-    row.append(el('span', 'lv-num', x.n < lv ? '✓' : String(x.n)));
-    const t = el('div', 'lv-txt'); t.append(el('b', '', 'Level ' + x.n + ' · ' + x.title), el('span', 'muted', x.n > lv ? x.intro : x.n === lv ? 'You are here' : 'Complete')); row.appendChild(t);
-    ll.appendChild(row);
-  }
+  card.appendChild(body); w.appendChild(card);
+  return w;
 }
 
 // The pure-notes lesson: one ring that glows gold when the note is pure, and a keyboard that lights up each pure note found.
@@ -3359,49 +3494,56 @@ function updateFind() {
 $('#lvlBadge').onclick = () => $('#t-path').click();
 // Home: the four steps at a glance. Each card says what it is, shows its result once done, and has one obvious button.
 function startHome(k) {
-  if (k === 'voice') { openLab('range', true); $('#t-lab').click(); ensureListening(); }
-  else if (k === 'notes') { openLab('scale', true); $('#t-lab').click(); ensureListening(); }
-  else if (k === 'practice') { const L = LEVELS[level() - 1], next = L.lessons.find(x => !x.pass() && x.kind !== 'days'); if (next) startLesson(next); else { closeLab(); $('#t-lab').click(); } }
-  else if (k === 'songs') { $('#t-sing').click(); const p = store.profile; if (p) { const fs = songFits(p).filter(f => level() >= (SONG_LEVEL[f.s.id] || 1)), f = fs.find(f => f.s.rock) || fs[0]; if (f) { G.shift = f.k; loadSong(f.s, true); } } }
+  const u = currentUnit();
+  if (k === 'today') { if (u.check.kind === 'u1' && !store.profile) startUnitCheck(u); else openUnit(u); }
+  else if (k === 'path') $('#t-path').click();
+  else if (k === 'songs') singSongId(null);
+}
+const today = () => new Date().toISOString().slice(0, 10);
+function setCheckin(v) {
+  if (!store.checkin) store.checkin = {}; store.checkin[today()] = v; dirty = true; save(); renderHome();
 }
 function renderHome() {
   const box = $('#homeCards'); if (!box) return; box.textContent = '';
-  const p = store.profile, dr = runsOf(['doremi']), lv = level(), L = LEVELS[lv - 1];
-  const doneN = L.lessons.filter(x => x.pass()).length, nextLesson = L.lessons.find(x => !x.pass() && x.kind !== 'days');
-  const step = !p ? 1 : !dr.length ? 2 : 3;
-  $('#homeTitle').textContent = step === 1 ? 'Let\'s find your voice' : step === 2 ? 'Nice to meet you, ' + p.type.toLowerCase() + '!' : 'Welcome back';
-  $('#homeSub').textContent = step === 1 ? 'Four steps, one at a time. Start with number 1. It takes about 40 seconds.' : step === 2 ? 'Next, find the notes you already sing well.' : 'Pick up where you left off: practise, or sing a song.';
-  const fits = p ? songFits(p).filter(f => level() >= (SONG_LEVEL[f.s.id] || 1)) : [], fit = fits.find(f => f.s.rock) || fits[0];
-  const good = dr.length ? (dr[dr.length - 1].good || []) : [];
-  const cards = [
-    { k: 'voice', n: 1, title: 'Find your voice', desc: 'Hum low, high and in between. About 40 seconds.', done: !!p,
-      result: p ? `<b>${p.type}</b> · ${nameOf(p.low)} – ${nameOf(p.high)}` : '', go: p ? 'Try again' : 'Start →', extra: p ? ['Your voice profile', () => $('#t-voice').click()] : null },
-    { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
-      result: dr.length ? (good.length ? 'Strongest notes: <b>' + listJoin(good) + '</b>' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
-    { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
-      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
-    { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,
-      result: fit ? (fit.s.rock ? 'Rock & roll for you: ' : 'Best fit for you: ') + fit.s.name : '', go: 'Sing →' },
-  ];
-  for (const c of cards) {
-    const state = c.done ? 'is-done' : c.n === step || (step >= 3 && c.n === 3) ? 'is-next' : c.n > step && step < 3 ? 'is-later' : '';
-    const d = el('div', 'hc ' + state); d.dataset.card = c.k;
-    d.append(el('span', 'num', c.done ? '✓' : String(c.n)));
-    const t = el('div'); t.append(el('h3', '', c.title), el('p', 'desc', c.desc));
-    if (c.result) { const r = el('p', 'result'); r.innerHTML = c.result; t.appendChild(r); }
+  const p = store.profile, u = currentUnit(), done = UNITS.filter(unitPassed).length, first = !p;
+  $('#homeTitle').textContent = first ? 'Let\'s find your voice' : unitPassed(u) ? 'You finished the Path!' : 'Today: ' + u.title;
+  $('#homeSub').textContent = first ? 'About 40 seconds. Hum low, high and in between, and we\'ll find your voice type.' : 'About 10 minutes: a warm-up, today\'s skill, and a song.';
+  const card = (k, num, title, desc, result, state, go, extras) => {
+    const d = el('div', 'hc ' + state); d.dataset.card = k;
+    d.append(el('span', 'num', num));
+    const t = el('div'); t.append(el('h3', '', title)); if (desc) t.append(el('p', 'desc', desc));
+    if (result) { const r = el('p', 'result'); r.textContent = result; t.appendChild(r); }
     d.appendChild(t);
     const acts = el('div', 'acts');
-    const b = el('button', state === 'is-next' ? 'primary' : 'small', c.go); b.onclick = () => startHome(c.k); acts.appendChild(b);
-    for (const x of [c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
-    d.appendChild(acts); box.appendChild(d);
-  }
+    if (go) { const b = el('button', state === 'is-next' ? 'primary' : 'small', go); b.onclick = () => startHome(k); acts.appendChild(b); }
+    for (const x of extras || []) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
+    d.appendChild(acts); return d;
+  };
+  // 1. today's unit
+  const tGo = first ? 'Find your voice →' : u.check.kind === 'u1' ? 'Sing your first song →' : '▶ Start ' + unitLabel(u);
+  box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Warm up first', () => openLab('warmup', true)]]));
+  if (first) return;
+  // 2. voice check-in
+  const ci = (store.checkin || {})[today()];
+  const c = el('div', 'hc checkin' + (ci === 'scratchy' ? ' warn' : '')); c.dataset.card = 'checkin';
+  c.append(el('span', 'num', ci === 'fresh' ? '😊' : ci === 'ok' ? '🙂' : ci === 'scratchy' ? '😣' : '?'));
+  const ct = el('div'); ct.append(el('h3', '', 'How does your voice feel today?'));
+  if (ci === 'scratchy') ct.append(el('p', 'desc', 'Make it a gentle day: a quiet warm-up and humming only, then rest. If pain or hoarseness lasts more than two weeks, or you lose range, stop singing and see a doctor, ideally an ENT or a voice clinic.'));
+  else if (ci) ct.append(el('p', 'desc', ci === 'fresh' ? 'Great. Go for today\'s skill.' : 'Fine. Warm up well before the skill.'));
+  c.appendChild(ct);
+  const ca = el('div', 'acts row');
+  for (const [v, l] of [['fresh', '😊 Fresh'], ['ok', '🙂 OK'], ['scratchy', '😣 Scratchy']]) { const b = el('button', 'small' + (ci === v ? ' on' : ''), l); b.setAttribute('aria-pressed', ci === v); b.onclick = () => setCheckin(v); ca.appendChild(b); }
+  c.appendChild(ca); box.appendChild(c);
+  // 3. the path
+  const st = STAGES[u.stage - 1];
+  const pc = card('path', '🧭', 'Your path', 'Stage ' + st.n + ' · ' + st.title + ' · ' + done + ' of ' + UNITS.length + ' done', '', '', 'See the path');
+  const bar = el('div', 'path-prog'); const fill = el('i'); fill.style.width = Math.round(100 * done / UNITS.length) + '%'; bar.appendChild(fill); pc.children[1].appendChild(bar);
+  box.appendChild(pc);
+  // 4. a song for you
+  const fits = songFits(p), fit = fits.find(f => f.s.rock) || fits[0];
+  box.appendChild(card('songs', '♪', 'A song for you', fit ? fit.s.name + ' fits your voice.' : 'Pick any song.', '', '', 'Sing →'));
 }
-let unlockArmed = false;
-$('#btnUnlockAll').onclick = () => {
-  const b = $('#btnUnlockAll');
-  if (!unlockArmed) { unlockArmed = true; b.textContent = 'Tap again to unlock all ' + LEVELS.length + ' levels'; setTimeout(() => { unlockArmed = false; b.textContent = 'I\'m experienced: unlock every level'; }, 3500); return; }
-  store.level = LEVELS.length; save(); applyLevel(); toast('All levels unlocked'); unlockArmed = false;
-};
+
 
 
 for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
@@ -3415,10 +3557,10 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'start') renderGuide();
   if (tab === 'path') renderPath();
   if (tab === 'home') renderHome();
-  const scr = { home: 'home', path: 'practice', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
+  const scr = { home: 'home', path: 'path', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
   document.body.dataset.screen = scr;
   $('#backBar').hidden = scr === 'home';
-  $('#screenTitle').textContent = { voice: 'Step 1 · Find your voice', notes: 'Step 2 · Find your best notes', practice: 'Step 3 · Practise', songs: 'Step 4 · Sing songs', profile: 'Your voice profile' }[scr] || '';
+  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
   window.scrollTo(0, 0);
 };
 $('#btnWarm').onclick = () => openLab('warmup', true);
@@ -3438,7 +3580,7 @@ loadSong(SONGS.find(x => x.id === "row"));
 renderLab();
 goStep(Math.min(guide.step, STEPS.length));
 G.metro = !(store.settings && store.settings.metro === false); $('#btnMetro').setAttribute('aria-pressed', G.metro);
-if (!store.lv2) { store.level = 1; store.lv2 = true; save(); }
+seedTries();
 applyLevel();
 checkLevel(true);
 document.body.dataset.screen = 'home';
