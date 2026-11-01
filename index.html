@@ -1461,6 +1461,9 @@ const SONGS = [
   { id: 'doremi', lab: true, name: 'Do-Re-Mi scale', kind: 'Scale', hold: 1.2, words: 'Do Re Mi Fa So La Ti Do', notes: [[0,2],[2,2],[4,2],[5,2],[7,2],[9,2],[11,2],[12,3]] },
   { id: 'hum', lab: true, name: 'Five-note hum', kind: 'Warm-up', words: 'mm mm mm mm mm mm mm mm mm', notes: [[0,2],[2,2],[4,2],[5,2],[7,3],[5,2],[4,2],[2,2],[0,3]] },
   { id: 'arp', lab: true, name: 'Major arpeggio', kind: 'Warm-up', words: 'ah ah ah ah ah ah ah', notes: [[0,2],[4,2],[7,2],[12,3],[7,2],[4,2],[0,3]] },
+  { id: 'saints', rock: true, name: 'When the Saints Go Marching In', kind: 'Rock & roll · traditional, a hit for Fats Domino', words: 'Oh when the saints go march- ing in, / oh when the saints go march- ing in, / oh Lord, I want to be in that num- ber, / when the saints go march- ing in.', notes: [[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,2],[4,2],[0,2],[4,2],[2,4],[4,1],[4,1],[2,1],[0,3],[0,1],[4,1],[7,2],[7,1],[7,1],[5,4],[4,1],[5,1],[7,2],[4,2],[0,2],[2,2],[0,4]] },
+  { id: 'rrmorning', rock: true, name: 'Rock and Roll Morning', kind: 'Rock & roll · 12-bar blues, written for Pure Tone Lab', words: 'Woke up this mor- ning with a rock- and- roll beat, / woke up this mor- ning with a rock- and- roll beat, / gon- na sing it all day long till the mu- sic hits the street.', notes: [[0,.5],[0,.5],[3,.5],[4,1],[7,1.5],[7,.5],[9,.5],[7,.5],[4,.5],[3,.5],[0,2],[0,.5],[0,.5],[3,.5],[4,1],[7,1.5],[7,.5],[9,.5],[7,.5],[4,.5],[3,.5],[0,2],[7,.5],[7,.5],[10,1],[9,.5],[7,.5],[5,1],[4,2],[4,.5],[3,.5],[4,.5],[3,.5],[2,.5],[0,.5],[0,2]] },
+  { id: 'jukebox', rock: true, name: 'Jukebox Jive', kind: 'Rock & roll · up-tempo, written for Pure Tone Lab', words: 'Put a dime in the juke- box, let the rec- ord spin, / grab your part- ner by the hand and let the dan- cing be- gin. / Shake it to the left, shake it to the right, / we\'ll be dan- cing all night till the mor- ning light.', notes: [[0,.5],[0,.5],[4,.5],[7,.5],[7,.5],[9,.5],[7,1],[4,.5],[4,.5],[7,.5],[4,.5],[0,2],[5,.5],[5,.5],[9,.5],[12,1],[9,.5],[5,.5],[7,1],[7,.5],[7,.5],[4,.5],[7,.5],[4,.5],[2,.5],[0,2],[7,.5],[7,.5],[7,.5],[9,.5],[7,1],[5,.5],[5,.5],[5,.5],[7,.5],[5,1],[4,.5],[4,.5],[7,.5],[7,.5],[9,1],[7,1],[4,.5],[2,.5],[2,.5],[4,.5],[0,2]] },
   { id: 'row', name: 'Row, Row, Row Your Boat', kind: 'Song', words: 'Row, row, row your boat / gent- ly down the stream. / Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, / life is but a dream.', notes: [[0,1.5],[0,1.5],[0,1],[2,.5],[4,1.5],[4,1],[2,.5],[4,1],[5,.5],[7,3],[12,.5],[12,.5],[12,.5],[7,.5],[7,.5],[7,.5],[4,.5],[4,.5],[4,.5],[0,.5],[0,.5],[0,.5],[7,1],[5,.5],[4,1],[2,.5],[0,3]] },
   { id: 'mary', name: 'Mary Had a Little Lamb', kind: 'Song', words: 'Ma- ry had a lit- tle lamb, / lit- tle lamb, / lit- tle lamb, / Ma- ry had a lit- tle lamb, its / fleece was white as snow.', notes: [[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,2],[2,1],[2,1],[2,2],[4,1],[7,1],[7,2],[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,1],[4,1],[2,1],[2,1],[4,1],[2,1],[0,4]] },
   { id: 'bday', name: 'Happy Birthday', kind: 'Song', words: 'Hap- py birth- day to you, / hap- py birth- day to you, / hap- py birth- day dear friend _, / hap- py birth- day to you.', notes: [[-5,.75],[-5,.25],[-3,1],[-5,1],[0,1],[-1,2],[-5,.75],[-5,.25],[-3,1],[-5,1],[2,1],[0,2],[-5,.75],[-5,.25],[7,1],[4,1],[0,1],[-1,1],[-3,2],[5,.75],[5,.25],[4,1],[0,1],[2,1],[0,3]] },
@@ -3101,60 +3104,47 @@ const bestRun = (ids, f) => Math.max(0, ...runsOf(ids).map(f));
 const labBestOf = id => (labRec(id) || {}).best || 0;
 const daysPractised = () => (store.days || []).length;
 const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.good ? r.good : []; };
+// Each exercise is a lesson in one level only, and rock & roll starts in Level 1.
+const ROCK = ['saints', 'rrmorning', 'jukebox'];
 const LEVELS = [
-  { title: 'Foundations', short: 'Foundations', intro: 'The basics, one small step at a time. Every lesson starts from what you already do well.',
+  { title: 'Foundations', short: 'Foundations', intro: 'Find your voice, your best notes, and sing your first rock & roll song.',
     lessons: [
       { title: 'Find your voice', kind: 'lab', lab: 'range', goal: '5 quick steps: say hello, hum easy, low, high, and a siren', pass: () => !!store.profile, won: () => 'You\'re a ' + store.profile.type + ', like ' + VOICE_INFO[store.profile.type].who.slice(0, 2).join(' and ') + '.' },
       { title: 'Sing Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: 'Sing it through once, with the words on screen',
         pass: () => runsOf(['doremi']).length > 0, won: () => { const g = strongNotes(['doremi']); return g.length ? 'Strongest notes: ' + listJoin(g) + '.' : 'You sang it through.'; } },
-      { title: 'Find your pure notes', kind: 'find', goal: 'Find 3 notes that ring pure', pass: () => store.discoveries.length >= 3,
-        won: () => [...store.discoveries].sort((a, b) => a.midi - b.midi).map(d => nameOf(d.midi)).join(', ') + ' ring pure.' },
-      { title: 'Hold a steady note', kind: 'lab', lab: 'hold', goal: '40% pure and steady', pass: () => labBestOf('hold') >= 40, won: () => 'Best: ' + labBestOf('hold') + '%.' },
       { title: 'Match a note', kind: 'lab', lab: 'match', goal: 'Score 50 or more', pass: () => labBestOf('match') >= 50, won: () => 'Best score: ' + labBestOf('match') + '.' },
-      { title: 'Your first song', kind: 'song', songs: ['row', 'mary'], goal: 'Sing Row, Row or Mary through once', pass: () => runsOf(['row', 'mary']).length > 0, won: () => 'Your first song is done!' },
-      { title: 'Practise on 3 different days', kind: 'days', need: 3, goal: 'A few minutes on 3 separate days', pass: () => daysPractised() >= 3, won: () => daysPractised() + ' days of practice.' },
+      { title: 'Your first song: When the Saints', kind: 'song', songs: ['saints', 'row', 'mary'], goal: 'Sing When the Saints (or Row, Row or Mary) through once', pass: () => runsOf(['saints', 'row', 'mary']).length > 0, won: () => 'Your first song is done!' },
     ] },
-  { title: 'Breath & tone', short: 'Breath & tone', intro: 'Steady breath makes a steady, pure tone. Now the Purity and Tone color panels join in.',
-    adds: 'The Purity and Tone color panels appear, plus the Hum warm-up, Vowels & open airway, and Twinkle.',
+  { title: 'Breath & tone', short: 'Breath & tone', intro: 'Steady breath makes a steady, pure tone, and a strong rock voice.',
+    adds: 'The Purity and Tone color panels, Steady hold, Vowels & open airway, and Rock and Roll Morning.',
     lessons: [
-      { title: 'Hum warm-up', kind: 'lab', lab: 'hum', goal: '6 of 9 notes on pitch', pass: () => bestRun(['hum'], r => r.ok || 0) >= 6, won: () => bestRun(['hum'], r => r.ok || 0) + ' of 9 on pitch.' },
-      { title: 'Breath control: a steady hold', kind: 'lab', lab: 'hold', goal: '65% pure and steady', pass: () => labBestOf('hold') >= 65, won: () => 'Best: ' + labBestOf('hold') + '%.' },
-      { title: 'Open airway: vowels', kind: 'lab', lab: 'vowels', goal: 'Average purity 70 or more', pass: () => labBestOf('vowels') >= 70, won: () => 'Purest vowel: "' + (labRec('vowels') || {}).bestVowel + '".' },
-      { title: 'Pure Do-Re-Mi', kind: 'song', songs: ['doremi'], goal: '5 of 8 notes pure ✦', pass: () => bestRun(['doremi'], r => r.pure || 0) >= 5, won: () => bestRun(['doremi'], r => r.pure || 0) + ' of 8 pure.' },
-      { title: 'A pure song', kind: 'song', songs: ['row', 'mary', 'twinkle'], goal: 'Half the notes pure in a song', pass: () => bestRun(['row', 'mary', 'twinkle'], r => (r.pure || 0) / r.n) >= 0.5, won: () => 'Pure tone in a real song.' },
-      { title: 'Practise on 7 different days', kind: 'days', need: 7, goal: '7 days in total', pass: () => daysPractised() >= 7, won: () => daysPractised() + ' days of practice.' },
+      { title: 'Breath control: a steady hold', kind: 'lab', lab: 'hold', goal: '50% pure and steady', pass: () => labBestOf('hold') >= 50, won: () => 'Best: ' + labBestOf('hold') + '%.' },
+      { title: 'Open airway: vowels', kind: 'lab', lab: 'vowels', goal: 'Average purity 60 or more', pass: () => labBestOf('vowels') >= 60, won: () => 'Purest vowel: "' + (labRec('vowels') || {}).bestVowel + '".' },
+      { title: 'Rock and Roll Morning', kind: 'song', songs: ['rrmorning'], goal: '60% of notes on pitch', pass: () => bestRun(['rrmorning'], r => (r.ok || 0) / r.n) >= 0.6, won: () => 'A 12-bar blues, sung.' },
     ] },
-  { title: 'Pitch & leaps', short: 'Pitch & leaps', intro: 'Land every note, even after a jump. The tuner and Sounding now panels join in.',
-    adds: 'The tuner needle and Sounding now panel, Leaps, the Quick voice check, Happy Birthday and Jingle Bells.',
+  { title: 'Pitch & leaps', short: 'Pitch & leaps', intro: 'Land every note, even after a jump. The tuner joins in.',
+    adds: 'The tuner needle and Sounding now panel, Leaps, and Jukebox Jive.',
     lessons: [
-      { title: 'Match a note, closely', kind: 'lab', lab: 'match', goal: 'Score 75 or more', pass: () => labBestOf('match') >= 75, won: () => 'Best score: ' + labBestOf('match') + '.' },
       { title: 'Leaps', kind: 'lab', lab: 'leaps', goal: '5 of 7 leaps on pitch', pass: () => bestRun(['arp'], r => r.ok || 0) >= 5, won: () => bestRun(['arp'], r => r.ok || 0) + ' of 7 leaps.' },
-      { title: 'Do-Re-Mi at Medium tempo', kind: 'song', songs: ['doremi'], goal: '7 of 8 on pitch at Medium or Normal', pass: () => bestRun(['doremi'], r => r.tempo !== 'slow' ? r.ok || 0 : 0) >= 7, won: () => 'Scale at speed.' },
-      { title: 'Quick voice check', kind: 'lab', lab: 'check', goal: 'Do the 20-second check', pass: () => runsOf(['check']).length > 0, won: () => 'Checked.' },
-      { title: 'Bigger songs', kind: 'song', songs: ['twinkle', 'bday', 'jingle'], goal: '70% on pitch in one of them', pass: () => bestRun(['twinkle', 'bday', 'jingle'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'Bigger songs, on pitch.' },
-      { title: 'Practise on 14 different days', kind: 'days', need: 14, goal: '14 days in total', pass: () => daysPractised() >= 14, won: () => daysPractised() + ' days of practice.' },
+      { title: 'Jukebox Jive', kind: 'song', songs: ['jukebox'], goal: '70% of notes on pitch', pass: () => bestRun(['jukebox'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'Jukebox Jive, on pitch.' },
     ] },
-  { title: 'Songs & expression', short: 'Songs', intro: 'Whole songs at full speed, with pure tone from start to finish.',
-    adds: 'Ode to Joy, Amazing Grace, and new melodies composed from your pure notes.',
+  { title: 'Full-speed rock', short: 'Full speed', intro: 'Rock & roll at the real tempo, from the first note to the last.',
+    adds: 'Your own melodies, composed from your pure notes.',
     lessons: [
-      { title: 'Ode to Joy or Amazing Grace', kind: 'song', songs: ['ode', 'grace'], goal: '70% on pitch', pass: () => bestRun(['ode', 'grace'], r => (r.ok || 0) / r.n) >= 0.7, won: () => 'A classic, sung.' },
-      { title: 'Full speed, pure tone', kind: 'song', songs: ['twinkle', 'bday', 'jingle', 'ode', 'grace'], goal: '60% pure at Normal tempo', pass: () => bestRun(['twinkle', 'bday', 'jingle', 'ode', 'grace'], r => r.tempo === 'normal' ? (r.pure || 0) / r.n : 0) >= 0.6, won: () => 'Pure at full speed.' },
+      { title: 'Rock at full speed', kind: 'song', songs: ROCK, goal: '70% on pitch at Normal tempo in a rock song', pass: () => bestRun(ROCK, r => r.tempo === 'normal' ? (r.ok || 0) / r.n : 0) >= 0.7, won: () => 'Rock & roll at full speed.' },
       { title: 'Your own melody', kind: 'song', songs: ['gen'], goal: 'Compose one and sing it through', pass: () => runsOf(['gen']).length > 0, won: () => 'Your own tune.' },
-      { title: 'Practise on 21 different days', kind: 'days', need: 21, goal: '21 days in total', pass: () => daysPractised() >= 21, won: () => daysPractised() + ' days of practice.' },
     ] },
-  { title: 'Advanced', short: 'Advanced', intro: 'Professional-level targets, and the strange and beautiful: overtone singing.',
+  { title: 'Advanced', short: 'Advanced', intro: 'Professional tone, and the strange and beautiful: overtone singing.',
     adds: 'Explore: the spectrogram, overtone singing, the demo voice and recordings.',
     lessons: [
-      { title: 'Pitch match: pro', kind: 'lab', lab: 'match', goal: 'Score 90 or more', pass: () => labBestOf('match') >= 90, won: () => 'Best score: ' + labBestOf('match') + '.' },
-      { title: 'Hold: pro', kind: 'lab', lab: 'hold', goal: '85% pure and steady', pass: () => labBestOf('hold') >= 85, won: () => 'Best: ' + labBestOf('hold') + '%.' },
-      { title: 'A song, 80% pure', kind: 'song', songs: ['twinkle', 'bday', 'jingle', 'ode', 'grace'], goal: '80% of notes pure in any song', pass: () => bestRun(['twinkle', 'bday', 'jingle', 'ode', 'grace'], r => (r.pure || 0) / r.n) >= 0.8, won: () => 'Professional purity.' },
+      { title: 'Pure rock tone', kind: 'song', songs: ROCK, goal: '70% of notes pure ✦ in a rock song', pass: () => bestRun(ROCK, r => (r.pure || 0) / r.n) >= 0.7, won: () => 'Pure tone, rock & roll.' },
       { title: 'Overtone singing', kind: 'lab', lab: 'explore', goal: 'Hold a whistle overtone for 2 seconds', pass: () => !!store.overtone, won: () => 'Two notes at once!' },
     ] },
 ];
 LEVELS.forEach((L, i) => { L.n = i + 1; L.lessons.forEach((x, j) => { x.id = L.n + '.' + (j + 1); }); });
 // When each Lab exercise and song opens up.
 const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
-const SONG_LEVEL = { row: 1, mary: 1, twinkle: 2, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
+const SONG_LEVEL = { saints: 1, row: 1, mary: 1, rrmorning: 2, twinkle: 2, jukebox: 3, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
 const level = () => Math.min(store.level || 1, LEVELS.length);
 
 function applyLevel() {
@@ -3296,19 +3286,16 @@ function startHome(k) {
   if (k === 'voice') { openLab('range', true); $('#t-lab').click(); ensureListening(); }
   else if (k === 'notes') { openLab('scale', true); $('#t-lab').click(); ensureListening(); }
   else if (k === 'practice') { const L = LEVELS[level() - 1], next = L.lessons.find(x => !x.pass() && x.kind !== 'days'); if (next) startLesson(next); else { closeLab(); $('#t-lab').click(); } }
-  else if (k === 'songs') { $('#t-sing').click(); const p = store.profile; if (p) { const f = songFits(p).find(f => level() >= (SONG_LEVEL[f.s.id] || 1)); if (f) { G.shift = f.k; loadSong(f.s, true); } } }
+  else if (k === 'songs') { $('#t-sing').click(); const p = store.profile; if (p) { const fs = songFits(p).filter(f => level() >= (SONG_LEVEL[f.s.id] || 1)), f = fs.find(f => f.s.rock) || fs[0]; if (f) { G.shift = f.k; loadSong(f.s, true); } } }
 }
 function renderHome() {
   const box = $('#homeCards'); if (!box) return; box.textContent = '';
   const p = store.profile, dr = runsOf(['doremi']), lv = level(), L = LEVELS[lv - 1];
   const doneN = L.lessons.filter(x => x.pass()).length, nextLesson = L.lessons.find(x => !x.pass() && x.kind !== 'days');
   const step = !p ? 1 : !dr.length ? 2 : 3;
-  // only the "practise on N days" lesson left: say so, and let the singer move on if they want
-  const daysLeft = !nextLesson && doneN < L.lessons.length && lv < LEVELS.length ? L.lessons.find(x => x.kind === 'days' && !x.pass()) : null;
-  const daysTxt = daysLeft ? ` · Last one: practise on ${daysLeft.need} different days. You're on day ${Math.max(1, daysPractised())} of ${daysLeft.need}; come back tomorrow.` : '';
   $('#homeTitle').textContent = step === 1 ? 'Let\'s find your voice' : step === 2 ? 'Nice to meet you, ' + p.type.toLowerCase() + '!' : 'Welcome back';
   $('#homeSub').textContent = step === 1 ? 'Four steps, one at a time. Start with number 1. It takes about 40 seconds.' : step === 2 ? 'Next, find the notes you already sing well.' : 'Pick up where you left off: practise, or sing a song.';
-  const fit = p ? songFits(p).find(f => level() >= (SONG_LEVEL[f.s.id] || 1)) : null;
+  const fits = p ? songFits(p).filter(f => level() >= (SONG_LEVEL[f.s.id] || 1)) : [], fit = fits.find(f => f.s.rock) || fits[0];
   const good = dr.length ? (dr[dr.length - 1].good || []) : [];
   const cards = [
     { k: 'voice', n: 1, title: 'Find your voice', desc: 'Hum low, high and in between. About 40 seconds.', done: !!p,
@@ -3316,10 +3303,9 @@ function renderHome() {
     { k: 'notes', n: 2, title: 'Find your best notes', desc: 'Sing Do-Re-Mi with the app and see which notes you already sing well.', done: dr.length > 0,
       result: dr.length ? (good.length ? 'Strongest notes: <b>' + listJoin(good) + '</b>' : 'Sung ✓') : '', go: dr.length ? 'Sing it again' : 'Start →' },
     { k: 'practice', n: 3, title: 'Practise', desc: 'Short exercises for breath, pitch and tone. Each one tells you what to change.', done: false,
-      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : daysTxt) : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }],
-      extra3: daysLeft && step >= 3 ? ['Start Level ' + (lv + 1) + ' now →', () => { store.level = lv + 1; dirty = true; save(); applyLevel(); toast('Welcome to Level ' + (lv + 1) + ': ' + LEVELS[lv].title + '. Keep practising on different days too.'); renderHome(); }] : null },
+      result: step >= 3 ? `Level ${lv} · ${doneN} of ${L.lessons.length} done` + (nextLesson ? ' · Next: ' + nextLesson.title : '') : '', go: nextLesson ? 'Next lesson →' : 'Open →', extra: ['Warm up (4 min)', () => openLab('warmup', true)], extra2: ['All exercises', () => { closeLab(); $('#t-lab').click(); }] },
     { k: 'songs', n: 4, title: 'Sing songs', desc: 'Songs picked for your voice, with words, notes and a score at the end.', done: false,
-      result: fit ? 'Best fit for you: ' + fit.s.name : '', go: 'Sing →' },
+      result: fit ? (fit.s.rock ? 'Rock & roll for you: ' : 'Best fit for you: ') + fit.s.name : '', go: 'Sing →' },
   ];
   for (const c of cards) {
     const state = c.done ? 'is-done' : c.n === step || (step >= 3 && c.n === 3) ? 'is-next' : c.n > step && step < 3 ? 'is-later' : '';
@@ -3330,7 +3316,7 @@ function renderHome() {
     d.appendChild(t);
     const acts = el('div', 'acts');
     const b = el('button', state === 'is-next' ? 'primary' : 'small', c.go); b.onclick = () => startHome(c.k); acts.appendChild(b);
-    for (const x of [c.extra3, c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
+    for (const x of [c.extra, c.extra2]) if (x) { const e = el('button', 'small', x[0]); e.onclick = x[1]; acts.appendChild(e); }
     d.appendChild(acts); box.appendChild(d);
   }
 }

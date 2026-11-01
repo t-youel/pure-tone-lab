@@ -10,9 +10,15 @@ It's one file, `index.html`, with no build step. All audio analysis runs in your
 
 ## Levels
 
-The app opens on **Your path**: five levels, each a set of lessons. Level 1 (Foundations) starts with Do-Re-Mi
-and shows which notes you already sing well; a level ends only when every lesson is done and you have
-practised on enough different days. Later levels add breath and tone, pitch and leaps, songs, and advanced work.
+Five short levels, 13 lessons in all. Each exercise is a lesson in one level only, and rock & roll starts in Level 1:
+
+1. **Foundations:** find your voice, Do-Re-Mi, match a note, and your first song (When the Saints Go Marching In).
+2. **Breath & tone:** a steady hold, open-airway vowels, Rock and Roll Morning (a 12-bar blues).
+3. **Pitch & leaps:** leaps, Jukebox Jive.
+4. **Full-speed rock:** a rock song at Normal tempo, and your own melody.
+5. **Advanced:** pure rock tone, and overtone singing.
+
+The rock songs are a traditional song (When the Saints) and originals written for the app; copyrighted hits are not included.
 
 ## Guide tone
 
