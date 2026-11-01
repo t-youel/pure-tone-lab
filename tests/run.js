@@ -445,7 +445,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(names.join() === want, names.join());
     await page.evaluate(() => { users.names[users.active] = 'Singer 1'; store.devPass = []; applyLevel(); });
     const off = await page.evaluate(() => ({ open: UNITS.filter(unitOpen).length, tools: !!document.querySelector('.tester') }));
-    await page.evaluate(() => { users.names[users.active] = 'TedY-137'; applyLevel(); openUnit(UNITS[0]); });
+    await page.evaluate(() => { users.names[users.active] = 'Tedy-137'; applyLevel(); $('#t-home').click(); });
+    const home = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
+    expect(home === 'tester,today', 'home in tester mode: ' + home);
+    await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
     const after = await page.evaluate(() => ({ title: $('.unit-card h2').textContent, u1: unitPassed(UNITS[0]), open: UNITS.filter(unitOpen).length }));
     await page.evaluate(() => { unitView = null; renderPath(); });

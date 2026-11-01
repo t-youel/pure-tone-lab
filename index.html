@@ -3706,6 +3706,15 @@ function renderHome() {
   };
   // 1. today's unit
   const tGo = first ? 'Find your voice →' : '▶ Start today\'s session';
+  if (isTester()) {
+    const t = el('div', 'hc tester'); t.dataset.card = 'tester';
+    t.append(el('span', 'num', '🔧'));
+    const tt = el('div'); tt.append(el('h3', '', 'Tester mode'), el('p', 'desc', 'Every unit is open. Jump to any unit, mark units passed, and walk the whole course.')); t.appendChild(tt);
+    const ta = el('div', 'acts');
+    const b1 = el('button', 'primary', 'Open the Path →'); b1.onclick = () => { unitView = null; $('#t-path').click(); };
+    const b2 = el('button', 'small', 'Unit 1 →'); b2.onclick = () => openUnit(UNITS[0]);
+    ta.append(b1, b2); t.appendChild(ta); box.appendChild(t);
+  }
   box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
   if (first) return;
   // 2. voice check-in
