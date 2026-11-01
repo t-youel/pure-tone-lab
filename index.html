@@ -401,6 +401,20 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .hc .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .hc .acts .primary { font-size: 1.05rem; padding: 13px 22px; }
 .back-bar { display: flex; align-items: center; gap: 12px; }
+.ses-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--surface); border: 2px solid var(--accent); border-radius: 14px; padding: 8px 12px; }
+.ses-dots { display: flex; gap: 4px; }
+.ses-dots i { width: 26px; height: 8px; border-radius: 4px; background: var(--line); }
+.ses-dots i.d { background: var(--good); } .ses-dots i.c { background: var(--accent); }
+.ses-txt { display: flex; gap: 8px; align-items: baseline; flex: 1; min-width: 0; }
+.ses-txt b { font-family: var(--display); }
+.ses-count { font-weight: 700; color: var(--accent); }
+.ses-card { text-align: left; justify-items: stretch; border-color: var(--accent); max-width: 480px; width: 100%; }
+.ses-plan { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ses-plan li { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.ses-plan li span:last-child { color: var(--muted); font-family: var(--mono); font-size: .85rem; white-space: nowrap; }
+.ses-plan li.d { border-color: var(--good); }
+.ses-card .row button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.ses-safety { font-size: .9rem; border-left: 3px solid var(--warn); padding-left: 10px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
 body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
@@ -571,6 +585,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 <div class="back-bar" id="backBar" hidden><button id="btnHome" class="small">← Home</button><span class="label" id="screenTitle"></span></div>
+<div class="ses-bar" id="sesBar" hidden aria-live="polite"><div class="ses-dots" id="sesDots"></div><div class="ses-txt"><b id="sesName"></b><span id="sesTime" class="mono"></span></div><span id="sesCount" class="ses-count"></span><div class="row ses-btns" id="sesBtns"></div></div>
 <nav class="tabs" role="tablist" hidden>
   <button role="tab" id="t-home" aria-selected="true" data-tab="home">Home</button>
   <button role="tab" id="t-path" aria-selected="false" data-tab="path">Your path</button>
@@ -773,6 +788,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 </div>
+<div id="sesSheet" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="sesTitle"><div class="cel-card ses-card" id="sesCard"></div></div>
 <div id="celebrate" class="celebrate" hidden role="dialog" aria-modal="true" aria-labelledby="celTitle">
   <div class="cel-card"><div class="cel-burst">✦</div><h2 id="celTitle"></h2><p id="celText"></p><p id="celNew"></p>
     <div class="row" style="justify-content:center"><button id="celNext" class="primary"></button><button id="celStay" class="small">Stay here</button></div></div>
@@ -2087,7 +2103,7 @@ function saveRun() {
   if (st.skills) store.skills = st.skills;
   // the first song after Find your voice is the baseline everything later is compared with
   if (store.profile && !store.baseline && !realStore) store.baseline = { id: G.song.id, score: st.score, ok: st.ok, n: st.n, avg: st.avg, at: Date.now(), profile: { low: store.profile.low, high: store.profile.high } };
-  recordTry('song', G.song.id, st.monotone ? 0 : st.score);
+  recordTry('song', G.song.id, st.monotone ? 0 : st.score); sesNote(st.monotone ? 0 : st.score);
   if (store.runs.length > 80) store.runs.splice(0, store.runs.length - 80);
   dirty = true; setTimeout(() => checkLevel(), 1500);
 }
@@ -2509,7 +2525,7 @@ function labSave(id, score, extra) {
   if (!store.lab) store.lab = {};
   const r = store.lab[id] || { best: 0, tries: 0 };
   r.last = score; r.best = Math.max(r.best, score); r.tries++; r.at = Date.now(); Object.assign(r, extra || {});
-  store.lab[id] = r; recordTry('lab', id, score); dirty = true; setTimeout(() => checkLevel(), 1500); return r;
+  store.lab[id] = r; recordTry('lab', id, score); sesNote(score); dirty = true; setTimeout(() => checkLevel(), 1500); return r;
 }
 function labBest(L) {
   if (L.kind === 'song') { const rs = (store.runs || []).filter(r => r.id === L.song); return rs.length ? Math.max(...rs.map(r => r.avg)) : null; }
@@ -2830,18 +2846,18 @@ function drawBreath(t0) {
 
 const DRILLS = {
   warmup: {
-    lane: () => WARM[D.wi] && WARM[D.wi].breath ? { breath: true } : {},
+    lane: () => D.list && WARM[D.list[D.wi]] && WARM[D.list[D.wi]].breath ? { breath: true } : {},
     start() {
-      Object.assign(D, { phase: 'intro', wi: 0, run: null });
+      Object.assign(D, { phase: 'intro', wi: 0, run: null, list: SES.on && SES.warmList ? SES.warmList : WARM.map((_, i) => i) });
       dSet({ step: 'Vocal warm-up · 8 short exercises · about 4 minutes', prompt: 'Warm up', sub: 'The same warm-up speakers and singers use before they go on: release, breathe, then gentle sounds that open your voice. Each one moves on by itself.', live: '', prog: -1 });
       dBtns([{ label: 'Start the warm-up', primary: true, fn: async () => { await ensureListening(); this.go(0); } }]);
     },
     go(i) {
-      if (i >= WARM.length) return this.finish();
+      if (i >= D.list.length) return this.finish();
       if (i < 0) i = 0;
-      const w = WARM[i]; Object.assign(D, { wi: i, phase: 'run', t0: now(), paused: 0 });
+      const w = WARM[D.list[i]]; Object.assign(D, { wi: i, phase: 'run', t0: now(), paused: 0 });
       chime(i === 0 ? 'ding' : 'high');
-      dSet({ step: `Exercise ${i + 1} of ${WARM.length}`, prompt: w.cue + ' ' + w.t, sub: w.how, live: w.mic ? 'I\'m listening.' : '', prog: 0 });
+      dSet({ step: `Exercise ${i + 1} of ${D.list.length}`, prompt: w.cue + ' ' + w.t, sub: w.how, live: w.mic ? 'I\'m listening.' : '', prog: 0 });
       dBtns([{ label: 'Next →', primary: true, fn: () => this.go(D.wi + 1) }, { label: '← Back', fn: () => this.go(D.wi - 1) }, { label: 'Pause', fn: () => this.pause() }]);
     },
     pause() {
@@ -2851,7 +2867,7 @@ const DRILLS = {
     },
     tick(dt, muted) {
       if (D.phase !== 'run') return;
-      const w = WARM[D.wi], e = now() - D.t0;
+      const w = WARM[D.list[D.wi]], e = now() - D.t0;
       dSet({ prog: e / w.secs });
       if (w.purity && S.voiced && !muted) dSet({ live: 'Purity ' + Math.round(S.purity) + (S.purity >= 72 ? ' ✦ lovely' : ' · ' + (S.clar < S.stab ? 'a little less air' : 'steady and relaxed')) });
       else if (w.mic && S.voiced && !muted) dSet({ live: nameOf(S.midi) + ' · keep it easy' });
@@ -3493,9 +3509,142 @@ function updateFind() {
 }
 $('#lvlBadge').onclick = () => $('#t-path').click();
 // Home: the four steps at a glance. Each card says what it is, shows its result once done, and has one obvious button.
+// ---------- Today's session: warm-up 3 min · skill 4 min · song 3 min · ear 1 min ----------
+// Each block opens the right exercise and starts it. When it ends, a short countdown moves on (or goes again
+// while there's time), so you can keep your eyes off the screen. Nothing interrupts you mid-exercise.
+const SES = { on: false, blocks: [], i: 0, t0: 0, paused: 0, count: 0, iv: 0, warmList: null, started: 0, gentle: false };
+const WARM_SESSION = [1, 3, 4, 5, 7], WARM_GENTLE = [0, 1, 2, 4];
+function sesPlan(gentle) {
+  const u = currentUnit(), c = u.check;
+  if (gentle) return [{ k: 'warm', name: 'Gentle warm-up', secs: 240, list: WARM_GENTLE }];
+  const skillName = c.kind === 'u1' ? 'Your first song' : c.label || u.title;
+  const fits = store.profile ? songFits(store.profile) : [], skillSong = c.kind === 'u1' ? u.song : c.lab ? null : c.id;
+  let song = u.song && u.song !== skillSong ? u.song : null;
+  if (!song) { const f = fits.find(f => f.s.id !== skillSong && f.s.rock) || fits.find(f => f.s.id !== skillSong); song = f ? f.s.id : 'saints'; }
+  return [
+    { k: 'warm', name: 'Warm up', secs: 180, list: WARM_SESSION },
+    { k: 'skill', name: 'Skill · ' + skillName, secs: 240, unit: u.id, repeat: true },
+    { k: 'song', name: 'Song · ' + (SONGS.find(x => x.id === song) || {}).name, secs: 180, song, repeat: true },
+    { k: 'ear', name: 'Ear · echo 3 notes', secs: 60 },
+  ];
+}
+const fmt = t => Math.floor(t / 60) + ':' + String(Math.max(0, Math.floor(t % 60))).padStart(2, '0');
+function sesSheet(nodes) { const c = $('#sesCard'); c.textContent = ''; c.append(...nodes); $('#sesSheet').hidden = false; }
+// The start sheet: what today holds, and the voice check-in.
+function sesOffer() {
+  const ci = (store.checkin || {})[today()], gentle = ci === 'scratchy', plan = sesPlan(gentle), u = currentUnit();
+  const h = el('h2', '', gentle ? 'A gentle day' : 'Today\'s session'); h.id = 'sesTitle';
+  const sub = el('p', 'muted', gentle ? 'Your voice feels scratchy, so today is a quiet warm-up only. Rest is practice too.' : unitLabel(u) + ' · ' + u.title + ' · about ' + Math.round(plan.reduce((a, b) => a + b.secs, 0) / 60) + ' minutes');
+  const list = el('ul', 'ses-plan'); plan.forEach(b => { const li = el('li'); li.append(el('span', '', b.name), el('span', '', fmt(b.secs))); list.appendChild(li); });
+  const q = el('div', 'row'); q.appendChild(el('span', 'muted', 'How does your voice feel?'));
+  for (const [v, l] of [['fresh', '😊 Fresh'], ['ok', '🙂 OK'], ['scratchy', '😣 Scratchy']]) { const b = el('button', 'small' + (ci === v ? ' on' : ''), l); b.setAttribute('aria-pressed', ci === v); b.onclick = () => { if (!store.checkin) store.checkin = {}; store.checkin[today()] = v; dirty = true; save(); renderHome(); sesOffer(); }; q.appendChild(b); }
+  const nodes = [h, sub, q, list];
+  if (gentle) nodes.push(el('p', 'ses-safety', 'If pain or hoarseness lasts more than two weeks, or you lose range, stop singing and see a doctor, ideally an ENT or a voice clinic.'));
+  const go = el('button', 'primary', '▶ Start'); go.id = 'sesGo'; go.onclick = () => sesStart(gentle);
+  const no = el('button', 'small', 'Not now'); no.onclick = () => { $('#sesSheet').hidden = true; };
+  const r = el('div', 'row'); r.append(go, no); nodes.push(r);
+  sesSheet(nodes); go.focus();
+}
+async function sesStart(gentle) {
+  $('#sesSheet').hidden = true;
+  Object.assign(SES, { on: true, gentle, blocks: sesPlan(gentle).map(b => ({ ...b, scores: [], done: false, used: 0 })), i: 0, startedAt: now(), paused: 0, count: 0 });
+  if (mode === 'idle') await startMic();
+  $('#sesBar').hidden = false;
+  sesBegin();
+  clearInterval(SES.iv); SES.iv = setInterval(sesTick, 250);
+}
+function sesNote(score) { if (SES.on && SES.blocks[SES.i]) SES.blocks[SES.i].scores.push(Math.round(score)); }
+// open and start the current block's exercise
+function sesBegin() {
+  const b = SES.blocks[SES.i]; if (!b) return sesFinish();
+  b.t0 = b.t0 || now(); SES.count = 0; SES.started = now();
+  stopPlayback(true);
+  if (D.id && !(b.k === 'warm' && D.id === 'warmup')) closeLab();
+  const clickStart = () => setTimeout(() => { const p = $('#dBtns .primary'); if (p && SES.on) p.click(); }, 350);
+  if (b.k === 'warm') { SES.warmList = b.list; openLab('warmup', true); $('#t-lab').click(); setTimeout(() => SES.on && DRILLS.warmup.go(0), 300); }
+  else if (b.k === 'skill') {
+    const u = UNITS.find(x => x.id === b.unit), c = u.check;
+    if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); if (DRILLS[c.lab]) clickStart(); else setTimeout(() => SES.on && startRun(), 500); }
+    else { singSongId(c.kind === 'u1' ? u.song : c.id === '*' ? null : c.id); setTimeout(() => SES.on && startRun(), 500); }
+  } else if (b.k === 'song') { singSongId(b.song); setTimeout(() => SES.on && startRun(), 500); }
+  else if (b.k === 'ear') { openLab('match', true); $('#t-lab').click(); D.n = 3; clickStart(); }
+  sesRender();
+}
+function sesActivityDone(b) {
+  if (now() - SES.started < 1.5) return false;
+  if (b.k === 'warm' || b.k === 'ear') return D.phase === 'done';
+  if (b.k === 'skill') { const c = UNITS.find(x => x.id === b.unit).check; return c.lab && DRILLS[c.lab] ? D.phase === 'done' : G.run === 'done'; }
+  return G.run === 'done';
+}
+const sesUsed = b => (b.used || 0) + (SES.paused ? 0 : now() - (b.resumed || b.t0));
+function sesTick() {
+  if (!SES.on || SES.paused) return;
+  const b = SES.blocks[SES.i]; if (!b) return;
+  const left = b.secs - sesUsed(b);
+  if (!SES.count && sesActivityDone(b)) {
+    const again = b.repeat && left >= 60;
+    SES.count = { at: now(), again };
+  }
+  if (SES.count) {
+    const rest = 6 - (now() - SES.count.at);
+    if (rest <= 0) { const again = SES.count.again; SES.count = 0; if (again) sesBegin(); else sesNext(); return; }
+  }
+  sesRender();
+}
+function sesNext() {
+  const b = SES.blocks[SES.i]; if (b) { b.done = true; b.used = sesUsed(b); }
+  SES.i++; SES.count = 0;
+  if (SES.i >= SES.blocks.length) return sesFinish();
+  const n = SES.blocks[SES.i]; n.t0 = now(); n.resumed = 0; n.used = 0;
+  chime('high'); sesBegin();
+}
+function sesPause() {
+  if (!SES.paused) { const b = SES.blocks[SES.i]; b.used = sesUsed(b); SES.paused = now(); SES.count = 0; }
+  else { const b = SES.blocks[SES.i]; b.resumed = now(); SES.paused = 0; }
+  sesRender();
+}
+function sesRender() {
+  if (!SES.on) return;
+  const b = SES.blocks[SES.i]; if (!b) return;
+  const dots = $('#sesDots'); dots.textContent = ''; SES.blocks.forEach((x, i) => dots.appendChild(el('i', i < SES.i ? 'd' : i === SES.i ? 'c' : '')));
+  $('#sesName').textContent = b.name;
+  const left = b.secs - sesUsed(b);
+  $('#sesTime').textContent = SES.paused ? 'paused' : left > 0 ? fmt(left) + ' left' : 'finishing…';
+  const nx = SES.blocks[SES.i + 1];
+  $('#sesCount').textContent = SES.count ? (SES.count.again ? 'Again in ' : (nx ? 'Next: ' + nx.name.split(' · ')[0] + ' in ' : 'Done in ')) + Math.ceil(6 - (now() - SES.count.at)) : '';
+  const btns = $('#sesBtns'); btns.textContent = '';
+  const add = (label, fn, cls) => { const x = el('button', cls || 'small', label); x.onclick = fn; btns.appendChild(x); return x; };
+  if (SES.count) add('Stay here', () => { SES.count = 0; sesPause(); });
+  add(SES.paused ? '▶ Resume' : '⏸ Pause', sesPause);
+  add(nx ? 'Next →' : 'Finish →', () => sesNext());
+  add('End', () => sesFinish(true));
+}
+function sesFinish(early) {
+  if (!SES.on) return;
+  const b = SES.blocks[SES.i]; if (b && !b.done) { b.used = sesUsed(b); b.done = !early || b.scores.length > 0; }
+  SES.on = false; clearInterval(SES.iv); $('#sesBar').hidden = true; SES.warmList = null;
+  stopPlayback(true); guideOff();
+  if (D.id) closeLab();
+  const secs = SES.blocks.reduce((a, x) => a + (x.used || 0), 0), u = currentUnit();
+  const rec = { day: today(), secs: Math.round(secs), unit: u.id, gentle: SES.gentle, blocks: SES.blocks.map(x => ({ k: x.k, done: !!x.done, best: x.scores.length ? Math.max(...x.scores) : null })) };
+  if (!realStore) { if (!store.sessions) store.sessions = []; store.sessions.push(rec); if (store.sessions.length > 200) store.sessions.shift(); dirty = true; save(); }
+  const days = new Set((store.sessions || []).map(x => x.day)).size;
+  const h = el('h2', '', early ? 'Session saved' : 'Session complete ✓'); h.id = 'sesTitle';
+  const list = el('ul', 'ses-plan');
+  SES.blocks.forEach(x => { const li = el('li', x.done ? 'd' : ''); li.append(el('span', '', (x.done ? '✓ ' : '○ ') + x.name), el('span', '', x.scores.length ? 'best ' + Math.max(...x.scores) : x.done ? 'done' : 'skipped')); list.appendChild(li); });
+  const nodes = [h, el('p', 'muted', fmt(secs) + ' of practice · ' + days + (days === 1 ? ' day' : ' days') + ' practised so far'), list];
+  if (!SES.gentle) nodes.push(el('p', '', unitPassed(u) ? 'Unit passed! The next unit is open.' : unitLabel(u) + ': ' + unitStatus(u) + '.'));
+  else nodes.push(el('p', '', 'Rest your voice for the rest of today. Water, quiet, sleep.'));
+  const r = el('div', 'row'); const home = el('button', 'primary', 'Home'); home.onclick = () => { $('#sesSheet').hidden = true; $('#t-home').click(); };
+  const path = el('button', 'small', 'Your path'); path.onclick = () => { $('#sesSheet').hidden = true; $('#t-path').click(); };
+  r.append(home, path); nodes.push(r);
+  sesSheet(nodes); home.focus();
+  setTimeout(() => checkLevel(), 400);
+}
+
 function startHome(k) {
   const u = currentUnit();
-  if (k === 'today') { if (u.check.kind === 'u1' && !store.profile) startUnitCheck(u); else openUnit(u); }
+  if (k === 'today') { if (!store.profile) startUnitCheck(u); else sesOffer(); }
   else if (k === 'path') $('#t-path').click();
   else if (k === 'songs') singSongId(null);
 }
@@ -3507,7 +3656,7 @@ function renderHome() {
   const box = $('#homeCards'); if (!box) return; box.textContent = '';
   const p = store.profile, u = currentUnit(), done = UNITS.filter(unitPassed).length, first = !p;
   $('#homeTitle').textContent = first ? 'Let\'s find your voice' : unitPassed(u) ? 'You finished the Path!' : 'Today: ' + u.title;
-  $('#homeSub').textContent = first ? 'About 40 seconds. Hum low, high and in between, and we\'ll find your voice type.' : 'About 10 minutes: a warm-up, today\'s skill, and a song.';
+  $('#homeSub').textContent = first ? 'About 40 seconds. Hum low, high and in between, and we\'ll find your voice type.' : 'About 11 minutes: warm up, today\'s skill, a song, and a quick ear game. It moves on by itself.';
   const card = (k, num, title, desc, result, state, go, extras) => {
     const d = el('div', 'hc ' + state); d.dataset.card = k;
     d.append(el('span', 'num', num));
@@ -3520,8 +3669,8 @@ function renderHome() {
     d.appendChild(acts); return d;
   };
   // 1. today's unit
-  const tGo = first ? 'Find your voice →' : u.check.kind === 'u1' ? 'Sing your first song →' : '▶ Start ' + unitLabel(u);
-  box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Warm up first', () => openLab('warmup', true)]]));
+  const tGo = first ? 'Find your voice →' : '▶ Start today\'s session';
+  box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
   if (first) return;
   // 2. voice check-in
   const ci = (store.checkin || {})[today()];

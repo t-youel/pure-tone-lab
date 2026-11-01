@@ -389,7 +389,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const later = await page.evaluate(() => ({ cards: [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join(), title: $('#homeTitle').textContent }));
     await page.click('#homeCards [data-card="checkin"] >> text=Scratchy');
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
-    await page.click('#homeCards [data-card="today"] button.primary');
+    await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
     expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
@@ -403,6 +403,40 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('.unit-body >> text=Start the skill check');
     const d = await page.evaluate(() => D.id);
     expect(/Experience/.test(steps) && /Name it/.test(steps) && /Practise/.test(steps) && /breathe in low/.test(name.lead) && name.how && d === 'hold', JSON.stringify({ steps, name, d }));
+  });
+
+  await test("Today's session: check-in, then warm-up, skill, song and ear run by themselves, with a summary", async page => {
+    await voice(page);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; store.passed = ['u1']; store.checkin = {}; save(); WARM.forEach(w => w.secs = 0.4); $('#t-home').click(); });
+    await page.click('#homeCards [data-card="today"] button.primary');
+    const offer = await page.evaluate(() => ({ open: !$('#sesSheet').hidden, items: [...document.querySelectorAll('#sesCard .ses-plan li')].map(l => l.textContent) }));
+    await page.click('#sesCard >> text=😊 Fresh');
+    await page.click('#sesGo');
+    await page.evaluate(() => {
+      SES.blocks.forEach(b => b.secs = 2);
+      G.tempo = 'normal';
+      setInterval(() => {
+        const sing = G.run === 'singing' && G.seq[G.idx];
+        V.on = !!sing || (D.target != null && ['wait', 'hold', 'sing'].includes(D.phase));
+        if (sing) V.m = G.seq[G.idx].m; else if (D.target != null) V.m = D.target;
+      }, 25);
+    });
+    const seen = new Set();
+    for (let k = 0; k < 120; k++) {
+      const st = await page.evaluate(() => ({ on: SES.on, i: SES.i, k: SES.blocks[SES.i] && SES.blocks[SES.i].k, d: D.id, bar: !$('#sesBar').hidden }));
+      if (st.on) seen.add(st.k + ':' + (st.k === 'song' ? 'song' : st.d));
+      if (!st.on) break;
+      await page.waitForTimeout(1000);
+    }
+    const end = await page.evaluate(() => ({ on: SES.on, sheet: !$('#sesSheet').hidden, title: $('#sesTitle').textContent, rows: [...document.querySelectorAll('#sesCard .ses-plan li')].map(l => l.textContent), saved: (store.sessions || []).length, tries: unitTries(UNITS[1]).length, checkin: store.checkin[today()] }));
+    expect(offer.open && offer.items.length === 4 && [...seen].join() === 'warm:warmup,skill:hold,song:song,ear:match' && !end.on && end.sheet && /complete/.test(end.title) && end.rows.every(r => r.startsWith('✓')) && end.saved === 1 && end.tries >= 1 && end.checkin === 'fresh', JSON.stringify({ offer, seen: [...seen], end }));
+  });
+
+  await test('a scratchy voice gets a gentle warm-up only, with the see-a-doctor rule', async page => {
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = { id: 'saints', score: 30 }; store.checkin = {}; save(); sesOffer(); });
+    await page.click('#sesCard >> text=😣 Scratchy');
+    const s = await page.evaluate(() => ({ title: $('#sesTitle').textContent, items: [...document.querySelectorAll('#sesCard .ses-plan li')].length, safety: /ENT/.test($('#sesCard').textContent) }));
+    expect(/gentle/i.test(s.title) && s.items === 1 && s.safety, JSON.stringify(s));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
