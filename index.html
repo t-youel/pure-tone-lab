@@ -322,6 +322,39 @@ details b { color: var(--ink); }
 .staff .sg.on .ln { stroke: var(--accent); }
 #btnSigns[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .sign-list { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; }
+.easy { display: grid; gap: 12px; }
+.easy-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.easy-steps { display: flex; gap: 8px; }
+.easy-steps .es { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; background: var(--line); border: 3px solid transparent; }
+.easy-steps .es.now { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.easy-steps .es.done { background: var(--good); color: var(--surface); font-weight: 700; }
+.easy-stars { font-size: 1.6rem; letter-spacing: 2px; min-height: 2rem; }
+.easy-stage { position: relative; background: var(--surface); border: 2px solid var(--line); border-radius: 22px; overflow: hidden; }
+#easyCanvas { display: block; width: 100%; height: min(52vh, 440px); }
+.easy-face { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 4.5rem; line-height: 1; transition: transform .15s; }
+.easy-face.good { filter: drop-shadow(0 0 12px var(--pure)); }
+.easy-face.pop { animation: ezpop .5s; }
+@keyframes ezpop { 50% { transform: translateY(-50%) scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .easy-face.pop { animation: none; } }
+.easy-pic { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7rem; pointer-events: none; }
+.easy-words { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; font: 700 2rem/1.2 var(--display); text-align: center; min-height: 2.6rem; }
+.ez-line { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: center; }
+.ez-w { padding: 4px 10px; border-radius: 12px; color: var(--muted); }
+.ez-w.now { background: var(--accent); color: var(--accent-ink); transform: scale(1.15); }
+.ez-w.past.good { color: var(--good); }
+.ez-pic { font-size: 2.6rem; }
+.ez-big { font-size: 3rem; } .ez-pct { font-size: 2rem; }
+.ez-garden { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; justify-content: center; width: 100%; }
+.ez-day { display: grid; justify-items: center; gap: 2px; }
+.ez-day i { width: 14px; background: var(--good); border-radius: 4px; }
+.ez-flower { font-size: 1.6rem; }
+.easy-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.easy-btn { min-width: 120px; min-height: 96px; border-radius: 22px; display: grid; place-items: center; gap: 2px; padding: 10px 16px; border: 3px solid var(--line); background: var(--surface); }
+.easy-btn .ei { font-size: 2.6rem; line-height: 1; } .easy-btn .el { font: 700 1rem var(--display); }
+.easy-btn.go { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.easy-btn.song { min-width: 150px; }
+.easy-help { font-size: .95rem; color: var(--muted); }
+.easy-help summary { cursor: pointer; font-weight: 700; }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -475,7 +508,7 @@ body.fresh .tabs, body.fresh #lvlBadge, body.fresh .path-more, body.fresh.idle .
 .ses-card .row button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .ses-safety { font-size: .9rem; border-left: 3px solid var(--warn); padding-left: 10px; }
 .mic-btn.on { border-color: var(--good); color: var(--good); }
-body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live, body[data-screen="progress"] .live, body[data-screen="tour"] .live { display: none !important; }
+body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-screen="notes"] .live, body[data-screen="profile"] .live, body[data-screen="songs"] .live, body[data-screen="path"] .live, body[data-screen="progress"] .live, body[data-screen="tour"] .live, body[data-screen="easy"] .live { display: none !important; }
 .vf-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .vf-chip { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
 .vf-chip .ic { font-size: 1.1rem; line-height: 1; font-style: normal; color: var(--accent); }
@@ -653,6 +686,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <button role="tab" id="t-voice" aria-selected="false" data-tab="voice">My voice</button>
   <button role="tab" id="t-progress" aria-selected="false" data-tab="progress">Progress</button>
   <button role="tab" id="t-tour" aria-selected="false" data-tab="tour">What's inside</button>
+  <button role="tab" id="t-easy" aria-selected="false" data-tab="easy">First Notes</button>
 </nav>
 
 <!-- HOME -->
@@ -661,7 +695,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnTour" class="small">🧭 What's inside Pure Tone Lab</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · screen stays on</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · First Notes</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -778,6 +812,16 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
 </section>
 
 <!-- MY VOICE -->
+<section class="panel" id="tab-easy" hidden>
+  <div class="easy">
+    <div class="easy-top"><div class="easy-steps" id="easySteps" aria-label="Steps"></div><div class="easy-stars" id="easyStars" aria-live="polite"></div></div>
+    <div class="easy-stage"><canvas id="easyCanvas" aria-label="Your voice is the bird. Sing to move it into the glowing band."></canvas><div class="easy-face" id="easyFace" aria-hidden="true"></div><div class="easy-pic" id="easyPic" aria-hidden="true"></div></div>
+    <div class="easy-words" id="easyWords"></div>
+    <div class="easy-btns" id="easyBtns"></div>
+    <details class="easy-help"><summary>For helpers</summary><p>First Notes is an easy start for any new singer, and is built to need no reading. Each step shows a glowing band: sing so the bird sits inside it, and a star appears. The note can keep playing so it's easy to match. Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best: the same five steps each day. If the bird doesn't move, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.</p></details>
+  </div>
+</section>
+
 <section class="panel" id="tab-tour" hidden><div id="tourBox" class="tour-box"></div></section>
 
 <section class="panel" id="tab-progress" hidden><div id="progBox" class="prog-box"></div></section>
@@ -4234,6 +4278,188 @@ function traceSVG(c) {
 }
 const weekKey = (d = new Date()) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = t.getUTCFullYear(); return y + '-W' + String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7)).padStart(2, '0'); };
 let storeArmed = null;
+// ---------- First Notes: an easy start for any new singer ----------
+// Built to need no reading: big pictures, one note at a time, a wide target, a bird that rides on your voice,
+// a star and a chime for every success, and the same five short steps each time.
+const EASY_SONGS = [
+  { id: 'hello', pic: '👋', name: 'Hello Song', words: 'Hel- lo, hel- lo, I sing to you; / hel- lo, hel- lo, you sing too!', notes: [[4,1],[2,1],[0,2],[0,1],[2,1],[4,1],[2,1],[0,2],[4,1],[2,1],[0,2],[2,1],[2,1],[0,2]] },
+  { id: 'updown', pic: '🎈', name: 'Up and Down', words: 'Up, up, up we go; / down, down, down so slow.', notes: [[0,1],[2,1],[4,2],[4,1],[4,1],[4,1],[2,1],[0,2]] },
+  { id: 'moon', pic: '🌙', name: 'Night Sky', words: 'Good- night, moon, good- night, sky; / good- night, stars, way up high.', notes: [[4,1],[4,1],[2,2],[4,1],[4,1],[2,2],[2,1],[2,1],[4,1],[2,1],[0,2],[0,2]] },
+];
+const EASY_STEPS = [
+  { k: 'hello', icon: '🐦', name: 'Wake up your voice' },
+  { k: 'match', icon: '🎯', name: 'Match the note' },
+  { k: 'updown', icon: '⛰', name: 'Up and down' },
+  { k: 'echo', icon: '🔁', name: 'Copy two notes' },
+  { k: 'song', icon: '🎵', name: 'Sing a song' },
+];
+const EZ = { on: false, i: 0, phase: 'ready', t0: 0, stars: 0, total: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, sidx: 0, sres: [], echo: null, inTune: 0, voiced: 0 };
+const EZ_TOL = 50; // cents: a wider, kinder band
+function ezHome() {
+  if (EZ.home != null) return EZ.home;
+  const p = store.profile; if (p && p.natural != null) return Math.round(p.natural);
+  const z = labZone(); return Math.round(z.center);
+}
+function easyOpen() {
+  if (!$('#easyCanvas')) return;
+  EZ.on = true; EZ.i = 0; EZ.stars = 0; EZ.total = 0; EZ.inTune = 0; EZ.voiced = 0; EZ.phase = 'ready'; EZ.home = null;
+  clearInterval(EZ.iv); EZ.iv = setInterval(ezTick, 40);
+  ezRender();
+}
+function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); }
+const ezStep = () => EASY_STEPS[EZ.i];
+function ezBtns(list) {
+  const b = $('#easyBtns'); b.textContent = '';
+  for (const [icon, label, fn, primary] of list) { const x = el('button', 'easy-btn' + (primary ? ' go' : '')); x.append(el('span', 'ei', icon), el('span', 'el', label)); x.onclick = fn; x.setAttribute('aria-label', label); b.appendChild(x); }
+}
+function ezRender() {
+  const st = $('#easySteps'); st.textContent = '';
+  EASY_STEPS.forEach((x, i) => { const d = el('span', 'es' + (i < EZ.i ? ' done' : i === EZ.i ? ' now' : ''), i < EZ.i ? '✓' : x.icon); d.title = x.name; st.appendChild(d); });
+  $('#easyStars').textContent = '⭐'.repeat(Math.min(EZ.stars, 20)) + (EZ.stars > 20 ? ' +' + (EZ.stars - 20) : '');
+  const s0 = ezStep();
+  if (EZ.phase === 'done') return ezDone();
+  $('#easyPic').textContent = EZ.phase === 'ready' ? s0.icon : '';
+  if (EZ.phase === 'ready') {
+    $('#easyWords').textContent = s0.name;
+    if (s0.k === 'song') return ezSongPick();
+    ezBtns([['▶', 'Start', () => ezStart(), true], ['⏭', 'Skip', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
+  } else ezBtns([['🔁', 'Again', () => ezStart()], ['⏭', 'Next', () => ezNext()], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
+}
+async function ezStart() {
+  if (mode === 'idle') await startMic(); if (mode === 'idle') return;
+  await ensureAudio();
+  const k = ezStep().k, h = ezHome();
+  Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0 });
+  guideOff();
+  if (k === 'hello') { EZ.hello = []; EZ.tgt = null; $('#easyWords').textContent = '🎤 ooo…'; }
+  if (k === 'match') { ezSetTarget(h); }
+  if (k === 'updown') { EZ.seq = [h, h + 4, h, h + 4, h]; EZ.round = 0; ezSetTarget(EZ.seq[0]); }
+  if (k === 'echo') { EZ.echo = { notes: [h, h + 2], phase: 'listen', i: 0, res: [] }; EZ.tgt = null; ezEchoPlay(); }
+  ezRender();
+}
+function ezSetTarget(m, quiet) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); $('#easyWords').textContent = '👂 → 🎤'; }
+function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'); f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop'); ezRender(); }
+function ezEchoPlay() {
+  const e = EZ.echo; e.phase = 'listen'; e.t0 = now();
+  e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1));
+  $('#easyWords').textContent = '👂 ● ●';
+}
+function ezNext() {
+  guideOff();
+  if (EZ.phase === 'run' || EZ.phase === 'won') EZ.total++;
+  EZ.i++; EZ.phase = EZ.i >= EASY_STEPS.length ? 'done' : 'ready';
+  ezRender();
+}
+// pitch of the voice, folded to the target's octave so any octave counts
+function ezVoice(target) { if (S.rawM == null) return null; let m = S.rawM; if (target != null) { while (m - target > 6) m -= 12; while (target - m > 6) m += 12; } return m; }
+function ezTick() {
+  if (!EZ.on) return;
+  const k = ezStep() && ezStep().k, t = now();
+  const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
+  if (v != null) EZ.trail.push({ t, m: v }); while (EZ.trail.length && EZ.trail[0].t < t - 4) EZ.trail.shift();
+  const off = v != null && EZ.tgt != null ? (v - EZ.tgt) * 100 : null, inb = off != null && Math.abs(off) <= EZ_TOL;
+  if (EZ.phase === 'run' && v != null) { EZ.voiced++; if (inb) EZ.inTune++; }
+  if (EZ.phase === 'run') {
+    if (k === 'hello') {
+      if (v != null) EZ.hello.push(S.rawM);
+      if (EZ.hello.length > 60 && !EZ.helloStar) { EZ.helloStar = true; ezStar(); }
+      if (t - EZ.t0 > 10 || EZ.hello.length > 160) { if (EZ.hello.length > 20) EZ.home = Math.round(pctl(EZ.hello, 0.5)); EZ.helloStar = false; EZ.phase = 'won'; $('#easyWords').textContent = '🎉'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); }
+    }
+    if ((k === 'match' || k === 'updown') && EZ.tgt != null) {
+      if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else guideLevel(1);
+      const need = k === 'match' ? 2 : 1;
+      if (EZ.inBand >= need) {
+        ezStar();
+        if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
+        else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else ezSetTarget(EZ.seq[EZ.round]); }
+      } else if (t - EZ.tStart > 15) { // no rush, but move along kindly
+        if (k === 'match') { EZ.round++; if (EZ.round >= 3) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(ezHome() + [0, 2, -1][EZ.round]); }
+        else { EZ.round++; if (EZ.round >= EZ.seq.length) { EZ.phase = 'won'; guideOff(); ezRender(); } else ezSetTarget(EZ.seq[EZ.round]); }
+      }
+    }
+    if (k === 'echo' && EZ.echo) {
+      const e = EZ.echo, et = t - e.t0;
+      if (e.phase === 'listen' && et > e.notes.length * 1.1 + 0.4) { e.phase = 'sing'; e.t0 = t; e.i = 0; e.got = []; EZ.tgt = e.notes[0]; $('#easyWords').textContent = '🎤 ● ●'; }
+      else if (e.phase === 'sing') {
+        EZ.tgt = e.notes[e.i];
+        if (inb) e.got.push(1);
+        if (et > 2.2 * (e.i + 1)) {
+          if (e.got.length >= 8) ezStar();
+          e.i++; e.got = [];
+          if (e.i >= e.notes.length) { e.round = (e.round || 0) + 1; if (e.round >= 3) { EZ.phase = 'won'; EZ.tgt = null; $('#easyWords').textContent = '🎉'; setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 1800); } else { const h = ezHome(); e.notes = [[h, h + 2], [h + 2, h], [h, h + 4]][e.round]; EZ.tgt = null; ezEchoPlay(); } }
+        }
+      }
+    }
+    if (k === 'song' && EZ.song) ezSongTick(t, inb);
+  }
+  // the face: a big, simple sign of what the voice is doing
+  const face = $('#easyFace');
+  face.textContent = EZ.phase !== 'run' || EZ.tgt == null ? (v != null ? '🎤' : '') : v == null ? '🎤' : inb ? '😊' : off < 0 ? '⬆' : '⬇';
+  face.className = 'easy-face' + (inb ? ' good' : v != null && EZ.tgt != null && EZ.phase === 'run' ? ' off' : '') + (face.classList.contains('pop') ? ' pop' : '');
+  ezDraw(v, inb);
+}
+function ezDraw(v, inb) {
+  const c = $('#easyCanvas'); if (!c || c.offsetParent === null) return;
+  sizeCanvas(c);
+  const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
+  const mid = EZ.tgt != null ? EZ.tgt : (EZ.home != null ? EZ.home : ezHome()), span = 6;
+  const Y = m => h / 2 - (m - mid) / span * (h / 2 - 20 * d), X = tt => w * 0.08 + (w * 0.72) * (1 - (t - tt) / 4);
+  x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
+  for (let k = -span; k <= span; k += 2) { x.strokeStyle = C.line; x.lineWidth = d; x.beginPath(); x.moveTo(0, Y(mid + k)); x.lineTo(w, Y(mid + k)); x.stroke(); }
+  if (EZ.tgt != null) {
+    const tol = EZ_TOL / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
+    x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
+    const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(0, y1, w, y2 - y1, r) : x.rect(0, y1, w, y2 - y1); x.fill(); x.globalAlpha = 1;
+    x.strokeStyle = C.good; x.lineWidth = 3 * d; x.setLineDash([10 * d, 8 * d]); x.beginPath(); x.moveTo(0, Y(EZ.tgt)); x.lineTo(w, Y(EZ.tgt)); x.stroke(); x.setLineDash([]);
+  }
+  const pts = EZ.trail;
+  if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
+  if (v != null) { x.font = `${46 * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('🐦', X(t), Y(Math.max(mid - span, Math.min(mid + span, v)))); }
+}
+function ezSongPick() {
+  $('#easyWords').textContent = '🎵 ?';
+  const b = $('#easyBtns'); b.textContent = '';
+  for (const sg of EASY_SONGS) { const x = el('button', 'easy-btn song'); x.append(el('span', 'ei', sg.pic), el('span', 'el', sg.name)); x.setAttribute('aria-label', sg.name); x.onclick = () => ezSongStart(sg); b.appendChild(x); }
+  const sk = el('button', 'easy-btn'); sk.append(el('span', 'ei', '⏭'), el('span', 'el', 'Skip')); sk.onclick = () => ezNext(); b.appendChild(sk);
+}
+async function ezSongStart(sg) {
+  if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
+  const h = ezHome(), toks = sg.words.split(/\s+/).filter(x => x && x !== '/');
+  EZ.song = { sg, notes: sg.notes.map(([o, b], i) => ({ m: h - 2 + o, b, w: toks[i] || '' })), beat: 1.0, t0: now() + 1.6, res: [] };
+  EZ.phase = 'run'; EZ.trail = []; EZ.got = 0;
+  playTone(EZ.song.notes[0].m, 1.3, PIPE);
+  ezRender(); ezSongWords(-1);
+}
+function ezSongWords(cur) {
+  const w = $('#easyWords'); w.textContent = '';
+  const line = el('div', 'ez-line');
+  EZ.song.notes.forEach((n, i) => { const sp = el('span', 'ez-w' + (i === cur ? ' now' : i < cur ? ' past' + (EZ.song.res[i] ? ' good' : '') : ''), n.w.replace(/-$/, '')); line.appendChild(sp); });
+  w.append(el('span', 'ez-pic', EZ.song.sg.pic), line);
+}
+function ezSongTick(t, inb) {
+  const S2 = EZ.song, e = t - S2.t0; if (e < 0) { EZ.tgt = S2.notes[0].m; return; }
+  let acc = 0, i = 0; while (i < S2.notes.length && e >= acc + S2.notes[i].b * S2.beat) { acc += S2.notes[i].b * S2.beat; i++; }
+  if (i !== S2.cur) {
+    if (S2.cur != null && S2.cur < S2.notes.length) { const ok = (S2.hits || 0) >= 6; S2.res[S2.cur] = ok; if (ok) ezStar(); }
+    S2.cur = i; S2.hits = 0;
+    if (i >= S2.notes.length) { guideOff(); EZ.tgt = null; EZ.phase = 'won'; $('#easyWords').textContent = '🎉 ' + S2.res.filter(Boolean).length + ' ⭐'; ezRender(); setTimeout(() => EZ.on && EZ.phase === 'won' && ezNext(), 2200); return; }
+    EZ.tgt = S2.notes[i].m; guideOn(EZ.tgt, 0.3); ezSongWords(i);
+  }
+  if (inb) S2.hits = (S2.hits || 0) + 1;
+}
+function ezDone() {
+  guideOff();
+  const pct = EZ.voiced ? Math.round(100 * EZ.inTune / EZ.voiced) : 0;
+  if (!realStore) { if (!store.easy) store.easy = { days: {} }; const d = today(), rec = store.easy.days[d] || { stars: 0, best: 0, times: 0 }; rec.stars += EZ.stars; rec.best = Math.max(rec.best, pct); rec.times++; store.easy.days[d] = rec; dirty = true; save(); }
+  $('#easyPic').textContent = '🏆'; $('#easyFace').textContent = '';
+  const days = Object.entries((store.easy || {}).days || {}).sort().slice(-14);
+  const w = $('#easyWords'); w.textContent = '';
+  const garden = el('div', 'ez-garden'); days.forEach(([d, r]) => { const f = el('span', 'ez-day'); f.title = d + ': ' + r.stars + ' stars, ' + r.best + '% in the band'; f.append(el('span', 'ez-flower', r.best >= 60 ? '🌻' : r.best >= 30 ? '🌷' : '🌱'), el('i', '', '')); f.querySelector('i').style.height = Math.max(4, r.best * 0.6) + 'px'; garden.appendChild(f); });
+  w.append(el('div', 'ez-big', '⭐ × ' + EZ.stars), el('div', 'ez-pct', '🎯 ' + pct + '%'), garden);
+  ezBtns([['🔁', 'Again', () => easyOpen(), true], ['🏠', 'Home', () => { $('#t-home').click(); }]]);
+  const c = $('#easyCanvas'); if (c && c.offsetParent !== null) { sizeCanvas(c); const x = c.getContext('2d'); x.fillStyle = C.surface; x.fillRect(0, 0, c.width, c.height); }
+}
+
 // ---------- What's inside: the whole app at a glance ----------
 // Everything Pure Tone Lab offers, in one place. Parts that open later are shown greyed, with when they open.
 function renderTour() {
@@ -4258,6 +4484,9 @@ function renderTour() {
   sec('🧭', 'Your course', '4 stages, 12 units and a checkpoint. Each unit: Experience it, Name it, Practise it.', [
     { id: 'path', title: 'Your path', desc: UNITS.filter(unitPassed).length + ' of ' + UNITS.length + ' done · now: ' + unitLabel(u) + ' · ' + u.title, fn: () => { unitView = null; $('#t-path').click(); } },
     ...STAGES.map(st => { const us = UNITS.filter(x => x.stage === st.n), open = us.some(unitOpen); return { id: 'stage' + st.n, title: 'Stage ' + st.n + ' · ' + st.title, desc: us.map(x => x.title).join(' · '), lock: open ? null : 'Opens when you finish Stage ' + (st.n - 1), fn: () => openUnit(us.find(unitOpen) || us[0]) }; }),
+  ]);
+  sec('🌟', 'First Notes', 'An easy start for any new singer: big pictures, no reading needed, one note at a time.', [
+    { id: 'easy', title: 'First Notes', desc: 'Wake up your voice, match a note, up and down, copy two notes, and a simple song.', fn: () => $('#t-easy').click() },
   ]);
   sec('▶', 'Today\'s session', 'About 11 minutes that run by themselves: warm-up, skill, song and a quick ear game.', [
     { id: 'session', title: 'Start today\'s session', desc: 'With a voice check-in first. A scratchy voice gets a gentle day.', lock: needVoice, fn: () => { $('#t-home').click(); sesOffer(); } },
@@ -4522,6 +4751,7 @@ function startHome(k) {
   if (k === 'today') { if (!store.profile) startUnitCheck(u); else sesOffer(); }
   else if (k === 'path') $('#t-path').click();
   else if (k === 'progress') $('#t-progress').click();
+  else if (k === 'easy') $('#t-easy').click();
   else if (k === 'songs') singSongId(null);
 }
 const today = () => new Date().toISOString().slice(0, 10);
@@ -4558,6 +4788,7 @@ function renderHome() {
     t.appendChild(ta); box.appendChild(t);
   }
   box.appendChild(card('today', String(u.n), (u.gate ? '' : 'Unit ' + u.n + ' · ') + u.title, u.learn, first ? '' : unitStatus(u), 'is-next', tGo, first ? [] : [['Open ' + unitLabel(u), () => openUnit(u)]]));
+  box.appendChild(card('easy', '🌟', 'First Notes', 'Easy singing with big pictures and a bird that rides on your voice. A gentle start for any new singer, about 5 minutes.', (store.easy && Object.keys(store.easy.days || {}).length) ? '⭐ ' + Object.values(store.easy.days).reduce((a, r) => a + r.stars, 0) + ' stars so far' : '', '', '▶ First Notes'));
   if (first) return;
   // 2. voice check-in
   const ci = (store.checkin || {})[today()];
@@ -4597,11 +4828,12 @@ for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
   if (tab === 'path') renderPath();
   if (tab === 'progress') renderProgress();
   if (tab === 'tour') renderTour();
+  if (tab === 'easy') easyOpen(); else easyClose();
   if (tab === 'home') renderHome();
-  const scr = { home: 'home', path: 'path', progress: 'progress', tour: 'tour', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
+  const scr = { home: 'home', path: 'path', progress: 'progress', tour: 'tour', easy: 'easy', lab: D.id === 'range' ? 'voice' : D.id === 'scale' && D.fromPath ? 'notes' : 'practice', sing: 'songs', voice: 'profile', start: 'practice' }[tab] || tab;
   document.body.dataset.screen = scr;
   $('#backBar').hidden = scr === 'home';
-  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', progress: 'Your progress', tour: 'What\'s inside', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
+  $('#screenTitle').textContent = { voice: 'Find your voice', notes: 'Do-Re-Mi', practice: 'Practise', path: 'Your path', progress: 'Your progress', tour: 'What\'s inside', easy: 'First Notes', songs: 'Songs', profile: 'Your voice profile' }[scr] || '';
   window.scrollTo(0, 0);
 };
 $('#btnWarm').onclick = () => openLab('warmup', true);

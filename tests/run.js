@@ -63,7 +63,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       return { cards: [...document.querySelectorAll('#homeCards .hc h3')].map(h => h.textContent), next: $('#homeCards .hc.is-next h3')?.textContent, btn: $('#homeCards .hc.is-next .primary')?.textContent,
         tabs: vis($('.tabs')), meters: vis($('.live')), status: vis($('.status')), back: vis($('#backBar')) };
     });
-    expect(s.cards.join('|') === 'Unit 1 · Your voice today', JSON.stringify(s.cards));
+    expect(s.cards.join('|') === 'Unit 1 · Your voice today|First Notes', JSON.stringify(s.cards));
     expect(s.next === 'Unit 1 · Your voice today' && /Find your voice/.test(s.btn), JSON.stringify(s));
     expect(!s.tabs && !s.meters && !s.status && !s.back, 'too much on the first screen: ' + JSON.stringify(s));
   });
@@ -394,7 +394,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
     await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
-    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+    expect(first.cards === 'today,easy' && /Find your voice/.test(first.btn) && later.cards === 'today,easy,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
 
   await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {
@@ -450,10 +450,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const off = await page.evaluate(() => ({ open: UNITS.filter(unitOpen).length, tools: !!document.querySelector('.tester') }));
     await page.evaluate(() => { users.names[users.active] = 'Tedy-137'; applyLevel(); $('#t-home').click(); });
     const home = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(home === 'tester,today', 'home in tester mode: ' + home);
+    expect(home === 'tester,today,easy', 'home in tester mode: ' + home);
     await page.click('#homeCards [data-card="tester"] >> text=Use a sample voice');
     const filled = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(filled === 'tester,today,checkin,path,progress,songs', 'after sample voice: ' + filled);
+    expect(filled === 'tester,today,easy,checkin,path,progress,songs', 'after sample voice: ' + filled);
     await page.evaluate(() => { store.devPass = []; store.passed = []; });
     await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
@@ -627,7 +627,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const s = await page.evaluate(() => ({ screen: document.body.dataset.screen, secs: [...document.querySelectorAll('.tour-sec h3')].map(h => h.textContent).join('|'), labs: document.querySelectorAll('.tour-row[data-item^="lab-"]').length, total: LAB.length, lockedLab: $('.tour-row[data-item="lab-vowels"]').classList.contains('locked') && $('.tour-row[data-item="lab-vowels"] button').disabled, lockTxt: $('.tour-row[data-item="lab-vowels"]').textContent }));
     await page.click('.tour-row[data-item="lab-match"] button');
     const opened = await page.evaluate(() => D.id);
-    expect(s.screen === 'tour' && s.secs === "Your course|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
+    expect(s.screen === 'tour' && s.secs === "Your course|First Notes|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
   await test('Style tools: timing against the beat; breaths at the ʼ marks; each line shaped; Stage 4 checks use them', async page => {
@@ -686,6 +686,24 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       return { idle, on, log: log.join(), after: WAKE.lock };
     });
     expect(r.idle === 0 && r.on && r.log === 'on,off' && r.after === null, JSON.stringify(r));
+  });
+
+  await test('First Notes: five big, picture-led steps with stars; a simple song; a garden of days', async page => {
+    await voice(page);
+    await page.click('#homeCards [data-card="easy"] button');
+    const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, steps: document.querySelectorAll('#easySteps .es').length, btn: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join() }));
+    // a singer who follows whatever the band asks for
+    await page.evaluate(() => { setInterval(() => { const k = ezStep() && ezStep().k; V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
+    for (const k of ['hello', 'match', 'updown', 'echo']) {
+      await page.waitForFunction(k => ezStep() && ezStep().k === k && EZ.phase === 'ready', k, { timeout: 30000 });
+      await page.click('#easyBtns >> text=Start');
+    }
+    await page.waitForFunction(() => ezStep() && ezStep().k === 'song' && EZ.phase === 'ready', null, { timeout: 40000 });
+    const mid = await page.evaluate(() => ({ stars: EZ.stars, home: EZ.home, songs: document.querySelectorAll('#easyBtns .easy-btn.song').length }));
+    await page.click('#easyBtns >> text=Up and Down');
+    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 40000 });
+    const end = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], garden: document.querySelectorAll('.ez-day').length, again: !!document.querySelector('#easyBtns [aria-label="Again"]') }));
+    expect(open.screen === 'easy' && open.steps === 5 && /Start/.test(open.btn) && mid.stars >= 9 && mid.songs === 3 && end.stars > mid.stars && end.day.best >= 60 && end.garden === 1 && end.again, JSON.stringify({ open, mid, end }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {

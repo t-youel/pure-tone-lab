@@ -22,6 +22,14 @@ Stages 1–2 are planned as the free tier; a `PAYWALL` switch (off for now) lock
 Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a gentle day and the see-a-doctor rule),
 your path, and a song that fits your voice. 
 
+**First Notes:** an easy start offered to everyone on Home, built to need no reading. Five short steps,
+the same each time: wake up your voice (the app finds your easy note), match a note, up and down, copy two notes,
+and a simple original song. A bird rides on your voice; a wide, glowing band shows the target; a big face shows
+😊 / ⬆ / ⬇; every success earns a star and a chime. The note keeps playing to sing along with, there are big
+picture buttons, and each day adds a flower to a garden. A short note for helpers sits underneath.
+Design choices follow research on visual learning strengths, auditory-memory load and common hearing loss in
+Down syndrome, and on app design for people with intellectual disabilities.
+
 **Tone tools:** each measured live from the mic.
 - *Exhale meter* (Unit 2): "sss" then "zzz", length and evenness.
 - *Gentle onsets* (Unit 3): hard, breathy or scooped starts.
