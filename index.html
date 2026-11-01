@@ -313,6 +313,8 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.type-tip { border-left: 3px solid var(--accent); padding-left: 10px; max-width: 62ch; }
+.songs button.fit-star { border-color: var(--pure); }
 .ctl-group { display: inline-flex; align-items: center; gap: 4px; }
 .info-i { width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent); background: var(--surface); font: italic 700 .9rem Georgia, 'Times New Roman', serif; display: inline-grid; place-items: center; }
 #keyTxt { cursor: pointer; min-height: 0; padding: 3px 8px; border: none; border-bottom: 1.5px dashed var(--accent); border-radius: 4px; background: none; color: var(--ink); min-width: 6.5em; }
@@ -641,7 +643,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · key picker</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · personal fit</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1612,6 +1614,7 @@ function loadSong(song, keepShift = false) {
 }
 function renderSongs() {
   const el = $('#songs'); el.textContent = '';
+  const fitMap = {}, starIds = new Set(); if (store.profile) { const fs = songFits(store.profile); for (const f of fs) fitMap[f.s.id] = f; fs.filter(f => f.fit >= 0.6).slice(0, 5).forEach(f => starIds.add(f.s.id)); }
   const grp = x => x.rock ? 'Rock & roll' : x.folk ? 'Folk & blues' : x.hymn ? 'Hymns' : x.solfa ? 'Solfège' : 'Classics';
   const order = ['Rock & roll', 'Folk & blues', 'Hymns', 'Solfège', 'Classics'];
   for (const g of order) {
@@ -1620,7 +1623,9 @@ function renderSongs() {
   for (const s of list) {
     const b = document.createElement('button'); b.className = 'small'; b.textContent = s.name; b.setAttribute('aria-pressed', s === G.song);
     const at = SONG_LEVEL[s.id] || 1; if (level() < at) { b.disabled = true; b.textContent = s.name + ' · Level ' + at; }
-    b.onclick = () => loadSong(s); el.appendChild(b);
+    const f = fitMap[s.id];
+    if (f && starIds.has(s.id)) { b.textContent = '★ ' + b.textContent; b.title = Math.round(f.fit * 100) + '% of its notes are ones you already sing well'; b.classList.add('fit-star'); }
+    b.onclick = () => { if (f && f.fit > 0) { G.shift = f.k; loadSong(s, true); } else loadSong(s); }; el.appendChild(b);
   }
   }
   $('#songKind').textContent = G.song.kind + ' · ' + G.song.notes.length + ' notes';
@@ -2185,7 +2190,8 @@ function saveRun() {
   const st = runStats();
   if (!store.runs) store.runs = [];
   const good = strongSyl(st);
-  store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo, good, score: st.score, mono: !!st.monotone });
+  const okM = st.monotone ? [] : [...new Set(st.all.filter(r => r.status === 'pure' || r.status === 'ok').map(r => Math.round(r.m)))];
+  store.runs.push({ id: G.song.id, at: Date.now(), avg: st.avg, pure: st.pure, ok: st.ok, n: st.n, tempo: G.tempo, good, okM, score: st.score, mono: !!st.monotone });
   if (st.skills) store.skills = st.skills;
   // the first song after Find your voice is the baseline everything later is compared with
   if (store.profile && !store.baseline && !realStore) store.baseline = { id: G.song.id, score: st.score, ok: st.ok, n: st.n, avg: st.avg, at: Date.now(), profile: { low: store.profile.low, high: store.profile.high } };
@@ -2367,11 +2373,12 @@ function keyOptions() {
   const out = [];
   for (let k = full[0] - lo - 4; k <= full[1] - hi + 4; k++) {
     const comf = offs.reduce((a, o, i) => a + (o + k >= comfy[0] && o + k <= comfy[1] ? beats[i] : 0), 0) / tot;
-    const fits = lo + k >= full[0] && hi + k <= full[1];
-    out.push({ k, comf, fits, low: lo + k, high: hi + k, off: Math.abs((lo + hi) / 2 + k - (comfy[0] + comfy[1]) / 2) });
+    const fits = lo + k >= full[0] && hi + k <= full[1], gs = goodSet();
+    const good = offs.reduce((a, o, i) => a + (gs.has(o + k) ? beats[i] : 0), 0) / tot;
+    out.push({ k, comf, good, fits, low: lo + k, high: hi + k, off: Math.abs((lo + hi) / 2 + k - (comfy[0] + comfy[1]) / 2) });
   }
   // most comfortable first; among equals, the key that sits nearest the middle of your comfortable range
-  out.sort((a, b) => (b.fits - a.fits) || (Math.round(b.comf * 20) - Math.round(a.comf * 20)) || (a.off - b.off));
+  out.sort((a, b) => (b.fits - a.fits) || (Math.round(b.comf * 20) - Math.round(a.comf * 20)) || (Math.round(b.good * 10) - Math.round(a.good * 10)) || (a.off - b.off));
   return { list: out, best: out[0], hasProfile: !!p };
 }
 function keyPicker() {
@@ -2384,7 +2391,7 @@ function keyPicker() {
     const r = el('div', 'key-row' + (o.k === G.shift ? ' cur' : '') + (o === best ? ' best' : '')); r.dataset.k = o.k;
     const t = el('div', 'key-txt');
     t.append(el('b', '', 'Do = ' + pcOf(o.k) + (o === best ? '  ★ Best fit' : '') + (o.k === G.shift ? '  · now' : '')),
-      el('span', 'muted mono', nameOf(o.low) + ' – ' + nameOf(o.high) + ' · ' + Math.round(o.comf * 100) + '% comfortable' + (o.fits === false ? ' · outside your range' : '')));
+      el('span', 'muted mono', nameOf(o.low) + ' – ' + nameOf(o.high) + ' · ' + Math.round(o.comf * 100) + '% comfortable' + (o.good ? ' · ' + Math.round(o.good * 100) + '% notes you sing well' : '') + (o.fits === false ? ' · outside your range' : '')));
     const bar = el('div', 'path-prog'); const f = el('i'); f.style.width = Math.round(o.comf * 100) + '%'; bar.appendChild(f); t.appendChild(bar);
     const hear = el('button', 'small', '▶ Top note'); hear.onclick = async () => { await ensureAudio(); playTone(o.high, 1.5, PIPE); };
     const use = el('button', o.k === G.shift ? 'small' : 'primary small', o.k === G.shift ? 'Chosen' : 'Use'); use.disabled = o.k === G.shift;
@@ -2862,6 +2869,21 @@ function chime(k) {
   const n = k === 'low' ? [79, 72] : k === 'high' ? [72, 79] : [79];
   n.forEach((m, i) => playTone(m, 0.14, PURE, i * 0.13));
 }
+// Warm-up slides and notes sized to your own range.
+function slideTone(a, b, dur) {
+  if (!ac) return;
+  const t = ac.currentTime + 0.05, o = ac.createOscillator(), g = ac.createGain();
+  o.setPeriodicWave(makeWave(PURE)); o.frequency.setValueAtTime(m2f(a), t); o.frequency.exponentialRampToValueAtTime(m2f(b), t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.35, t + 0.08); g.gain.setValueAtTime(0.35, t + dur - 0.1); g.gain.linearRampToValueAtTime(0, t + dur + 0.05);
+  o.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + 0.1); refUntil = Math.max(refUntil, now() + dur + 0.2);
+}
+function warmRange(w) {
+  const p = store.profile; if (!p || !(w.slide || w.home)) return null;
+  if (w.home) { const h = Math.round(p.natural != null ? p.natural : (p.zlo + p.zhi) / 2); return { text: `Use your home note, ${nameOf(h)}.`, play: async () => { await ensureAudio(); playTone(h, 2, PIPE); } }; }
+  const [a, b] = w.slide === 'full' ? [p.low + 1, p.high - 1] : w.slide === 'down' ? [p.zhi + 2, p.zlo] : [p.zlo - 1, p.zhi + 1];
+  const there = w.slide === 'down' ? '' : ' and back';
+  return { text: `For your voice: slide from about ${nameOf(a)} to ${nameOf(b)}${there}.`, play: async () => { await ensureAudio(); slideTone(a, b, 1.8); if (w.slide !== 'down') setTimeout(() => slideTone(b, a, 1.8), 1900); } };
+}
 function glide() {
   if (!ac) return;
   const c = Math.round(labZone().center), t = ac.currentTime + 0.05, o = ac.createOscillator(), g = ac.createGain();
@@ -2870,6 +2892,25 @@ function glide() {
   o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 2.1); refUntil = Math.max(refUntil, now() + 2.3);
 }
 // Famous voices by type (approximate: published voice types of pop singers vary) and well-known songs that sit in that range.
+// Where the first register change (the "break") usually sits for each voice type. A starting guess only:
+// the Break finder measures yours.
+const TYPE_BREAK = { 'Bass': 57, 'Baritone': 60, 'Tenor': 64, 'Alto': 63, 'Mezzo-soprano': 64, 'Soprano': 65 };
+function breakGuess(p) {
+  if (store.voiceBreak) return { m: store.voiceBreak.m, measured: true };
+  if (!p) return { m: 62, measured: false };
+  const t = TYPE_BREAK[p.type]; const m = t != null ? Math.max(p.low + 4, Math.min(p.high - 3, t)) : Math.round((p.zhi + p.high) / 2);
+  return { m, measured: false, type: p.type };
+}
+// Coaching that tends to help each voice type. General guidance, written as "usually".
+const VOICE_TIPS = {
+  'Bass': { breath: 'Low voices use a lot of air. Take a full, low breath and let the sound rumble rather than push.', break: 'Basses usually change gear around A3–C4. Keep your low notes light enough that you can glide through it.', power: 'A bass carries through resonance, not volume: hum and feel the buzz in your chest and face.', high: 'Your top notes come from getting lighter, not from lifting the chin.' },
+  'Baritone': { breath: 'Keep the ribs wide on long phrases: baritone lines often sit where it\'s tempting to push.', break: 'Baritones usually change gear around B3–E4. Narrow the vowel slightly ("ah" toward "uh") as you pass it.', power: 'Let the middle of your voice ring, and save real volume for the climax of a song.', high: 'Think "speak higher" with a loose jaw, rather than reaching up for top notes.' },
+  'Tenor': { breath: 'Tenor high notes need steady air, not more air. Keep the flow even as you climb.', break: 'Tenors usually change gear around E4–G4. Let the sound get lighter and the vowel a little narrower there.', power: 'High notes get lighter, not louder. Brightness carries further than force.', high: 'Keep the larynx low and relaxed. A slight "yawn" feeling helps the top.' },
+  'Alto': { breath: 'Low, full breaths keep your rich low notes buzzy rather than breathy.', break: 'Altos usually change gear around D4–F4. Let head voice blend in early instead of hauling chest voice up.', power: 'Your low and middle notes are a strength: keep them forward and speech-like.', high: 'Let the top float in a lighter mix; it doesn\'t need your chest-voice weight.' },
+  'Mezzo-soprano': { breath: 'Steady breath through the middle of your range is where your voice sounds its best.', break: 'Mezzos usually change gear around E4–F4. A mix of chest and head voice there keeps it seamless.', power: 'Warm middle notes carry. Avoid pressing on the low notes to make them bigger.', high: 'Keep the jaw loose and the space at the back open as you rise.' },
+  'Soprano': { breath: 'Sopranos need a quiet, steady stream of air: high notes waste air when pushed.', break: 'Sopranos usually change gear around E4–F♯4. Strengthen this area with speech-like "yeah" on low-middle notes.', power: 'Bright vowels carry. Don\'t spread the mouth wide on top: keep it tall.', high: 'Let high notes spin lightly. Think of the sound floating above your head.' },
+};
+const UNIT_TIP = { u2: 'breath', u5: 'high', u7: 'break', u8: 'break', u9: 'power' };
 const VOICE_INFO = {
   'Bass': { who: ['Johnny Cash', 'Barry White', 'Leonard Cohen', 'Josh Turner'], songs: ['Ring of Fire (Johnny Cash)', 'Folsom Prison Blues (Johnny Cash)', 'Hallelujah (Leonard Cohen)', 'Can\'t Get Enough of Your Love, Babe (Barry White)'] },
   'Baritone': { who: ['Frank Sinatra', 'Elvis Presley', 'David Bowie', 'Michael Bublé', 'Josh Groban'], songs: ['Fly Me to the Moon (Frank Sinatra)', 'Can\'t Help Falling in Love (Elvis Presley)', 'Stand by Me (Ben E. King)', 'Feeling Good (Michael Bublé)'] },
@@ -2884,9 +2925,17 @@ function pureSet() {
   for (const k in store.notes) { const n = store.notes[k]; if (n.sec >= 1 && n.psum / n.sec >= 72) s.add(+k); }
   return s;
 }
-// For each song, the key inside the comfortable range where the most singing time lands on pure notes.
+// Notes you already sing well: pure notes, well-sung notes on your voice map, good steady holds, and notes sung in tune in recent songs.
+function goodSet() {
+  const g = pureSet();
+  for (const k in store.notes) { const n = store.notes[k]; if (n.sec >= 0.5 && n.psum / n.sec >= 55) g.add(+k); }
+  for (const k in (store.holdNotes || {})) if (store.holdNotes[k] >= 60) g.add(+k);
+  for (const r of (store.runs || []).slice(-15)) for (const m of (r.okM || [])) g.add(m);
+  return g;
+}
+// For each song, the key inside your range where the most singing time lands on notes you already sing well.
 function songFits(p) {
-  const pure = pureSet(), out = [];
+  const pure = goodSet(), out = [];
   for (const s of SONGS) {
     if (s.lab || s.id === 'gen') continue;
     const offs = s.notes.map(n => n[0]), lo = Math.min(...offs), hi = Math.max(...offs), total = s.notes.reduce((a, n) => a + n[1], 0);
@@ -2909,11 +2958,11 @@ function voiceResult(p, ranked) {
   const chips = el('div', 'chips-row'); for (const w of info.who) chips.appendChild(el('span', 'r-chip ok', w)); who.appendChild(chips);
   const songs = el('div', 'vi-block'); songs.append(el('span', 'label', 'Songs in a range like yours'), el('p', '', info.songs.join(' · ')));
   const fits = songFits(p).slice(0, 3), fitBox = el('div', 'vi-block');
-  fitBox.append(el('span', 'label', 'In this app, these fit the notes you already sing purely'));
+  fitBox.append(el('span', 'label', 'Songs that use the notes you already sing well'));
   const fl = el('div', 'fit-list');
   for (const f of fits) {
     const row = el('div', 'fit-row'), at = SONG_LEVEL[f.s.id] || 1, open = level() >= at;
-    row.append(el('b', '', f.s.name), el('span', 'muted', Math.round(f.fit * 100) + '% of the song on your pure notes · Do = ' + nameOf(f.k)));
+    row.append(el('b', '', f.s.name), el('span', 'muted', (f.fit > 0 ? Math.round(f.fit * 100) + '% of its notes are ones you already sing well' : 'fits your range') + ' · Do = ' + pcOf(f.k)));
     const b = el('button', 'small', open ? 'Sing it →' : 'Level ' + at); b.disabled = !open;
     b.onclick = () => { closeLab(); $('#t-sing').click(); G.shift = f.k; loadSong(f.s, true); };
     row.appendChild(b); fl.appendChild(row);
@@ -2972,12 +3021,12 @@ const VOWELS = [
 const WARM = [
   { t: 'Release', secs: 30, cue: '🙆', how: 'Roll your shoulders back slowly, three times. Let your head tip gently side to side. Massage the hinge of your jaw with your fingertips and let it hang loose.' },
   { t: 'Belly breathing', secs: 48, cue: '🫁', breath: true, how: 'Hand on your belly. Breathe in through your nose for 4 and feel your belly push out. Then hiss "sss" slowly for 8. Shoulders stay still. Follow the circle.' },
-  { t: 'Yawn and sigh', secs: 25, cue: '🥱', mic: true, how: 'Start a big yawn to lift the back of your mouth, then let it out as a sigh, "haaa", sliding from high to low. Three or four times.' },
-  { t: 'Lip trills', secs: 30, cue: '💨', mic: true, how: 'Loose lips: blow air through them like a motorboat, "brrrr". Add your voice and slide up and down. Fingertips on your cheeks help.' },
-  { t: 'Hum', secs: 30, cue: '🐝', mic: true, purity: true, how: 'Lips closed, teeth apart, tongue relaxed. Hum "mmm" on an easy note and feel the buzz on your lips and nose. Aim for gold.' },
-  { t: 'Ng sirens', secs: 30, cue: '〰', mic: true, how: 'Say "sing" and hold the "ng". Slide from low to high and back like a siren, light and easy.' },
+  { t: 'Yawn and sigh', secs: 25, cue: '🥱', mic: true, slide: 'down', how: 'Start a big yawn to lift the back of your mouth, then let it out as a sigh, "haaa", sliding from high to low. Three or four times.' },
+  { t: 'Lip trills', secs: 30, cue: '💨', mic: true, slide: 'comfy', how: 'Loose lips: blow air through them like a motorboat, "brrrr". Add your voice and slide up and down. Fingertips on your cheeks help.' },
+  { t: 'Hum', secs: 30, cue: '🐝', mic: true, purity: true, home: true, how: 'Lips closed, teeth apart, tongue relaxed. Hum "mmm" on an easy note and feel the buzz on your lips and nose. Aim for gold.' },
+  { t: 'Ng sirens', secs: 30, cue: '〰', mic: true, slide: 'full', how: 'Say "sing" and hold the "ng". Slide from low to high and back like a siren, light and easy.' },
   { t: 'Crisp words', secs: 30, cue: '👄', how: 'Say clearly, getting faster: "Red leather, yellow leather." "Unique New York." "Lips, teeth, the tip of the tongue." Exaggerate every consonant.' },
-  { t: 'Open vowels', secs: 30, cue: '🎵', mic: true, purity: true, how: 'On one comfortable note, sing "mah, may, mee, moh, moo", one per breath. Keep the jaw loose and the mouth tall.' },
+  { t: 'Open vowels', secs: 30, cue: '🎵', mic: true, purity: true, home: true, how: 'On one comfortable note, sing "mah, may, mee, moh, moo", one per breath. Keep the jaw loose and the mouth tall.' },
 ];
 function drawBreath(t0) {
   const c = $('#lane'); if (!c || c.offsetParent === null) return;
@@ -3006,8 +3055,11 @@ const DRILLS = {
       if (i < 0) i = 0;
       const w = WARM[D.list[i]]; Object.assign(D, { wi: i, phase: 'run', t0: now(), paused: 0 });
       chime(i === 0 ? 'ding' : 'high');
-      dSet({ step: `Exercise ${i + 1} of ${D.list.length}`, prompt: w.cue + ' ' + w.t, sub: w.how, live: w.mic ? 'I\'m listening.' : '', prog: 0 });
-      dBtns([{ label: 'Next →', primary: true, fn: () => this.go(D.wi + 1) }, { label: '← Back', fn: () => this.go(D.wi - 1) }, { label: 'Pause', fn: () => this.pause() }]);
+      const r = warmRange(w);
+      dSet({ step: `Exercise ${i + 1} of ${D.list.length}`, prompt: w.cue + ' ' + w.t, sub: w.how + (r ? ' ' + r.text : ''), live: w.mic ? 'I\'m listening.' : '', prog: 0 });
+      const bt = [{ label: 'Next →', primary: true, fn: () => this.go(D.wi + 1) }, { label: '← Back', fn: () => this.go(D.wi - 1) }, { label: 'Pause', fn: () => this.pause() }];
+      if (r) bt.splice(1, 0, { label: '▶ Hear it', fn: r.play });
+      dBtns(bt);
     },
     pause() {
       D.phase = 'paused'; D.paused = now();
@@ -3518,6 +3570,8 @@ Object.assign(DRILLS, {
       const ringF = hasBreak ? fr.reduce((b, f) => Math.abs(f.m - j.at) < Math.abs(b.m - j.at) ? f : b, fr[0]) : null;
       const head = el('p', 'cheer-big', fr.length < 15 ? 'No siren heard. Try again, a little louder.' : hasBreak ? `Your break is around ${nameOf(Math.floor(j.at))}–${nameOf(Math.ceil(j.at))}.` : 'No break found: a smooth siren!');
       const items = [];
+      const tb = store.profile && TYPE_BREAK[store.profile.type];
+      if (hasBreak && tb != null) items.push({ good: true, title: `Typical for a ${store.profile.type}: around ${nameOf(tb)}`, why: Math.abs(j.at - tb) <= 2 ? 'Yours is right where it usually is.' : `Yours is ${j.at > tb ? 'higher' : 'lower'} than usual, which is completely normal: every voice is different.`, tryThis: 'Blend (Unit 8) uses your measured break from now on.' });
       if (hasBreak) items.push({ title: `The voice jumped ${j.size.toFixed(1)} semitones`, why: 'This is where chest voice hands over to head voice. Every voice has it; singers learn to make it invisible.', tryThis: 'Unit 8 (Blend) works on exactly this spot: sirens through it on "oo", getting lighter as you climb.' });
       if (cover < 0.8) items.push({ title: 'Try a wider siren', why: `You covered ${Math.round(span)} semitones. A full siren usually shows more.`, tryThis: 'Start lower, go higher, and go slower. Lightness at the top is fine.' });
       if (!items.length) items.push({ good: true, title: 'Seamless', why: 'No sudden jump: your registers already blend.', tryThis: 'Try it louder, or on "ah", where breaks show more.' });
@@ -3528,9 +3582,9 @@ Object.assign(DRILLS, {
   blend: {
     lane: () => { const b = D.br; return b == null ? { target: null } : { target: null, marks: [{ m: b, label: 'your break' }] }; },
     start() {
-      const p = store.profile, b = store.voiceBreak ? store.voiceBreak.m : p ? Math.round((p.zhi + p.high) / 2) : 62;
+      const p = store.profile, bg = breakGuess(p), b = bg.m;
       Object.assign(D, { phase: 'intro', br: b, fr: [] });
-      dSet({ step: 'Blend · sirens through your break', prompt: 'Lighter as you climb', sub: `Slide up and down three times on "oo", from about ${nameOf(b - 5)} to ${nameOf(b + 5)}, passing through your break at ${nameOf(b)}. Let the voice thin out as you go up. No pushing.` + (store.voiceBreak ? '' : ' (Do the Break finder first to place this exactly.)'), live: '', prog: -1 });
+      dSet({ step: 'Blend · sirens through your break', prompt: 'Lighter as you climb', sub: `Slide up and down three times on "oo", from about ${nameOf(b - 5)} to ${nameOf(b + 5)}, passing through your break at ${nameOf(b)}. Let the voice thin out as you go up. No pushing.` + (bg.measured ? '' : bg.type ? ` (This is where the break usually sits for a ${bg.type}. The Break finder places yours exactly.)` : ' (Do the Break finder first to place this exactly.)'), live: '', prog: -1 });
       dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }, { label: 'Hear the range', fn: async () => { await ensureAudio(); playTone(D.br - 5, 1, PURE); playTone(D.br + 5, 1, PURE, 1.1); } }]);
     },
     go() { Object.assign(D, { phase: 'run', t0: now(), fr: [] }); chime('ding'); dSet({ prompt: 'Up and down: "ooo"', live: 'Three slow sirens', prog: 0 }); dBtns([{ label: 'Done', fn: () => this.finish() }]); },
@@ -3838,11 +3892,12 @@ function startUnitCheck(u) {
   if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); ensureListening(); return; }
   singSongId(c.id === '*' ? null : c.id);
 }
+function pickSong(p) { const fs = p ? songFits(p) : []; if (!fs.length) return null; const top = fs[0].fit; return fs.find(f => f.s.rock && f.fit >= top - 0.1) || fs[0]; }
 function singSongId(id) {
   $('#t-sing').click();
   let s = id && SONGS.find(x => x.id === id);
-  if (!s && store.profile) { const fs = songFits(store.profile); const f = fs.find(f => f.s.rock) || fs[0]; if (f) { G.shift = f.k; loadSong(f.s, true); return; } }
-  if (s) loadSong(s);
+  if (!s && store.profile) { const f = pickSong(store.profile); if (f) { G.shift = f.k; loadSong(f.s, true); if (f.fit >= 0.3) toast(f.s.name + ': ' + Math.round(f.fit * 100) + '% of its notes are ones you already sing well'); return; } }
+  if (s) { const f = store.profile && songFits(store.profile).find(x => x.s.id === s.id); if (f && f.fit > 0) { G.shift = f.k; loadSong(s, true); } else loadSong(s); }
 }
 // back-compat for older callers
 function startLesson(x) { if (x && x.check) return startUnitCheck(x); $('#t-path').click(); }
@@ -3921,6 +3976,8 @@ function unitPage(u, btn) {
     body.appendChild(btn('Next: Name it →', 'small', () => { unitStep = 1; renderPath(); }));
   } else if (unitStep === 1) {
     body.append(el('p', 'unit-lead', u.learn), el('p', 'unit-cue', u.cue));
+    const tk = UNIT_TIP[u.id], tp = store.profile && VOICE_TIPS[store.profile.type];
+    if (tk && tp) body.append(el('p', 'type-tip', 'For your voice (' + store.profile.type + '): ' + tp[tk]));
     const d = el('details', 'unit-how'); d.append(el('summary', '', 'How the voice does this'), el('p', '', u.how)); body.appendChild(d);
     body.appendChild(btn('Next: Practise →', 'primary', () => { unitStep = 2; renderPath(); }));
   } else {
@@ -4346,9 +4403,9 @@ function renderHome() {
   // 4. progress
   const nClips = (store.clips || []).length;
   box.appendChild(card('progress', '📈', 'Your progress', store.baseline ? 'You vs your first song' + (nClips ? ' · ' + nClips + ' recording' + (nClips > 1 ? 's' : '') : '') : 'Starts with your first song', '', '', 'See progress'));
-  // 5. a song for you
-  const fits = songFits(p), fit = fits.find(f => f.s.rock) || fits[0];
-  box.appendChild(card('songs', '♪', 'A song for you', fit ? fit.s.name + ' fits your voice.' : 'Pick any song.', '', '', 'Sing →'));
+  // 5. a song for you: built from notes you already sing well
+  const fit = pickSong(p);
+  box.appendChild(card('songs', '♪', 'A song for you', fit ? (fit.fit >= 0.3 ? fit.s.name + ': ' + Math.round(fit.fit * 100) + '% of its notes are ones you already sing well.' : fit.s.name + ' fits your range.') : 'Pick any song.', fit && fit.fit >= 0.3 ? 'Picked because it uses notes you already sing well.' : '', '', 'Sing →'));
 }
 
 

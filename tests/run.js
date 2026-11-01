@@ -595,6 +595,26 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(oct.open && /octave/.test(oct.txt) && /in tune/.test(oct.txt) && kp.rows >= 3 && kp.bestRow && Math.abs(kp.center - 53) <= 1.5 && after.shift === kp.best && after.closed && /Do = /.test(after.label), JSON.stringify({ oct: oct.open, kp, after }));
   });
 
+  await test('Personal: songs built from notes you sing well (and it says so); break guess, tips and warm-ups use your voice', async page => {
+    await setLevel(page, 10);
+    const r = await page.evaluate(() => {
+      store.profile = { low: 43, high: 64, natural: 52, type: 'Tenor', zlo: 47, zhi: 60 }; store.voiceBreak = null;
+      // the singer has sung C3 D3 E3 F3 G3 well, and nothing else
+      store.notes = {}; [48, 50, 52, 53, 55].forEach(m => store.notes[m] = { sec: 2, psum: 2 * 65, best: 70 }); store.runs = []; store.holdNotes = {}; store.discoveries = [];
+      store.baseline = { id: 'saints', score: 40 }; save(); applyLevel();
+      const fits = songFits(store.profile), top = fits[0], f = pickSong(store.profile);
+      const card = $('#homeCards [data-card="songs"]').textContent;
+      $('#t-sing').click(); renderSongs();
+      const stars = [...document.querySelectorAll('#songs button.fit-star')].map(b => b.textContent);
+      const bg = breakGuess(store.profile);
+      openUnit(UNITS.find(u => u.id === 'u7')); unitStep = 1; renderPath();
+      const tip = $('.type-tip') ? $('.type-tip').textContent : '';
+      const lip = warmRange(WARM.find(w => w.t === 'Lip trills')), hum = warmRange(WARM.find(w => w.t === 'Hum'));
+      return { topFit: top.fit, pick: f && f.s.id, pickFit: f && f.fit, card, stars: stars.length, bg, tip, lip: lip && lip.text, hum: hum && hum.text };
+    });
+    expect(r.topFit >= 0.6 && r.pickFit >= r.topFit - 0.1 && /already sing well/.test(r.card) && r.stars >= 1 && r.stars <= 5 && r.bg.m === 61 && !r.bg.measured && /Tenor/.test(r.tip) && /E4–G4/.test(r.tip) && /A♯2 to C♯4/.test(r.lip) && /E3/.test(r.hum), JSON.stringify(r));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
