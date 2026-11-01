@@ -168,6 +168,8 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 /* sing */
 .songs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; flex: 1; min-width: 0; }
 .songs button { flex: none; }
+.song-grp { flex: none; align-self: center; font: 600 0.68rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-left: 6px; border-left: 2px solid var(--line); }
+.songs .song-grp:first-child { border-left: none; padding-left: 0; }
 .song-bar { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .song-bar h2 { font-size: 1.05rem; flex: none; }
 .songs button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
@@ -1465,6 +1467,14 @@ const SONGS = [
   { id: 'saints', rock: true, name: 'When the Saints Go Marching In', kind: 'Rock & roll · traditional, a hit for Fats Domino', words: 'Oh when the saints go march- ing in, / oh when the saints go march- ing in, / oh Lord, I want to be in that num- ber, / when the saints go march- ing in.', notes: [[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,4],[0,1],[4,1],[5,1],[7,2],[4,2],[0,2],[4,2],[2,4],[4,1],[4,1],[2,1],[0,3],[0,1],[4,1],[7,2],[7,1],[7,1],[5,4],[4,1],[5,1],[7,2],[4,2],[0,2],[2,2],[0,4]] },
   { id: 'rrmorning', rock: true, name: 'Rock and Roll Morning', kind: 'Rock & roll · 12-bar blues, written for Pure Tone Lab', words: 'Woke up this mor- ning with a rock- and- roll beat, / woke up this mor- ning with a rock- and- roll beat, / gon- na sing it all day long till the mu- sic hits the street.', notes: [[0,.5],[0,.5],[3,.5],[4,1],[7,1.5],[7,.5],[9,.5],[7,.5],[4,.5],[3,.5],[0,2],[0,.5],[0,.5],[3,.5],[4,1],[7,1.5],[7,.5],[9,.5],[7,.5],[4,.5],[3,.5],[0,2],[7,.5],[7,.5],[10,1],[9,.5],[7,.5],[5,1],[4,2],[4,.5],[3,.5],[4,.5],[3,.5],[2,.5],[0,.5],[0,2]] },
   { id: 'jukebox', rock: true, name: 'Jukebox Jive', kind: 'Rock & roll · up-tempo, written for Pure Tone Lab', words: 'Put a dime in the juke- box, let the rec- ord spin, / grab your part- ner by the hand and let the dan- cing be- gin. / Shake it to the left, shake it to the right, / we\'ll be dan- cing all night till the mor- ning light.', notes: [[0,.5],[0,.5],[4,.5],[7,.5],[7,.5],[9,.5],[7,1],[4,.5],[4,.5],[7,.5],[4,.5],[0,2],[5,.5],[5,.5],[9,.5],[12,1],[9,.5],[5,.5],[7,1],[7,.5],[7,.5],[4,.5],[7,.5],[4,.5],[2,.5],[0,2],[7,.5],[7,.5],[7,.5],[9,.5],[7,1],[5,.5],[5,.5],[5,.5],[7,.5],[5,1],[4,.5],[4,.5],[7,.5],[7,.5],[9,1],[7,1],[4,.5],[2,.5],[2,.5],[4,.5],[0,2]] },
+  { id: 'midnight', folk: true, name: 'Midnight Special', kind: 'Folk & blues · traditional melody, new verses (recorded by Creedence Clearwater Revival)', words: "Well, the train comes roll- ing through the dark- est night, / and the whis- tle's call is ring- ing loud and bright. / Let the Mid- night Spe- cial shine its light on me, / let the Mid- night Spe- cial shine its light on me.", notes: [[0,0.5],[0,0.5],[4,0.5],[7,1],[7,0.5],[9,0.5],[7,0.5],[4,0.5],[7,0.5],[4,0.5],[0,2],[0,0.5],[0,0.5],[4,0.5],[7,0.5],[7,0.5],[9,1],[7,0.5],[4,0.5],[2,0.5],[4,0.5],[2,2],[7,0.5],[7,0.5],[12,1],[12,0.5],[12,0.5],[12,1],[14,1],[12,0.5],[9,0.5],[7,0.5],[9,2],[7,0.5],[7,0.5],[12,1],[12,0.5],[12,0.5],[12,1],[9,1],[7,0.5],[4,0.5],[2,0.5],[0,2]] },
+  { id: 'johnhenry', folk: true, name: 'John Henry', kind: 'Folk & blues · traditional melody, new verses (recorded by Johnny Cash)', words: "John Hen- ry was a steel- driv- in' man, / Lord, Lord, / he swung his ham- mer all day long, / Lord, Lord, he swung his ham- mer all day long.", notes: [[0,1],[0,0.5],[2,0.5],[4,1],[4,0.5],[7,1.5],[7,0.5],[4,0.5],[7,2],[9,1],[7,2],[4,0.5],[4,0.5],[4,0.5],[7,1],[4,0.5],[2,1],[0,0.5],[2,2],[4,1],[2,1],[0,0.5],[0,0.5],[0,0.5],[4,1],[2,0.5],[0,1],[-3,0.5],[0,3]] },
+  { id: 'risingsun', folk: true, name: 'House of the Rising Sun', kind: 'Folk & blues · traditional melody, new verses (recorded by the Animals)', words: "There is a house in New Or- leans / they call the Ris- ing Sun, / the riv- er rolls, the lan- terns glow, / the night has on- ly just be- gun.", notes: [[0,0.5],[3,0.5],[5,0.5],[7,1.5],[7,1],[5,0.5],[3,1],[5,1.5],[0,0.5],[3,0.5],[5,0.5],[7,1],[3,0.5],[0,3],[7,0.5],[10,0.5],[12,0.5],[12,1.5],[10,1],[8,0.5],[7,1],[5,1.5],[0,0.5],[3,0.5],[5,0.5],[7,1],[5,0.5],[3,1],[2,0.5],[0,3]] },
+  { id: 'doxology', hymn: true, name: 'Doxology (Old Hundredth)', kind: 'Hymn · words Thomas Ken, 1674', words: "Praise God, from whom all bless- ings flow; / praise him, all crea- tures here be- low; / praise him a- bove, ye heav'n- ly host; / praise Fa- ther, Son, and Ho- ly Ghost. / A- men.", notes: [[0,2],[0,1],[-1,1],[-3,1],[-5,1],[0,1],[2,1],[4,2],[4,2],[4,1],[4,1],[2,1],[0,1],[5,1],[4,1],[2,2],[0,2],[2,1],[4,1],[2,1],[0,1],[-3,1],[-1,1],[0,2],[7,2],[4,1],[0,1],[2,1],[5,1],[4,1],[2,1],[0,3],[5,2],[4,3]] },
+  { id: 'silent', hymn: true, name: 'Silent Night', kind: 'Hymn · Franz Gruber, 1818 · English words J. F. Young', words: "Si- _ lent night, ho- _ ly night, / all is calm, all is bright / round yon Vir- _ gin Moth- er and child. / Ho- ly in- fant so ten- der and mild, / sleep in heav- en- ly peace _, / sleep in heav- en- ly _ peace.", notes: [[7,1.5],[9,0.5],[7,1],[4,3],[7,1.5],[9,0.5],[7,1],[4,3],[14,2],[14,1],[11,3],[12,2],[12,1],[7,3],[9,2],[9,1],[12,1.5],[11,0.5],[9,1],[7,1.5],[9,0.5],[7,1],[4,3],[9,2],[9,1],[12,1.5],[11,0.5],[9,1],[7,1.5],[9,0.5],[7,1],[4,3],[14,2],[14,1],[17,1.5],[14,0.5],[11,1],[12,3],[16,3],[12,1.5],[7,0.5],[4,1],[7,1.5],[5,0.5],[2,1],[0,6]] },
+  { id: 'joy', hymn: true, name: 'Joy to the World', kind: 'Hymn · words Isaac Watts, 1719', words: "Joy to the world, the Lord is come! / Let earth re- ceive her King; / let ev- 'ry heart pre- pare him room, / and heav'n and na- ture _ _ sing, / and heav'n, and heav'n, and na- ture _ sing.", notes: [[12,2],[11,1.5],[9,0.5],[7,3],[5,1],[4,2],[2,2],[0,3],[7,1],[9,3],[9,1],[11,3],[11,1],[12,4],[12,1],[12,1],[11,1],[9,1],[7,1.5],[7,0.5],[5,1],[4,1],[12,1],[12,1],[11,1],[9,1],[7,1.5],[7,0.5],[5,1],[4,2],[12,1],[9,1],[7,1.5],[5,0.5],[4,1],[5,1],[4,2],[2,2],[0,4]] },
+  { id: 'jesusloves', hymn: true, name: 'Jesus Loves Me', kind: 'Hymn · words Anna Warner, 1860', words: "Je- sus loves me, this I know, / for the Bi- ble tells me so. / Lit- tle ones to him be- long; / they are weak, but he is strong. / Yes, Je- sus loves me! / Yes, Je- sus loves me! / Yes, Je- sus loves me! / The Bi- ble tells me so.", notes: [[7,1],[4,1],[4,1],[2,1],[4,1],[7,1],[7,2],[9,1],[9,1],[12,1],[9,1],[9,1],[7,1],[7,2],[7,1],[4,1],[4,1],[2,1],[4,1],[7,1],[7,2],[7,1],[7,1],[4,1],[2,1],[0,1],[2,1],[0,2],[7,2],[4,1],[7,1],[9,1],[12,3],[12,2],[9,1],[7,1],[4,1],[7,3],[7,2],[4,1],[7,1],[9,1],[12,3],[9,1],[7,1],[0,1],[4,1],[2,1],[0,3]] },
+  { id: 'michael', hymn: true, name: 'Michael, Row the Boat Ashore', kind: 'Spiritual · Slave Songs of the United States, 1867', words: "Mi- chael, row the boat a- shore, Hal- le- lu- jah! / Mi- chael, row the boat a- shore, Hal- le- lu- jah!", notes: [[0,1],[4,1],[7,2],[4,1],[7,1],[9,1],[7,2],[4,1],[7,1],[9,1],[7,3],[4,1],[7,1],[7,2],[4,1],[4,1],[2,1],[0,2],[2,1],[4,1],[2,1],[0,3]] },
   { id: 'row', name: 'Row, Row, Row Your Boat', kind: 'Song', words: 'Row, row, row your boat / gent- ly down the stream. / Mer- ri- ly, mer- ri- ly, mer- ri- ly, mer- ri- ly, / life is but a dream.', notes: [[0,1.5],[0,1.5],[0,1],[2,.5],[4,1.5],[4,1],[2,.5],[4,1],[5,.5],[7,3],[12,.5],[12,.5],[12,.5],[7,.5],[7,.5],[7,.5],[4,.5],[4,.5],[4,.5],[0,.5],[0,.5],[0,.5],[7,1],[5,.5],[4,1],[2,.5],[0,3]] },
   { id: 'mary', name: 'Mary Had a Little Lamb', kind: 'Song', words: 'Ma- ry had a lit- tle lamb, / lit- tle lamb, / lit- tle lamb, / Ma- ry had a lit- tle lamb, its / fleece was white as snow.', notes: [[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,2],[2,1],[2,1],[2,2],[4,1],[7,1],[7,2],[4,1],[2,1],[0,1],[2,1],[4,1],[4,1],[4,1],[4,1],[2,1],[2,1],[4,1],[2,1],[0,4]] },
   { id: 'bday', name: 'Happy Birthday', kind: 'Song', words: 'Hap- py birth- day to you, / hap- py birth- day to you, / hap- py birth- day dear friend _, / hap- py birth- day to you.', notes: [[-5,.75],[-5,.25],[-3,1],[-5,1],[0,1],[-1,2],[-5,.75],[-5,.25],[-3,1],[-5,1],[2,1],[0,2],[-5,.75],[-5,.25],[7,1],[4,1],[0,1],[-1,1],[-3,2],[5,.75],[5,.25],[4,1],[0,1],[2,1],[0,3]] },
@@ -1506,11 +1516,16 @@ function loadSong(song, keepShift = false) {
 }
 function renderSongs() {
   const el = $('#songs'); el.textContent = '';
-  for (const s of SONGS) {
-    if (s.lab) continue;
+  const grp = x => x.rock ? 'Rock & roll' : x.folk ? 'Folk & blues' : x.hymn ? 'Hymns' : 'Classics';
+  const order = ['Rock & roll', 'Folk & blues', 'Hymns', 'Classics'];
+  for (const g of order) {
+  const list = SONGS.filter(x => !x.lab && grp(x) === g); if (!list.length) continue;
+  const lab = document.createElement('span'); lab.className = 'song-grp'; lab.textContent = g; el.appendChild(lab);
+  for (const s of list) {
     const b = document.createElement('button'); b.className = 'small'; b.textContent = s.name; b.setAttribute('aria-pressed', s === G.song);
     const at = SONG_LEVEL[s.id] || 1; if (level() < at) { b.disabled = true; b.textContent = s.name + ' · Level ' + at; }
     b.onclick = () => loadSong(s); el.appendChild(b);
+  }
   }
   $('#songKind').textContent = G.song.kind + ' · ' + G.song.notes.length + ' notes';
 }
@@ -3205,7 +3220,7 @@ const LEVELS = [
 LEVELS.forEach((L, i) => { L.n = i + 1; L.lessons.forEach((x, j) => { x.id = L.n + '.' + (j + 1); }); });
 // When each Lab exercise and song opens up.
 const LAB_LEVEL = { warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 2, vowels: 2, leaps: 3, check: 3, explore: 5 };
-const SONG_LEVEL = { saints: 1, row: 1, mary: 1, rrmorning: 2, twinkle: 2, jukebox: 3, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
+const SONG_LEVEL = { midnight: 1, johnhenry: 1, risingsun: 1, doxology: 1, silent: 1, joy: 1, jesusloves: 1, michael: 1, saints: 1, row: 1, mary: 1, rrmorning: 2, twinkle: 2, jukebox: 3, bday: 3, jingle: 3, ode: 4, grace: 4, gen: 4 };
 const level = () => Math.min(store.level || 1, LEVELS.length);
 
 function applyLevel() {

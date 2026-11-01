@@ -126,6 +126,15 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(s.lv === 2 && s.cel && !s.live, JSON.stringify(s));
   });
 
+  await test('every song: words line up with the notes; songs are grouped (rock, folk, hymns, classics)', async page => {
+    await setLevel(page, 1); await tab(page, '#t-sing');
+    const s = await page.evaluate(() => SONGS.filter(x => !x.lab && x.id !== 'gen').map(song => { loadSong(song); return { id: song.id, ok: G.seq.length === G.seq.filter(x => x.w || x.cont).length && G.seq.length === song.notes.length }; }));
+    const bad = s.filter(x => !x.ok).map(x => x.id);
+    const grp = await page.evaluate(() => [...document.querySelectorAll('#songs .song-grp')].map(x => x.textContent).join());
+    const n = await page.evaluate(() => ['midnight', 'johnhenry', 'risingsun', 'doxology', 'silent', 'joy', 'jesusloves', 'michael'].filter(id => SONGS.some(x => x.id === id) && SONG_LEVEL[id] === 1).length);
+    expect(!bad.length && grp === 'Rock & roll,Folk & blues,Hymns,Classics' && n === 8, JSON.stringify({ bad, grp, n }));
+  });
+
   await test('rock songs: words line up with the notes, and each opens at its level', async page => {
     const s = await page.evaluate(() => ROCK.map(id => { const song = SONGS.find(x => x.id === id); loadSong(song); return { id, n: G.seq.length, words: G.seq.filter(x => x.w || x.cont).length, lv: SONG_LEVEL[id] }; }));
     expect(s.length === 3 && s.every(x => x.n === x.words && x.n >= 30) && s.map(x => x.lv).join() === '1,2,3', JSON.stringify(s));
