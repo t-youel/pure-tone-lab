@@ -20,8 +20,15 @@ A 12-unit course in four stages, following the usual teaching order (body, ear, 
 Each unit runs Experience → Name it → Practise. A unit is passed with one skill-check score of **70+**, or with **three tries of 50+**.
 Stages 1–2 are planned as the free tier; a `PAYWALL` switch (off for now) locks later units behind Pro.
 Home is **Today**: the current unit, a voice check-in (a scratchy voice gets a gentle day and the see-a-doctor rule),
-your path, and a song that fits your voice. Units 7–12 use their song as the skill check until their own
-measuring drills are built.
+your path, and a song that fits your voice. Units 10–12 use a song as the skill check until the style tools are built.
+
+**Tone tools:** each measured live from the mic.
+- *Exhale meter* (Unit 2): "sss" then "zzz", length and evenness.
+- *Gentle onsets* (Unit 3): hard, breathy or scooped starts.
+- *Break finder* (Unit 7): one slow siren, where the voice jumps.
+- *Blend* (Unit 8): sirens through the break, scoring the jump and any loudness push.
+- *Swell* (Unit 9): soft-loud-soft range with steady pitch.
+- *Echo* (Checkpoint A, part 2): a new 4-bar tune heard once, sung back from memory.
 
 **Progress & recordings:** every song you sing through is recorded on the device (compressed audio, about
 0.5 MB a minute) with a small pitch trace. Your first and best takes are always kept, and you can star others.

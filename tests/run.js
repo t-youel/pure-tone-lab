@@ -32,7 +32,7 @@ async function voice(page) {
     let wv = '';
     setInterval(() => {
       if (V.follow) { const tg = G.seq[G.idx]; V.on = G.run === 'singing'; if (tg) V.m = tg.m + V.off; }
-      g.gain.value = V.on ? .35 : 0; ng.gain.value = V.on ? V.noise : 0;
+      g.gain.value = V.on && V.osc !== false ? .35 * (V.vol == null ? 1 : V.vol) : 0; ng.gain.value = V.on ? V.noise : 0;
       const k = V.wave.join(); if (k !== wv) { wv = k; o.setPeriodicWave(makeWave(V.wave)); }
       o.frequency.setTargetAtTime(m2f(V.m), ac.currentTime, .03);
     }, 25);
@@ -518,6 +518,69 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     // auto-delete is on by default: old, unkept takes go; first (a), best (b) and starred (e, d) stay
     const pruned = await page.evaluate(async () => { store.clips.push({ id: 'f', song: 'mary', at: Date.now() - 31 * 864e5, score: 10, star: false, first: false, size: 10 }); const n = await pruneClips(); return { n, ids: store.clips.map(c => c.id).join() }; });
     expect(after.comfort === 4 && after.starred && after.ids === 'a,b,d,e' && pruned.n === 1 && pruned.ids === 'a,b,d,e', JSON.stringify({ after, pruned }));
+  });
+
+  await test('Tone tools: gentle onsets score a clean start; the unit checks point to the new drills', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; openLab('onset'); });
+    await page.click('#dBtns >> text=▶ Start');
+    await page.evaluate(() => { setInterval(() => { V.on = D.phase === 'att' || D.phase === 'wait'; if (D.target != null) V.m = D.target; }, 20); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 40000 });
+    const r = await page.evaluate(() => ({ best: labBestOf('onset'), kinds: D.res.map(x => x.kind).join(), u3: UNITS[2].check.lab, u7: UNITS.find(u => u.id === 'u7').check.lab, u8: UNITS.find(u => u.id === 'u8').check.lab, u9: UNITS.find(u => u.id === 'u9').check.lab }));
+    expect(r.best >= 70 && r.u3 === 'onset' && r.u7 === 'breaks' && r.u8 === 'blend' && r.u9 === 'swell', JSON.stringify(r));
+  });
+
+  await test('Tone tools: the break finder spots a sudden jump in a siren and remembers it', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { openLab('breaks'); });
+    await page.click('#dBtns >> text=Start the siren');
+    // a slow siren from A2 up to D4 that flips by 2 semitones around F3
+    await page.evaluate(() => { const t0 = performance.now(); setInterval(() => { const e = (performance.now() - t0) / 1000 - 0.4; V.on = D.phase === 'run' && e > 0 && e < 8; const m = 45 + e * 2; V.m = m < 53 ? m : m + 2; }, 20); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 20000 });
+    const r = await page.evaluate(() => ({ br: store.voiceBreak, best: labBestOf('breaks'), head: $('.cheer-big').textContent, svg: !!$('#dResult .siren-svg') }));
+    expect(r.br && Math.abs(r.br.m - 54) <= 1 && r.br.size >= 1.5 && r.best > 0 && /break is around/.test(r.head) && r.svg, JSON.stringify(r));
+  });
+
+  await test('Tone tools: blend scores a smooth siren through the break higher than a jumpy one', async page => {
+    await voice(page); await setLevel(page, 10);
+    const run = async jump => {
+      await page.evaluate(() => { store.voiceBreak = { m: 55, size: 2 }; closeLab(); openLab('blend'); });
+      await page.click('#dBtns >> text=▶ Start');
+      await page.evaluate(j => { clearInterval(window.bi); const t0 = performance.now(); window.bi = setInterval(() => { const e = (performance.now() - t0) / 1000; V.on = D.phase === 'run' && e < 12; const ph = (e % 4) / 4, m = 50 + 10 * (ph < 0.5 ? ph * 2 : 2 - ph * 2); V.m = j && m > 55 ? m + 2 : m; }, 20); }, jump);
+      await page.waitForFunction(() => D.phase === 'done', null, { timeout: 25000 });
+      return page.evaluate(() => labRec('blend').last);
+    };
+    const smooth = await run(false), jumpy = await run(true);
+    expect(smooth >= 70 && jumpy < smooth - 15, JSON.stringify({ smooth, jumpy }));
+  });
+
+  await test('Tone tools: swell rewards soft-loud-soft with steady pitch; exhale measures a long even hiss', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; openLab('swell'); });
+    await page.click('#dBtns >> text=▶ Start');
+    await page.evaluate(() => { setInterval(() => { V.on = ['wait', 'hold'].includes(D.phase); V.m = D.target; const e = D.phase === 'hold' ? now() - D.t0 : 0; V.vol = 0.08 + 0.92 * Math.max(0, 1 - Math.abs(e - 4) / 4); }, 20); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 25000 });
+    const sw = await page.evaluate(() => labRec('swell').last);
+    await page.evaluate(() => { closeLab(); V.vol = 1; openLab('exhale'); });
+    await page.click('#dBtns >> text=▶ Start');
+    await page.evaluate(() => { V.osc = false; V.noise = 0.2; setInterval(() => { V.on = D.phase === 'out' && D.on < 15; }, 20); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 60000 });
+    const ex = await page.evaluate(() => ({ last: labRec('exhale').last, rounds: D.rounds.map(r => r.secs.toFixed(0)).join() }));
+    expect(sw >= 60 && ex.last >= 70 && ex.rounds === '15,15', JSON.stringify({ sw, ex }));
+  });
+
+  await test('Checkpoint A has two parts: the scale and echoing a new melody heard once', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.tries = {}; openLab('echo'); });
+    await page.click('#dBtns >> text=Play the tune');
+    await page.evaluate(() => { setInterval(() => { const sing = D.phase === 'sing'; V.on = sing; if (sing && D.mel) { const i = Math.min(D.mel.notes.length - 1, Math.floor((now() - D.t0) / D.beat)); V.m = D.mel.notes[i].m; } }, 20); });
+    await page.waitForFunction(() => D.phase === 'done', null, { timeout: 30000 });
+    const r = await page.evaluate(() => {
+      const cp = UNITS.find(u => u.id === 'cpA'); store.unlockAll = true;
+      const echo = labRec('echo').last; const out = { echo, afterEcho: unitPassed(cp) };
+      recordTry('song', 'doremi', 80); out.both = unitPassed(cp); out.status = unitStatus(cp); return out;
+    });
+    expect(r.echo >= 70 && !r.afterEcho && r.both, JSON.stringify(r));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {

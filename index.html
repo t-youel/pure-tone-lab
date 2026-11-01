@@ -313,6 +313,7 @@ details b { color: var(--ink); }
 .unit-top { align-items: center; }
 .unit-card { display: grid; gap: 12px; }
 .unit-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.siren-svg { width: 100%; max-width: 420px; height: 90px; }
 .prog-box { display: grid; gap: 12px; }
 .prog-box .card { display: grid; gap: 10px; }
 .prog-range { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
@@ -631,7 +632,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · progress & recordings</p>
+  <p class="fine build" id="buildTag">Build 2026-11-01 · tone tools</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1173,6 +1174,7 @@ function frame() {
   let p = null;
   if (rms > QUIET) p = mpm(x, ac.sampleRate);
   const voiced = !!(p && p.clarity > 0.55 && p.freq > 62 && p.freq < 1300);
+  S.clarNow = p ? p.clarity : 0; S.rawM = voiced ? f2m(p.freq) : null;
   const muted = t < refUntil;
 
   for (const [k, e] of S.extraScore) { e.s *= 0.85; if (e.s < 0.2) S.extraScore.delete(k); }
@@ -2588,6 +2590,12 @@ const LAB = [
   { id: 'scale', kind: 'song', song: 'doremi', title: 'Scale climb: Do-Re-Mi', tags: ['Pitch', 'Range'], time: '30 s', blurb: 'Walk up the major scale. Shows whether your higher notes go flat or thin.' },
   { id: 'patterns', kind: 'song', song: 'patterns', title: 'Solfège patterns', tags: ['Ear', 'Solfège'], time: '1 min', blurb: 'Steps, skips and turn-arounds: Do-Re-Mi-Re-Do, Do-Mi-So, So-Fa-Mi-Re-Do and more, with hand signs.' },
   { id: 'leaps', kind: 'song', song: 'arp', title: 'Leaps: Do-Mi-So-Do', tags: ['Intervals'], time: '30 s', blurb: 'Jump between notes cleanly, without sliding into them.' },
+  { id: 'exhale', kind: 'drill', title: 'Exhale meter', tags: ['Breath'], time: '1 min', blurb: 'Hiss "sss", then buzz "zzz", as long and evenly as you can. Measures length and evenness.' },
+  { id: 'onset', kind: 'drill', title: 'Gentle onsets', tags: ['Tone', 'Health'], time: '1 min', blurb: 'Five notes, each started gently: no hard click, no breathy hiss, no scoop.' },
+  { id: 'echo', kind: 'drill', title: 'Echo a melody', tags: ['Ear', 'Inner hearing'], time: '1 min', blurb: 'A new 4-bar tune plays once. Sing it back from memory.' },
+  { id: 'breaks', kind: 'drill', title: 'Break finder', tags: ['Registers'], time: '30 s', blurb: 'One slow siren shows where your voice changes gear between chest and head voice.' },
+  { id: 'blend', kind: 'drill', title: 'Blend the break', tags: ['Registers'], time: '1 min', blurb: 'Sirens through your break, getting lighter as you climb. Scores the jump and any push.' },
+  { id: 'swell', kind: 'drill', title: 'Swell', tags: ['Dynamics'], time: '30 s', blurb: 'Soft, loud, soft on one note, with the pitch holding still.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
@@ -3285,6 +3293,285 @@ const DRILLS = {
     },
   },
 };
+// ---------- Phase 5: tone tools ----------
+const dB = r => 20 * Math.log10(r + 1e-9);
+const pctl = (a, q) => { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[Math.min(s2.length - 1, Math.floor(q * (s2.length - 1)))]; };
+const corr = (a, b) => { const n = Math.min(a.length, b.length); if (n < 3) return 0; const ma = mean(a.slice(0, n)), mb = mean(b.slice(0, n)); let sab = 0, saa = 0, sbb = 0; for (let i = 0; i < n; i++) { sab += (a[i] - ma) * (b[i] - mb); saa += (a[i] - ma) ** 2; sbb += (b[i] - mb) ** 2; } return saa && sbb ? sab / Math.sqrt(saa * sbb) : 0; };
+// the biggest sudden jump in a siren, ignoring silences: [{t, m}] → { size, at }
+// A break happens in about a tenth of a second, so compare pitch across ~0.1 s and subtract the siren's normal glide.
+function sirenJump(fr) {
+  let best = { size: 0, at: null };
+  const slopes = []; for (let i = 1; i < fr.length; i++) { const dt = fr[i].t - fr[i - 1].t; if (dt > 0 && dt < 0.08) slopes.push(Math.abs(fr[i].m - fr[i - 1].m) / dt); }
+  const glide = slopes.length ? med(slopes) : 0;
+  let j = 0;
+  for (let i = 1; i < fr.length; i++) {
+    if (fr[i].t - fr[i - 1].t > 0.12) { j = i; continue; }       // a gap: start a new stretch
+    while (j < i && fr[i].t - fr[j].t > 0.1) j++;
+    const a = fr[Math.max(0, j - 1)], b = fr[i], dt = b.t - a.t; if (dt <= 0 || dt > 0.16 || b.t - fr[Math.max(0, j - 1)].t > 0.2) continue;
+    const d = Math.abs(b.m - a.m) - glide * dt;
+    if (d > best.size && d < 7) best = { size: d, at: (a.m + b.m) / 2, up: b.m > a.m };
+  }
+  return best;
+}
+// a small trace picture for results: pitch over time, with an optional ring
+function freeTrace(fr, ring) {
+  if (fr.length < 3) return el('div');
+  const W = 320, H = 90, t0 = fr[0].t, t1 = fr[fr.length - 1].t, lo = Math.min(...fr.map(f => f.m)) - 1, hi = Math.max(...fr.map(f => f.m)) + 1;
+  const X = t => ((t - t0) / (t1 - t0 || 1) * W).toFixed(1), Y = m => (H - 4 - (m - lo) / (hi - lo || 1) * (H - 8)).toFixed(1);
+  let d = '', pen = false, last = null; for (const f of fr) { const brk = last && f.t - last.t > 0.15; d += (pen && !brk ? 'L' : 'M') + X(f.t) + ' ' + Y(f.m); pen = true; last = f; }
+  const r = ring ? `<circle cx="${X(ring.t)}" cy="${Y(ring.m)}" r="9" fill="none" stroke="var(--warn)" stroke-width="2.5"/>` : '';
+  const w = el('div', 'vi-block'); w.innerHTML = `<span class="label">Your siren</span><svg viewBox="0 0 ${W} ${H}" class="siren-svg" role="img" aria-label="Your pitch over time"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${r}</svg><span class="muted mono">${nameOf(Math.round(lo + 1))} – ${nameOf(Math.round(hi - 1))}</span>`;
+  return w;
+}
+Object.assign(DRILLS, {
+  // Unit 2 extra: how long and how evenly you can let the air out
+  exhale: {
+    lane: () => D.phase === 'in' ? { breath: true } : {},
+    start() {
+      Object.assign(D, { phase: 'intro', rounds: [] });
+      dSet({ step: 'Exhale meter · "sss", then "zzz"', prompt: 'Slow, even air', sub: 'Breathe in low for 4 counts, then hiss "sss" as long and evenly as you can. Then the same on a buzzing "zzz". ' + POSTURE, live: '', prog: -1 });
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go('sss'); } }]);
+    },
+    go(k) {
+      Object.assign(D, { phase: 'in', k, t0: now(), lv: [], on: 0, quiet: 0, started: 0, floor: [] });
+      dSet({ prompt: k === 'sss' ? 'Breathe in… then "sssss"' : 'Breathe in… then "zzzzz"', sub: 'Belly out as you breathe in. Keep your ribs wide as the air goes out, like a slow leak.', live: 'Breathe in for 4…', prog: 0 });
+      dBtns([{ label: 'Done', fn: () => this.end() }]);
+    },
+    tick(dt) {
+      const e = now() - D.t0;
+      if (D.phase === 'in') { D.floor.push(S.rms); if (e > 4) { D.phase = 'out'; D.t0 = now(); D.thr = Math.max(0.004, pctl(D.floor, 0.5) * 3); chime('ding'); dSet({ live: D.k === 'sss' ? 'Now hiss: sssss…' : 'Now buzz: zzzzz…' }); } return; }
+      if (D.phase !== 'out') return;
+      const loud = S.rms > D.thr;
+      if (loud) { D.on += dt; D.quiet = 0; D.lv.push(dB(S.rms)); if (!D.started) D.started = now(); }
+      else if (D.started) { D.quiet += dt; if (D.quiet > 0.8) return this.end(); }
+      else if (e > 8) return this.end();
+      dSet({ prog: Math.min(1, D.on / 20), live: loud ? D.on.toFixed(1) + ' s · keep it even' : D.started ? '…' : 'Start when ready' });
+      if (D.on >= 30) this.end();
+    },
+    end() {
+      if (D.phase !== 'in' && D.phase !== 'out') return;
+      const lv = D.lv.slice(6, -4), sd = lv.length > 8 ? Math.sqrt(mean(lv.map(v => (v - mean(lv)) ** 2))) : 9;
+      D.rounds.push({ k: D.k, secs: D.on, sd });
+      if (D.k === 'sss') { D.phase = 'between'; dSet({ prompt: 'Good. Now "zzz"', live: '"sss" lasted ' + D.on.toFixed(1) + ' s' }); setTimeout(() => { if (D.id === 'exhale' && D.phase === 'between') this.go('zzz'); }, 1500); return; }
+      this.finish();
+    },
+    finish() {
+      D.phase = 'done';
+      const pts = r => Math.round(Math.min(1, r.secs / 20) * 60 + clamp(1 - (r.sd - 2) / 6) * 40);
+      const score = Math.round(mean(D.rounds.map(pts))), [a, b] = D.rounds;
+      labSave('exhale', score);
+      const items = [];
+      if (Math.min(a.secs, b.secs) < 12) items.push({ title: 'Make the breath last longer', why: 'Short exhales usually mean a high, chesty breath or letting the air rush out at the start.', tryThis: 'Breathe in low (belly and lower ribs), then keep the ribs wide while you hiss. Aim to add 2 seconds a week.' });
+      if (Math.max(a.sd, b.sd) > 4) items.push({ title: 'Keep the air even', why: 'The sound got louder and softer: the air pressure was changing.', tryThis: 'Hiss at half your normal loudness. Imagine a thin, steady stream, like blowing across hot soup.' });
+      if (b.secs < a.secs * 0.7) items.push({ title: '"zzz" ran out much sooner', why: 'Buzzing uses the voice, which can leak air if the folds don\'t meet well.', tryThis: 'Hum "mmm" first to find an easy buzz, then open to "zzz" on the same feeling.' });
+      if (!items.length) items.push({ good: true, title: 'Long and steady', why: 'Your breath is doing its job: long and even.', tryThis: 'Take it into a song with long notes, like the Doxology.' });
+      dShow([el('p', 'cheer-big', score >= 70 ? 'Long, even breath. Great support.' : 'Breath grows quickly with a minute a day.'), statRow([['Score', String(score), true], ['"sss"', a.secs.toFixed(1) + ' s'], ['"zzz"', b.secs.toFixed(1) + ' s'], ['Evenness', '±' + Math.max(a.sd, b.sd).toFixed(1) + ' dB']]), fixCards(items)], () => this.start());
+    },
+  },
+  // Unit 3: five gentle onsets
+  onset: {
+    lane: () => ({ target: ['listen', 'wait', 'att'].includes(D.phase) ? D.target : null, tol: TOL }),
+    start() {
+      Object.assign(D, { phase: 'intro', res: [], target: null });
+      dSet({ step: 'Gentle onsets · 5 notes', prompt: 'Start each note gently', sub: 'You\'ll hear a note. Breathe, then start "ah" softly and right on it: no hard click, no breathy hiss, no scooping up from below. ' + POSTURE, live: '', prog: -1 });
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }]);
+    },
+    go() {
+      if (D.res.length >= 5) return this.finish();
+      const z = labZone(); D.target = Math.round(z.lo + 1 + Math.random() * Math.max(1, z.hi - z.lo - 2));
+      Object.assign(D, { phase: 'listen', t0: now(), att: [], vt: 0 });
+      playTone(D.target, 1.6, PURE);
+      dSet({ step: 'Onset ' + (D.res.length + 1) + ' of 5', prompt: 'Listen: ' + nameOf(D.target), sub: 'Breathe in while it plays.', live: '', prog: D.res.length / 5 });
+      dBtns([{ label: 'Skip', fn: () => { D.res.push({ pts: 0, kind: 'missed' }); this.go(); } }]);
+    },
+    tick(dt, muted) {
+      const e = now() - D.t0;
+      if (D.phase === 'listen') { if (e > 1.9) { D.phase = 'wait'; D.t0 = now(); dSet({ prompt: 'Now: a soft "ah"', live: 'Start gently, right on the note' }); } return; }
+      if (D.phase === 'wait') {
+        if (S.rms > 0.003 || S.voiced) { D.phase = 'att'; D.vt = now(); }
+        else if (e > 8) { D.res.push({ pts: 0, kind: 'missed' }); this.go(); }
+        return;
+      }
+      if (D.phase !== 'att') return;
+      const ta = now() - D.vt;
+      let c = null; if (S.rawM != null) { c = (S.rawM - D.target) * 100; c = ((c % 1200) + 1800) % 1200 - 600; }
+      D.att.push({ t: ta, rms: S.rms, cl: S.clarNow || 0, c });
+      if (ta > 1.1) this.judge();
+    },
+    judge() {
+      const a = D.att, early = a.filter(f => f.t < 0.15), steady = a.filter(f => f.t > 0.4);
+      const lvl = mean(steady.map(f => f.rms)) || 1e-6, peak = Math.max(0, ...early.map(f => f.rms));
+      const c0s = a.filter(f => f.t < 0.2 && f.c != null).map(f => f.c), c0 = c0s.length ? med(c0s) : null;
+      const clEarly = mean(a.filter(f => f.t > 0.03 && f.t < 0.2).map(f => f.cl));
+      const hard = peak > lvl * 1.7, breathy = clEarly < 0.6, scoop = c0 != null && Math.abs(c0) > 45;
+      const pts = Math.max(0, 100 - (hard ? 35 : 0) - (breathy ? 30 : 0) - (scoop ? Math.min(35, Math.abs(c0) - 20) : 0) - (c0 == null ? 40 : 0));
+      const kind = hard ? 'hard' : breathy ? 'breathy' : scoop ? (c0 < 0 ? 'scoop up' : 'from above') : 'balanced';
+      D.res.push({ pts: Math.round(pts), kind, c0 });
+      D.phase = 'gap';
+      dSet({ prompt: kind === 'balanced' ? 'Balanced ✦' : kind === 'hard' ? 'A bit hard' : kind === 'breathy' ? 'A bit breathy' : 'Started ' + (c0 < 0 ? 'low' : 'high'), live: Math.round(pts) + ' points' });
+      setTimeout(() => { if (D.id === 'onset' && D.phase === 'gap') this.go(); }, 1400);
+    },
+    finish() {
+      D.phase = 'done'; D.target = null;
+      const score = Math.round(mean(D.res.map(r => r.pts))), n = k => D.res.filter(r => r.kind === k).length;
+      labSave('onset', score);
+      const items = [];
+      if (n('hard')) items.push({ title: `${n('hard')} hard start${n('hard') > 1 ? 's' : ''}`, why: 'The note started with a click or burst: the folds slammed together before the air flowed.', tryThis: 'Put a tiny "h" in front: "h-ah". Then make the "h" so small no one can hear it.' });
+      if (n('breathy')) items.push({ title: `${n('breathy')} breathy start${n('breathy') > 1 ? 's' : ''}`, why: 'Air escaped before the note settled.', tryThis: 'Hum "mm" on the note first, then open to "ah" without changing anything else.' });
+      if (n('scoop up') + n('from above')) items.push({ title: 'Some notes started off pitch', why: 'You slid into the note instead of starting on it.', tryThis: 'Hear the note in your head first. Start quietly, exactly there, as if continuing a note you were already singing.' });
+      if (!items.length) items.push({ good: true, title: 'Clean, balanced starts', why: 'Air and voice began together, right on the note.', tryThis: 'Keep it: every phrase in a song starts with an onset.' });
+      const chips = el('div', 'chips-row'); D.res.forEach(r => chips.appendChild(el('span', 'r-chip ' + (r.kind === 'balanced' ? 'pure' : r.kind === 'missed' ? 'miss' : 'near'), r.kind + ' · ' + r.pts)));
+      dShow([el('p', 'cheer-big', score >= 70 ? 'Gentle, clean starts.' : 'Onsets get cleaner fast with a little attention.'), statRow([['Score', String(score), true], ['Balanced', n('balanced') + ' of 5']]), chips, fixCards(items)], () => this.start());
+    },
+  },
+  // Unit 7: find where the voice changes gear
+  breaks: {
+    lane: () => ({ target: null }),
+    start() {
+      Object.assign(D, { phase: 'intro', fr: [] });
+      dSet({ step: 'Break finder · one slow siren', prompt: 'Low to high on "oo"', sub: 'Start on a comfortable low note and slide slowly up to your highest easy note on "oo", over about 8 seconds. Don\'t push: let the voice flip if it wants to. That flip is what we\'re looking for.', live: '', prog: -1 });
+      dBtns([{ label: '▶ Start the siren', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }]);
+    },
+    go() { Object.assign(D, { phase: 'run', t0: now(), fr: [], quiet: 0 }); chime('ding'); dSet({ prompt: 'Slide up slowly: "ooo"', live: 'Go…', prog: 0 }); dBtns([{ label: 'Done', fn: () => this.finish() }]); },
+    tick(dt) {
+      if (D.phase !== 'run') return;
+      const e = now() - D.t0;
+      if (S.rawM != null) { D.fr.push({ t: e, m: S.rawM, rms: S.rms }); D.quiet = 0; } else if (D.fr.length > 10) { D.quiet += dt; if (D.quiet > 1.2) return this.finish(); }
+      dSet({ prog: Math.min(1, e / 10), live: S.voiced ? nameOf(S.midi) + ' · keep sliding up' : D.fr.length ? '…' : 'Start low' });
+      if (e > 14) this.finish();
+    },
+    finish() {
+      if (D.phase === 'done') return; D.phase = 'done';
+      const fr = D.fr, span = fr.length ? pctl(fr.map(f => f.m), 0.95) - pctl(fr.map(f => f.m), 0.05) : 0, j = sirenJump(fr);
+      const hasBreak = j.size >= 1.2, cover = clamp(span / 12);
+      const score = fr.length < 15 ? 0 : Math.round(50 * cover + (hasBreak ? Math.max(15, 50 - (j.size - 1.2) * 12) : 50));
+      if (hasBreak && !realStore) { store.voiceBreak = { m: Math.round(j.at), size: +j.size.toFixed(1), at: Date.now() }; dirty = true; }
+      labSave('breaks', score);
+      const ringF = hasBreak ? fr.reduce((b, f) => Math.abs(f.m - j.at) < Math.abs(b.m - j.at) ? f : b, fr[0]) : null;
+      const head = el('p', 'cheer-big', fr.length < 15 ? 'No siren heard. Try again, a little louder.' : hasBreak ? `Your break is around ${nameOf(Math.floor(j.at))}–${nameOf(Math.ceil(j.at))}.` : 'No break found: a smooth siren!');
+      const items = [];
+      if (hasBreak) items.push({ title: `The voice jumped ${j.size.toFixed(1)} semitones`, why: 'This is where chest voice hands over to head voice. Every voice has it; singers learn to make it invisible.', tryThis: 'Unit 8 (Blend) works on exactly this spot: sirens through it on "oo", getting lighter as you climb.' });
+      if (cover < 0.8) items.push({ title: 'Try a wider siren', why: `You covered ${Math.round(span)} semitones. A full siren usually shows more.`, tryThis: 'Start lower, go higher, and go slower. Lightness at the top is fine.' });
+      if (!items.length) items.push({ good: true, title: 'Seamless', why: 'No sudden jump: your registers already blend.', tryThis: 'Try it louder, or on "ah", where breaks show more.' });
+      dShow([head, statRow([['Score', String(score), true], ['Range slid', Math.round(span) + ' semitones'], ['Break', hasBreak ? nameOf(Math.round(j.at)) : 'none']]), freeTrace(fr, ringF), fixCards(items)], () => this.start());
+    },
+  },
+  // Unit 8: smooth through the break
+  blend: {
+    lane: () => { const b = D.br; return b == null ? { target: null } : { target: null, marks: [{ m: b, label: 'your break' }] }; },
+    start() {
+      const p = store.profile, b = store.voiceBreak ? store.voiceBreak.m : p ? Math.round((p.zhi + p.high) / 2) : 62;
+      Object.assign(D, { phase: 'intro', br: b, fr: [] });
+      dSet({ step: 'Blend · sirens through your break', prompt: 'Lighter as you climb', sub: `Slide up and down three times on "oo", from about ${nameOf(b - 5)} to ${nameOf(b + 5)}, passing through your break at ${nameOf(b)}. Let the voice thin out as you go up. No pushing.` + (store.voiceBreak ? '' : ' (Do the Break finder first to place this exactly.)'), live: '', prog: -1 });
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }, { label: 'Hear the range', fn: async () => { await ensureAudio(); playTone(D.br - 5, 1, PURE); playTone(D.br + 5, 1, PURE, 1.1); } }]);
+    },
+    go() { Object.assign(D, { phase: 'run', t0: now(), fr: [] }); chime('ding'); dSet({ prompt: 'Up and down: "ooo"', live: 'Three slow sirens', prog: 0 }); dBtns([{ label: 'Done', fn: () => this.finish() }]); },
+    tick() {
+      if (D.phase !== 'run') return;
+      const e = now() - D.t0;
+      if (S.rawM != null) D.fr.push({ t: e, m: S.rawM, db: dB(S.rms) });
+      dSet({ prog: Math.min(1, e / 15), live: S.voiced ? nameOf(S.midi) + (Math.abs(S.midi - D.br) < 1.5 ? ' · through the break: lighter' : '') : '…' });
+      if (e > 16) this.finish();
+    },
+    finish() {
+      if (D.phase === 'done') return; D.phase = 'done';
+      const fr = D.fr, b = D.br, j = sirenJump(fr), near = fr.filter(f => Math.abs(f.m - b) <= 1.5), around = fr.filter(f => Math.abs(f.m - b) > 1.5 && Math.abs(f.m - b) <= 5);
+      const spike = near.length && around.length ? pctl(near.map(f => f.db), 0.9) - med(around.map(f => f.db)) : 0;
+      const crossed = fr.some(f => f.m < b - 2) && fr.some(f => f.m > b + 2);
+      const score = fr.length < 20 || !crossed ? Math.min(40, fr.length) : Math.round(Math.max(0, 100 - Math.max(0, j.size - 0.8) * 30 - Math.max(0, spike - 3) * 6));
+      labSave('blend', score);
+      const items = [];
+      if (!crossed) items.push({ title: 'The siren didn\'t cross your break', why: `To blend, slide from below ${nameOf(b - 2)} to above ${nameOf(b + 2)}.`, tryThis: 'Tap Hear the range, then copy the low and high notes as the ends of your siren.' });
+      if (j.size > 0.8) items.push({ title: `Still a jump of ${j.size.toFixed(1)} semitones`, why: 'The voice flipped instead of gliding.', tryThis: 'Go slower and softer right at the break. Lip trills ("brrr") through the break also smooth it.' });
+      if (spike > 3) items.push({ title: `Louder by ${Math.round(spike)} dB at the break`, why: 'Getting louder there is a sign of pushing.', tryThis: 'Think "lighter" as you approach the break, as if the note floats up.' });
+      if (!items.length) items.push({ good: true, title: 'Smooth through the break', why: 'No jump and no push: chest and head voice overlap.', tryThis: 'Try the same on "ah", then in Joy to the World.' });
+      dShow([el('p', 'cheer-big', score >= 70 ? 'Smooth through your break.' : 'Blending takes time. Small, slow sirens every day.'), statRow([['Score', String(score), true], ['Biggest jump', j.size.toFixed(1) + ' st'], ['Push at break', (spike > 0 ? '+' : '') + Math.round(spike) + ' dB']]), freeTrace(fr), fixCards(items)], () => this.start());
+    },
+  },
+  // Unit 9: soft → loud → soft on one note, pitch holding still
+  swell: {
+    lane: () => ({ target: ['listen', 'wait', 'hold'].includes(D.phase) ? D.target : null, tol: TOL }),
+    start() {
+      const z = labZone(); D.target = Math.round(z.center); Object.assign(D, { phase: 'intro', fr: [] });
+      dSet({ step: 'Swell · soft, loud, soft', prompt: 'One note, growing and fading', sub: `Hold ${nameOf(D.target)} on "ah" for 8 seconds: start soft, grow to strong (not shouting) by the middle, then fade back to soft. Keep the pitch in the green band the whole time.`, live: '', prog: -1 });
+      dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }]);
+    },
+    go() { Object.assign(D, { phase: 'listen', t0: now(), fr: [] }); playTone(D.target, 1.8, PURE); dSet({ prompt: 'Listen: ' + nameOf(D.target), live: '', prog: 0 }); dBtns([{ label: 'Stop', fn: () => this.finish() }]); },
+    tick(dt) {
+      const e = now() - D.t0;
+      if (D.phase === 'listen') { if (e > 2.1) { D.phase = 'wait'; dSet({ prompt: 'Start softly…' }); } return; }
+      if (D.phase === 'wait') { if (S.voiced) { D.phase = 'hold'; D.t0 = now(); } return; }
+      if (D.phase !== 'hold') return;
+      if (S.voiced) { let c = (S.midi - D.target) * 100; c = ((c % 1200) + 1800) % 1200 - 600; D.fr.push({ t: e, db: dB(S.rms), c }); }
+      const want = e < 4 ? 'grow louder ↗' : 'fade softer ↘';
+      dSet({ prog: Math.min(1, e / 8), live: (S.voiced ? want : 'keep the note going') + ' · ' + Math.max(0, 8 - e).toFixed(1) + ' s' });
+      if (e >= 8) this.finish();
+    },
+    finish() {
+      if (D.phase === 'done') return; D.phase = 'done';
+      const fr = D.fr, dbs = fr.map(f => f.db), range = fr.length > 10 ? pctl(dbs, 0.95) - pctl(dbs, 0.05) : 0;
+      const shape = fr.length > 10 ? corr(dbs, fr.map(f => 4 - Math.abs(f.t - 4))) : 0;
+      const inR = fr.length ? fr.filter(f => Math.abs(f.c) <= TOL).length / fr.length : 0;
+      const loud = fr.filter(f => f.db > pctl(dbs, 0.75)), soft = fr.filter(f => f.db < pctl(dbs, 0.25));
+      const drift = loud.length && soft.length ? med(loud.map(f => f.c)) - med(soft.map(f => f.c)) : 0;
+      const score = fr.length < 20 ? 0 : Math.round(40 * clamp(range / 12) + 30 * clamp(shape / 0.7) + 30 * clamp(inR));
+      labSave('swell', score);
+      const items = [];
+      if (range < 8) items.push({ title: `Only ${Math.round(range)} dB from soft to loud`, why: 'A swell needs a real soft and a real strong.', tryThis: 'Start almost a whisper-hum, and grow by adding breath support from the belly, not throat squeeze.' });
+      if (shape < 0.5 && range >= 8) items.push({ title: 'The shape wasn\'t soft-loud-soft', why: 'Loudest should be in the middle, softest at both ends.', tryThis: 'Count 1-2-3-4 growing, 5-6-7-8 fading. Watch the progress bar.' });
+      if (Math.abs(drift) > 20) items.push({ title: `Pitch went ${drift > 0 ? 'sharp' : 'flat'} by ${Math.abs(Math.round(drift))}¢ when loud`, why: 'More push often drags the pitch up; less support lets it sag.', tryThis: 'Keep the jaw loose and the eyebrows lifted. Louder comes from breath, not throat tension.' });
+      if (!items.length) items.push({ good: true, title: 'A controlled swell', why: 'Wide dynamic range and the pitch held still.', tryThis: 'Use it on the long notes of Rock and Roll Morning.' });
+      dShow([el('p', 'cheer-big', score >= 70 ? 'Beautiful control, soft to strong.' : 'Dynamics are a skill of breath. It grows.'), statRow([['Score', String(score), true], ['Range', Math.round(range) + ' dB'], ['In tune', Math.round(inR * 100) + '%'], ['Pitch when loud', (drift > 0 ? '+' : '') + Math.round(drift) + '¢']]), fixCards(items)], () => this.start());
+    },
+  },
+  // Checkpoint A, part 2: hear a 4-bar melody once, sing it back from memory
+  echo: {
+    lane: () => ({ target: null }),
+    start() {
+      Object.assign(D, { phase: 'intro', mel: null });
+      dSet({ step: 'Echo · a 4-bar melody, heard once', prompt: 'Listen once, then sing it back', sub: 'A short new tune plays one time only. Then, after a count of 2, sing it back on "la" at the same speed. This checks inner hearing: holding a tune in your head.', live: '', prog: -1 });
+      dBtns([{ label: '▶ Play the tune', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }]);
+    },
+    tune() {
+      const z = labZone(); let doM = Math.round(z.center) - 4; if (isBlack(doM)) doM--;
+      const steps = [0, 2, 4, 5, 7, 9], mel = [0]; let i = 0;
+      for (let k = 1; k < 7; k++) { i = Math.max(0, Math.min(steps.length - 1, i + [-1, 1, 1, 2, -2, 1][Math.floor(Math.random() * 6)])); mel.push(steps[i]); }
+      mel.push(mel[6] >= 4 ? 4 : 2, 0);
+      return { doM, notes: mel.map(o => ({ m: doM + o, b: 1 })) };
+    },
+    go() {
+      D.mel = this.tune(); const beat = 0.7; let t = 0.1; D.beat = beat;
+      D.mel.notes.forEach(n => { playTone(n.m, beat * 0.9, PURE, t); t += beat; });
+      Object.assign(D, { phase: 'listen', t0: now(), len: t, fr: [] });
+      dSet({ prompt: 'Listen…', sub: 'Hold it in your head. It plays only once.', live: '♪ playing', prog: 0 });
+      dBtns([{ label: 'Skip', fn: () => this.finish() }]);
+    },
+    tick(dt) {
+      const e = now() - D.t0;
+      if (D.phase === 'listen') { if (e > D.len + 0.3) { D.phase = 'count'; D.t0 = now(); } return; }
+      if (D.phase === 'count') { const left = 2 * D.beat - e; dSet({ prompt: left > D.beat ? '2…' : left > 0 ? '1…' : 'Sing!', live: '' }); if (left <= 0) { D.phase = 'sing'; D.t0 = now(); chime('ding'); } return; }
+      if (D.phase !== 'sing') return;
+      if (S.rawM != null) D.fr.push({ t: e, m: S.rawM });
+      const i = Math.floor(e / D.beat);
+      dSet({ prompt: 'Sing it back on "la"', live: i < D.mel.notes.length ? 'note ' + (i + 1) + ' of ' + D.mel.notes.length : '', prog: Math.min(1, e / (D.mel.notes.length * D.beat)) });
+      if (e > D.mel.notes.length * D.beat + 0.6) this.finish();
+    },
+    finish() {
+      if (D.phase === 'done') return; D.phase = 'done';
+      const notes = (D.mel || { notes: [] }).notes, res = notes.map((n, i) => {
+        const w = D.fr.filter(f => f.t > i * D.beat + 0.12 && f.t < (i + 1) * D.beat - 0.05).map(f => { let c = (f.m - n.m) * 100; return ((c % 1200) + 1800) % 1200 - 600; });
+        return w.length >= 2 ? med(w) : null;
+      });
+      const pts = res.map(c => c == null ? 0 : Math.max(0, 100 - Math.max(0, Math.abs(c) - 25) * 1.2));
+      const score = notes.length ? Math.round(mean(pts)) : 0, ok = res.filter(c => c != null && Math.abs(c) <= 50).length;
+      labSave('echo', score);
+      const chips = el('div', 'chips-row'); notes.forEach((n, i) => { const c = res[i]; chips.appendChild(el('span', 'r-chip ' + (c == null ? 'miss' : Math.abs(c) <= 25 ? 'pure' : Math.abs(c) <= 50 ? 'ok' : 'off'), SOLF[(n.m - D.mel.doM + 12) % 12] + (c == null ? ' –' : ''))); });
+      const items = ok >= 6 ? [{ good: true, title: 'You held the tune in your head', why: 'That\'s inner hearing: the skill behind singing from memory.', tryThis: 'Try again: each tune is new.' }]
+        : [{ title: 'Hold it in your head', why: 'Most misses come from losing the tune, not the voice.', tryThis: 'While it plays, sing along silently in your head, and move your hand up and down with the notes.' }];
+      dShow([el('p', 'cheer-big', `${ok} of ${notes.length} notes back on pitch.`), statRow([['Score', String(score), true], ['On pitch', ok + ' of ' + notes.length]]), chips, fixCards(items)], () => this.start());
+    },
+  },
+});
 function labTick(dt, muted) {
   if (!D.id || D.kind !== 'drill' || $('#labStage').offsetParent === null) return;
   DRILLS[D.id].tick(dt, muted);
@@ -3302,7 +3589,7 @@ const strongNotes = ids => { const r = runsOf(ids).slice(-1)[0]; return r && r.g
 const ROCK = ['saints', 'rrmorning', 'jukebox'];
 // ---------- The Pure Tone Path: 4 stages, 12 units and a checkpoint ----------
 // Each unit: Experience it, Name it, Practise it. A unit is passed with one score of 70+, or three tries of 50+.
-// Units 7-12 use their song as the skill check until their own measuring drills are built.
+// Units 10-12 use a song as the skill check until the style tools are built.
 const PAYWALL = false;           // switch on when payments exist: units after Checkpoint A then need Pro
 const PASS = 70, PERSIST = 50, PERSIST_TRIES = 3;
 const STAGES = [
@@ -3316,11 +3603,11 @@ const UNITS = [
     learn: 'Find your range and voice type, then sing one song. That song is your starting point: everything later is compared with it.',
     cue: 'Relaxed shoulders · easy breath · no pushing',
     how: 'Your voice is two small folds in your throat. Breath makes them vibrate; your throat and mouth shape the sound. Sip water through the day, and rest when your voice feels tired.' },
-  { id: 'u2', n: 2, stage: 1, title: 'Posture & breath', check: { kind: 'lab', id: 'hold', lab: 'hold', label: 'Steady hold: 6 seconds in the green band' }, song: 'doxology',
+  { id: 'u2', n: 2, stage: 1, title: 'Posture & breath', check: { kind: 'lab', id: 'hold', lab: 'hold', label: 'Steady hold: 6 seconds in the green band' }, song: 'doxology', extra: 'exhale',
     learn: 'Stand tall, breathe in low and quiet, then let the air out slowly and evenly, like a slow leak.',
     cue: 'Belly out as you breathe in · ribs stay wide · shoulders down',
     how: 'The diaphragm under your lungs drops when you breathe in. Keeping the ribs wide as you sing lets the air leave at an even pressure, and even pressure gives a steady note.' },
-  { id: 'u3', n: 3, stage: 1, title: 'Finding the sound', check: { kind: 'song', id: 'hum', lab: 'hum', label: 'Five-note hum' }, song: 'michael',
+  { id: 'u3', n: 3, stage: 1, title: 'Finding the sound', check: { kind: 'lab', id: 'onset', lab: 'onset', label: 'Gentle onsets: 5 notes', tk: 'u3b' }, song: 'michael', extra: 'hum',
     learn: 'Start each note gently, with no hard click. Slide on sirens and lip trills to warm the whole range.',
     cue: 'Begin with a soft "m" or "h" · let the note bloom',
     how: 'A hard start slams the folds together; a breathy start lets air leak. A balanced start, where air and folds begin together, is kindest to the voice and lands in tune.' },
@@ -3332,23 +3619,23 @@ const UNITS = [
     learn: 'Jump between notes cleanly: thirds, fifths and the octave. Hear the next note before you sing it.',
     cue: 'Think the next note · no sliding · land it',
     how: 'Singers keep a map of the scale in their head (inner hearing). Solfège names like Do, Mi and So make that map easier to use.' },
-  { id: 'cpA', n: 'A', stage: 2, gate: true, title: 'Checkpoint A', check: { kind: 'song', id: 'doremi', lab: 'scale', label: 'The major scale in solfège' }, song: null,
-    learn: 'Sing the major scale in solfège, Do to Do. This checks your ear and voice together.',
+  { id: 'cpA', n: 'A', stage: 2, gate: true, title: 'Checkpoint A', check: { kind: 'song', id: 'doremi', lab: 'scale', label: 'The major scale in solfège' }, check2: { kind: 'lab', id: 'echo', lab: 'echo', label: 'Echo a 4-bar melody after hearing it once', tk: 'cpA2' }, song: null,
+    learn: 'Two parts: sing the major scale in solfège, Do to Do, and sing back a short new tune after hearing it once. This checks your ear and voice together.',
     cue: 'Do Re Mi Fa So La Ti Do · even and unhurried',
     how: 'The scale is the ladder every melody is built from. Singing it in tune means you can find your way in almost any song.' },
   { id: 'u6', n: 6, stage: 3, title: 'Vowels & resonance', check: { kind: 'lab', id: 'vowels', lab: 'vowels', label: 'Vowels: average purity' }, song: 'silent',
     learn: 'Shape pure vowels with mouth and tongue, and find a bright, forward placement.',
     cue: 'Tall "ah" · smiling "ee" · round "oo"',
     how: 'Each vowel is a shape of your throat and mouth that boosts certain overtones. Clear vowels carry further and sound more in tune.' },
-  { id: 'u7', n: 7, stage: 3, title: 'Registers', check: { kind: 'song', id: 'risingsun', label: 'Sing House of the Rising Sun' }, song: 'risingsun',
+  { id: 'u7', n: 7, stage: 3, title: 'Registers', check: { kind: 'lab', id: 'breaks', lab: 'breaks', label: 'Break finder: one slow siren', tk: 'u7b' }, song: 'risingsun',
     learn: 'Feel chest voice and head voice, and find the place where your voice changes gear.',
     cue: 'Slide slowly on "oo" · let it get lighter as you go up',
     how: 'Low notes use thicker vibrating folds (chest voice), high notes thinner ones (head voice). The change happens around a "break" that every voice has.' },
-  { id: 'u8', n: 8, stage: 3, title: 'Blending the passage', check: { kind: 'song', id: 'joy', label: 'Sing Joy to the World' }, song: 'joy',
+  { id: 'u8', n: 8, stage: 3, title: 'Blending the passage', check: { kind: 'lab', id: 'blend', lab: 'blend', label: 'Blend: sirens through your break', tk: 'u8b' }, song: 'joy',
     learn: 'Lighten gradually through your break so no one can hear the gear change. Speaking ease, no pushing.',
     cue: 'Lighter as you climb · keep the jaw loose · never push',
     how: 'Pushing more air at the break makes it louder and harder. Letting the voice thin out gradually lets chest and head voice overlap smoothly.' },
-  { id: 'u9', n: 9, stage: 3, title: 'Dynamics & tone color', check: { kind: 'song', id: 'rrmorning', label: 'Sing Rock and Roll Morning' }, song: 'rrmorning',
+  { id: 'u9', n: 9, stage: 3, title: 'Dynamics & tone color', check: { kind: 'lab', id: 'swell', lab: 'swell', label: 'Swell: soft, loud, soft on one note', tk: 'u9b' }, song: 'rrmorning',
     learn: 'Go from soft to loud without strain, and try different colors: light, bright, full and a gentle cry.',
     cue: 'Louder from the breath, not the throat',
     how: 'Volume comes from breath pressure and how firmly the folds close. Color comes from the shape above them. Both can change without the pitch moving.' },
@@ -3366,13 +3653,17 @@ const UNITS = [
     how: 'Performing is its own skill: you keep going through small slips. Hearing how far you have come is the best motivation there is.' },
 ];
 UNITS.forEach((u, i) => { u.i = i; });
-const unitTries = u => ((store.tries || {})[u.id]) || [];
-const unitBest = u => Math.max(0, ...unitTries(u).map(t => t.s));
+const triesKey = (u, c) => (c && c.tk) || u.id;
+const unitTries = (u, c = u.check) => ((store.tries || {})[triesKey(u, c)]) || [];
+const unitBest = (u, c = u.check) => Math.max(0, ...unitTries(u, c).map(t => t.s));
+const unitChecks = u => u.check2 ? [u.check, u.check2] : [u.check];
+function checkPassed(u, c) { const t = unitTries(u, c); return t.some(x => x.s >= PASS) || t.filter(x => x.s >= PERSIST).length >= PERSIST_TRIES; }
+// the check to practise next: the first one not yet passed
+const unitCheckNow = u => unitChecks(u).find(c => !checkPassed(u, c)) || u.check;
 function unitPassed(u) {
   if (isTester() && (store.devPass || []).includes(u.id)) return true;
   if (u.check.kind === 'u1') return !!store.profile && !!store.baseline;
-  const t = unitTries(u);
-  return t.some(x => x.s >= PASS) || t.filter(x => x.s >= PERSIST).length >= PERSIST_TRIES;
+  return unitChecks(u).every(c => checkPassed(u, c));
 }
 const isPro = () => !PAYWALL || !!store.pro || isTester();
 // Easter egg: a singer named TedY-137 (or a near miss: any case, spaces or dashes, one letter off) can
@@ -3406,11 +3697,12 @@ const unitLabel = u => u.gate ? u.title : 'Unit ' + u.n;
 function recordTry(kind, id, score) {
   if (realStore) return;
   if (!store.tries) store.tries = {};
-  for (const u of UNITS) {
-    const c = u.check; if (c.kind !== kind || !unitOpen(u) || unitPassed(u)) continue;
+  for (const u of UNITS) for (const c of unitChecks(u)) {
+    if (c.kind !== kind || !unitOpen(u) || checkPassed(u, c)) continue;
     if (c.id !== id && !(c.id === '*' && kind === 'song' && SONGS.some(x => x.id === id && !x.lab))) continue;
-    (store.tries[u.id] = store.tries[u.id] || []).push({ s: Math.round(score), at: Date.now() });
-    if (store.tries[u.id].length > 30) store.tries[u.id].shift();
+    const k = triesKey(u, c);
+    (store.tries[k] = store.tries[k] || []).push({ s: Math.round(score), at: Date.now() });
+    if (store.tries[k].length > 30) store.tries[k].shift();
   }
   dirty = true;
 }
@@ -3419,8 +3711,9 @@ function unitStatus(u) {
   if (unitPassed(u)) return u.check.kind === 'u1' ? 'Done ✓' : 'Passed ✓ · best ' + unitBest(u);
   if (!unitOpen(u)) return unitPaid(u) && !isPro() ? 'Pro' : 'Locked';
   if (u.check.kind === 'u1') return !store.profile ? 'Start with Find your voice' : 'Now sing your first song';
-  const t = unitTries(u), n = t.filter(x => x.s >= PERSIST).length;
-  return t.length ? `Best ${unitBest(u)} · ${n} of ${PERSIST_TRIES} tries at ${PERSIST}+` : `Score ${PASS}+, or ${PERSIST}+ three times`;
+  const one = c => { const t = unitTries(u, c), n = t.filter(x => x.s >= PERSIST).length; return checkPassed(u, c) ? 'passed ✓' : t.length ? `best ${unitBest(u, c)} · ${n} of ${PERSIST_TRIES} at ${PERSIST}+` : `score ${PASS}+, or ${PERSIST}+ three times`; };
+  if (u.check2) return 'Scale: ' + one(u.check) + ' · Echo: ' + one(u.check2);
+  const s1 = one(u.check); return s1.charAt(0).toUpperCase() + s1.slice(1);
 }
 // Old saves: earlier best scores count as one try each.
 function seedTries() {
@@ -3436,7 +3729,7 @@ function seedTries() {
   store.triesSeeded = true; dirty = true;
 }
 // When each Lab exercise opens (by stage). Songs are all open.
-const LAB_LEVEL = { patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const LAB_LEVEL = { exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
 const SONG_LEVEL = {};
 // The stage of the furthest open unit. Panels and Lab exercises open by stage.
 const level = () => store.unlockAll || isTester() ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
@@ -3472,7 +3765,7 @@ $('#celStay').onclick = () => { $('#celebrate').hidden = true; };
 let findOpen = false;
 // Practise a unit: its skill check, or its song.
 function startUnitCheck(u) {
-  const c = u.check;
+  const c = unitCheckNow(u);
   if (c.kind === 'u1') { if (!store.profile) { openLab('range', true); $('#t-lab').click(); ensureListening(); } else singSongId(u.song); return; }
   if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); ensureListening(); return; }
   singSongId(c.id === '*' ? null : c.id);
@@ -3563,14 +3856,15 @@ function unitPage(u, btn) {
     const d = el('details', 'unit-how'); d.append(el('summary', '', 'How the voice does this'), el('p', '', u.how)); body.appendChild(d);
     body.appendChild(btn('Next: Practise →', 'primary', () => { unitStep = 2; renderPath(); }));
   } else {
-    const c = u.check;
+    const c = unitCheckNow(u);
     body.append(el('p', 'unit-lead', c.kind === 'u1' ? (store.profile ? 'Now sing one song all the way through. It becomes your starting point.' : 'Start with Find your voice: about 40 seconds.') : 'Skill check: ' + c.label + '.'));
     if (c.kind !== 'u1') body.appendChild(el('p', 'muted', `Pass with a score of ${PASS} or more, or with ${PERSIST_TRIES} tries of ${PERSIST}+. ${unitStatus(u)}.`));
-    const t = unitTries(u);
+    const t = unitTries(u, c);
     if (t.length) { const ch = el('div', 'chips-row'); t.slice(-8).forEach(x => ch.appendChild(el('span', 'r-chip ' + (x.s >= PASS ? 'pure' : x.s >= PERSIST ? 'ok' : 'near'), String(x.s)))); body.appendChild(ch); }
     const r = el('div', 'row');
     r.appendChild(btn(unitPassed(u) ? 'Practise again' : c.kind === 'u1' ? (store.profile ? 'Sing ' + songName(u.song) + ' →' : 'Find your voice →') : 'Start the skill check →', 'primary', () => startUnitCheck(u)));
     if (u.song && c.id !== u.song) r.appendChild(btn('Sing ' + songName(u.song), 'small', () => singSongId(u.song)));
+    if (u.check2) for (const cx of unitChecks(u)) if (cx !== c) r.appendChild(btn((checkPassed(u, cx) ? '✓ ' : '') + cx.label, 'small', () => { if (cx.lab) { openLab(cx.lab, true); $('#t-lab').click(); ensureListening(); } }));
     if (u.extra) { const L = LAB.find(x => x.id === u.extra); r.appendChild(btn('Also: ' + L.title, 'small', () => { openLab(u.extra, true); $('#t-lab').click(); })); }
     body.appendChild(r);
   }
@@ -3796,7 +4090,7 @@ function renderProgress() {
 const SES = { on: false, blocks: [], i: 0, t0: 0, paused: 0, count: 0, iv: 0, warmList: null, started: 0, gentle: false };
 const WARM_SESSION = [1, 3, 4, 5, 7], WARM_GENTLE = [0, 1, 2, 4];
 function sesPlan(gentle) {
-  const u = currentUnit(), c = u.check;
+  const u = currentUnit(), c = unitCheckNow(u);
   if (gentle) return [{ k: 'warm', name: 'Gentle warm-up', secs: 240, list: WARM_GENTLE }];
   const skillName = c.kind === 'u1' ? 'Your first song' : c.label || u.title;
   const fits = store.profile ? songFits(store.profile) : [], skillSong = c.kind === 'u1' ? u.song : c.lab ? null : c.id;
@@ -3844,7 +4138,7 @@ function sesBegin() {
   const clickStart = () => setTimeout(() => { const p = $('#dBtns .primary'); if (p && SES.on) p.click(); }, 350);
   if (b.k === 'warm') { SES.warmList = b.list; openLab('warmup', true); $('#t-lab').click(); setTimeout(() => SES.on && DRILLS.warmup.go(0), 300); }
   else if (b.k === 'skill') {
-    const u = UNITS.find(x => x.id === b.unit), c = u.check;
+    const u = UNITS.find(x => x.id === b.unit), c = unitCheckNow(u);
     if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); if (DRILLS[c.lab]) clickStart(); else setTimeout(() => SES.on && startRun(), 500); }
     else { singSongId(c.kind === 'u1' ? u.song : c.id === '*' ? null : c.id); setTimeout(() => SES.on && startRun(), 500); }
   } else if (b.k === 'song') { singSongId(b.song); setTimeout(() => SES.on && startRun(), 500); }
@@ -3854,7 +4148,7 @@ function sesBegin() {
 function sesActivityDone(b) {
   if (now() - SES.started < 1.5) return false;
   if (b.k === 'warm' || b.k === 'ear') return D.phase === 'done';
-  if (b.k === 'skill') { const c = UNITS.find(x => x.id === b.unit).check; return c.lab && DRILLS[c.lab] ? D.phase === 'done' : G.run === 'done'; }
+  if (b.k === 'skill') { const c = unitCheckNow(UNITS.find(x => x.id === b.unit)); return c.lab && DRILLS[c.lab] ? D.phase === 'done' : G.run === 'done'; }
   return G.run === 'done';
 }
 const sesUsed = b => (b.used || 0) + (SES.paused ? 0 : now() - (b.resumed || b.t0));
