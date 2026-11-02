@@ -458,6 +458,23 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .learn-card { display: grid; gap: 10px; border: 2px solid var(--accent); }
 .learn-card h3, .learn-card p { margin: 0; }
 .ls-lines { display: flex; flex-wrap: wrap; gap: 6px; }
+.ls-nav { display: grid; grid-template-columns: 48px 1fr 48px; gap: 8px; align-items: center; }
+.ls-arrow { height: 48px; border-radius: 14px; font-size: 1.8rem; line-height: 1; padding: 0; }
+.ls-navmid { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.ls-navmid .ls-chip { border: 0; padding: 0; background: none; font-size: 1.1rem; box-shadow: none; }
+.ls-prog { width: 100%; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--line) 60%, var(--surface)); overflow: hidden; }
+.ls-prog i { display: block; height: 100%; background: var(--pure); }
+.ls-progt { font-size: .8rem; }
+.ls-music { display: grid; gap: 6px; }
+.ls-staff { overflow-x: auto; -webkit-overflow-scrolling: touch; } .ls-staff svg { max-height: none; height: 150px; }
+.ls-words { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ls-wordin { flex: 1 1 220px; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ls-wordhint { font-size: .82rem; flex-basis: 100%; }
+.ls-stepl { margin-top: 4px; }
+.ls-say { font-size: 1.05rem; } .ls-next { font-weight: 600; }
+.ls-why summary { cursor: pointer; font-size: .85rem; color: var(--accent); } .ls-why p { margin: 4px 0 0; font-size: .86rem; }
+.ls-go { width: 100%; min-height: 52px; font-size: 1.08rem; }
+.ls-small { justify-content: center; }
 .ls-chip { border-radius: 999px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: .9rem; }
 .ls-chip.on { border-color: var(--accent); font-weight: 700; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .ls-chip.done { background: color-mix(in srgb, var(--pure) 18%, var(--surface)); }
@@ -911,7 +928,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · coached song lesson</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · simpler coached lesson</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5753,6 +5770,7 @@ async function proAnalyze(buf, onProg) {
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
+  out.appendChild(learnCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
   const step = (n, title, txt) => { const d = el('div', 'pp-step'); d.dataset.pass = n; d.append(el('span', 'pp-n', String(n)), el('b', '', title), el('span', 'muted', txt)); how.appendChild(d); };
   step(1, 'Learned the song', P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
@@ -5761,7 +5779,6 @@ function proRender() {
   how.appendChild(el('p', 'muted pp-note', 'Without sheet music the tune is learned from the singing itself, so a note missed by a whole step the same way every time can’t be caught.'));
   out.appendChild(how);
   out.appendChild(proStats(an));
-  out.appendChild(learnCard(an));
   out.appendChild(proCompare(an));
   rollDraw(PRO);
 }
@@ -5954,9 +5971,11 @@ function proCompare(an) {
 // coach diagnoses the main problem and picks a different tool, escalating if the same problem repeats: lock in one note
 // (a held note with a live meter), siren to a big jump, backchain the line from the end, sing on the clicks, or go back
 // to the slow guide. Each try is recorded so you can hear his line, then yours.
-const LS = { an: null, lines: [], k: 0, phase: 'idle', samples: [], start: 0, oct: 0, timer: 0, src: null, ex: null, plan: [], fails: {}, cap: null, myBuf: null, cue: {} };
+const LS = { an: null, lines: [], k: 0, phase: 'idle', samples: [], start: 0, oct: 0, timer: 0, src: null, ex: null, plan: [], fails: {}, cap: null, myBuf: null, cue: {}, gen: 0, pending: [], busy: false };
+// a promise that also ends (with null) the moment anything calls lsStop
+const lsWait = setup => new Promise(res => { let done = false; const fin = v => { if (done) return; done = true; LS.pending = LS.pending.filter(f => f !== fin); res(v); }; LS.pending.push(fin); setup(fin); });
 const LSR = { an: null };
-function lsStop() { clearInterval(LS.timer); LS.timer = 0; if (LS.src) { try { LS.src.stop(); } catch (e) {} LS.src = null; } if (LS.rec) { try { LS.rec.stop(); } catch (e) {} LS.rec = null; } guideOff(true); if (LS.phase === 'turn') LS.phase = 'idle'; rollStop(LSR); }
+function lsStop() { LS.gen++; LS.busy = false; if (LS.setBusyUI) LS.setBusyUI(false); const pend = LS.pending; LS.pending = []; pend.forEach(f => f(null)); const m = $('#lsMeter'); if (m) m.hidden = true; clearInterval(LS.timer); clearTimeout(LS.timer); LS.timer = 0; if (LS.src) { try { LS.src.stop(); } catch (e) {} LS.src = null; } if (LS.rec) { try { LS.rec.stop(); } catch (e) {} LS.rec = null; } guideOff(true); if (LS.phase === 'turn') LS.phase = 'idle'; rollStop(LSR); }
 function proLines(an) {
   const ns = an.notes, bp = an.beat ? an.beat.period : 0.6, bt0 = n => n.b0 ?? n.t0, bt1 = n => n.b1 ?? n.t1, raw = []; let cur = [];
   ns.forEach((n, i) => { const pv = ns[i - 1]; if (pv && (bt0(n) - bt1(pv) >= Math.max(0.45, bp * 1.25) || cur.length >= 12)) { raw.push(cur); cur = []; } cur.push(i); });
@@ -6002,45 +6021,95 @@ function learnCard(an) {
   LS.oct = mid == null ? 0 : 12 * Math.round((mid - sm) / 12);
   const c = el('div', 'card learn-card'); c.dataset.card = 'learn';
   c.append(el('h3', '', '🎓 Learn to sing it like this'),
-    el('p', '', 'A coached lesson, one line at a time. You’ll listen, hum along slowly, then sing it on your own. If something isn’t right, your coach picks a different way to fix it. When every line has a ✓, you’ve learned the song.'));
-  if (LS.oct) c.appendChild(el('p', 'muted', 'You’ll sing it an octave ' + (LS.oct < 0 ? 'lower' : 'higher') + ' than him, which suits your voice. Any octave counts.'));
+    el('p', 'muted', 'One line at a time: listen, hum along, then sing it on your own. Your coach helps with anything that isn’t right yet.' + (LS.oct ? ' You’ll sing it an octave ' + (LS.oct < 0 ? 'lower' : 'higher') + ' than him, to suit your voice.' : '')));
   if (!LS.lines.length) { c.appendChild(el('p', 'muted', 'I couldn’t find clear lines in this song to practise.')); return c; }
-  const chips = el('div', 'ls-lines'); chips.id = 'lsLines'; c.appendChild(chips);
+  const nav = el('div', 'ls-nav'); nav.id = 'lsLines'; c.appendChild(nav);
+  const music = el('div', 'ls-music'); music.id = 'lsMusic'; c.appendChild(music);
   const panel = el('div', 'ls-panel'); panel.id = 'lsPanel'; c.appendChild(panel);
-  // where to start: a quick review of a line learned on an earlier day, then the first line not yet learned
   const recs = (store.proLearn || {})[lsKey()] || {}, day = 864e5, first = LS.lines.findIndex((_, k) => !(recs[k] && recs[k].ok));
   const review = LS.lines.findIndex((_, k) => recs[k] && recs[k].ok && Date.now() - (recs[k].at || 0) > day);
-  setTimeout(() => { lsChips(); lsLine(review >= 0 && first !== 0 ? review : Math.max(0, first), review >= 0 && first !== 0); }, 0);
+  setTimeout(() => lsLine(review >= 0 && first !== 0 ? review : Math.max(0, first), review >= 0 && first !== 0), 0);
   return c;
 }
+// ‹ Line 2 of 18 › with a progress bar, instead of a row of chips
 function lsChips() {
-  const box = $('#lsLines'); if (!box) return; box.textContent = ''; const recs = (store.proLearn || {})[lsKey()] || {};
-  LS.lines.forEach((l, k) => { const r = recs[k] || {}; const b = el('button', 'ls-chip' + (k === LS.k ? ' on' : '') + (r.ok ? ' done' : ''), (r.ok ? '✓ ' : '') + (r.star ? '★ ' : '') + 'Line ' + (k + 1)); b.dataset.line = k;
-    b.title = r.best != null ? 'Best ' + r.best : 'Not tried yet'; b.onclick = () => lsLine(k); box.appendChild(b); });
+  const box = $('#lsLines'); if (!box) return; box.textContent = ''; const recs = (store.proLearn || {})[lsKey()] || {}, n = LS.lines.length, learned = LS.lines.filter((_, k) => recs[k] && recs[k].ok).length, r = recs[LS.k] || {};
+  const prev = el('button', 'ls-arrow', '‹'); prev.dataset.act = 'prev'; prev.disabled = LS.k === 0; prev.setAttribute('aria-label', 'Previous line'); prev.onclick = () => lsLine(LS.k - 1);
+  const next = el('button', 'ls-arrow', '›'); next.dataset.act = 'next'; next.disabled = LS.k >= n - 1; next.setAttribute('aria-label', 'Next line'); next.onclick = () => lsLine(LS.k + 1);
+  const mid = el('div', 'ls-navmid'); mid.append(el('b', 'ls-chip', (r.ok ? '✓ ' : '') + (r.star ? '★ ' : '') + 'Line ' + (LS.k + 1) + ' of ' + n));
+  const bar = el('div', 'ls-prog'); const fill = el('i'); fill.style.width = (100 * learned / n) + '%'; bar.appendChild(fill); mid.append(bar, el('span', 'muted ls-progt', learned + ' of ' + n + ' lines learned'));
+  mid.querySelector('.ls-chip').dataset.line = LS.k;
+  box.append(prev, mid, next);
+}
+// the line's music on a staff, with note names and (if you've typed them) the words
+const lsWords = k => (((store.proWords || {})[lsKey()] || {})[k] || '');
+function lsMusic(curPos) {
+  const box = $('#lsMusic'); if (!box || !LS.an) return; const notes = lsNotes(LS.k), an = LS.an;
+  const kn = KEY_NAMES.indexOf(an.key.split(' ')[0]), minor = /minor/.test(an.key), tonic = ((minor ? kn + 3 : kn) % 12 + 12) % 12, sig = KEYSIG[tonic][1], ks = Math.abs(sig);
+  const disp = mean(notes.map(n => n.midi)) < 60 ? 12 : 0, beat = lsBeat(), Y = st => 80 - (st - 30) * 5;
+  const toks = lsWords(LS.k).split(/\s+|(?<=-)/).filter(Boolean);
+  const xs = []; let x = 58 + ks * 10 + 18; for (const n of notes) { xs.push(x); x += 40 + Math.min(3, (n.b - n.a) / beat) * 8; }
+  const W = Math.max(x + 6, 320), out = [];
+  for (let k = 0; k < 5; k++) out.push(`<line class="ln" x1="4" x2="${W - 4}" y1="${40 + k * 10}" y2="${40 + k * 10}"/>`);
+  out.push(`<text class="glyph" x="6" y="84" font-size="62">𝄞</text>`);
+  if (disp) out.push(`<text class="nn" x="22" y="110" style="font-size:11px;fill:var(--ink)">8</text>`);
+  for (let k = 0; k < ks; k++) out.push(`<text class="glyph" x="${50 + k * 10}" y="${Y(sig > 0 ? SHARP_STEP[k] : FLAT_STEP[k]) + 5}" font-size="17">${sig > 0 ? '♯' : '♭'}</text>`);
+  notes.forEach((n, j) => {
+    const cx = xs[j], sp = spell(n.midi + disp, tonic, sig), y = Y(sp.step), bt = Math.round((n.b - n.a) / beat * 2) / 2, g = [];
+    if (j === curPos) g.push(`<circle class="halo" cx="${cx}" cy="${y}" r="14"/>`);
+    for (let st = 28; st >= sp.step; st -= 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    for (let st = 40; st <= sp.step; st += 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    const up = sp.step < 34;
+    g.push(`<ellipse cx="${cx}" cy="${y}" rx="6.6" ry="4.7" transform="rotate(-20 ${cx} ${y})" fill="${bt >= 2 ? 'var(--surface)' : 'currentColor'}" stroke="currentColor" stroke-width="1.6"/>`);
+    if (bt < 4) g.push(up ? `<line x1="${cx + 6}" x2="${cx + 6}" y1="${y - 1}" y2="${y - 33}" stroke="currentColor" stroke-width="1.4"/>` : `<line x1="${cx - 6}" x2="${cx - 6}" y1="${y + 1}" y2="${y + 33}" stroke="currentColor" stroke-width="1.4"/>`);
+    if (bt <= 0.5) g.push(up ? `<path d="M${cx + 6} ${y - 33} q 2 9 9 13 q -5 -4 -9 -6 z" fill="currentColor"/>` : `<path d="M${cx - 6} ${y + 33} q 2 -9 9 -13 q -5 4 -9 6 z" fill="currentColor"/>`);
+    if ([1.5, 3].includes(bt)) g.push(`<circle cx="${cx + 11}" cy="${y - (sp.step % 2 === 0 ? 3 : 0)}" r="1.9" fill="currentColor"/>`);
+    if (sp.acc) g.push(`<text class="glyph" x="${cx - 21}" y="${y + 5}" font-size="16" style="fill:currentColor">${sp.acc}</text>`);
+    const w = (toks[j] || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    if (w) g.push(`<text class="lyr" x="${cx}" y="128">${w}</text>`);
+    g.push(`<text class="nn" x="${cx}" y="${w ? 144 : 128}">${nameOf(n.midi)}</text>`);
+    out.push(`<g fill="currentColor">${g.join('')}</g>`);
+  });
+  box.innerHTML = `<div class="staff ls-staff"><svg viewBox="0 0 ${W} 150" style="width:${W}px;min-width:${W}px" xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg></div>`;
+  // your words for this line: typed once, kept with the song
+  const wr = el('div', 'ls-words'); const has = !!lsWords(LS.k);
+  const tog = el('button', 'small', has ? '✎ Edit the words' : '✎ Add the words'); tog.dataset.act = 'words';
+  const inp = el('input'); inp.type = 'text'; inp.placeholder = 'Type the words of this line, e.g. "I’m let-ting go of you"'; inp.value = lsWords(LS.k); inp.hidden = true; inp.className = 'ls-wordin';
+  const saveW = () => { ((store.proWords ||= {})[lsKey()] ||= {})[LS.k] = inp.value.trim(); dirty = true; save(); lsMusic(); };
+  inp.onkeydown = e => { if (e.key === 'Enter') saveW(); }; inp.onblur = saveW;
+  tog.onclick = () => { inp.hidden = false; inp.focus(); tog.hidden = true; };
+  wr.append(tog, inp, el('span', 'muted ls-wordhint', has ? '' : 'I can’t hear the words in a recording, but you can type them once and they’ll show under the notes. Use a hyphen to split a word over two notes.'));
+  box.appendChild(wr);
 }
 // start a line: build its plan
 function lsLine(k, review) {
-  lsStop(); LS.k = k; LS.fails = {}; LS.myBuf = null; lsChips();
+  lsStop(); LS.lastRes = null; LS.k = Math.max(0, Math.min(LS.lines.length - 1, k)); LS.fails = {}; LS.myBuf = null; lsChips(); lsMusic();
   const r = lsRec(k);
   LS.plan = review ? [{ kind: 'back', review: true }] : r.ok ? [{ kind: 'back' }] : [{ kind: 'listen' }, { kind: 'hum' }, { kind: 'back' }];
   lsShow(review ? 'Welcome back! Let’s warm up with a line you learned before: sing it once on your own.' : r.ok ? 'You’ve learned this line. Sing it again to keep it fresh, or pick another line.' : null);
 }
-// show the current exercise: coach bubble, why, the action button
+// show the current exercise: the coach, one big button, a few small ones
 function lsShow(say) {
-  const panel = $('#lsPanel'); if (!panel) return; panel.textContent = ''; const ex = LS.ex = LS.plan[0], E = EX[ex.kind], l = LS.lines[LS.k];
-  const steps = el('div', 'ls-ladder'); ['listen', 'hum', 'back'].forEach(s2 => steps.appendChild(el('span', 'ls-step' + (s2 === ex.kind || (s2 === 'back' && !['listen', 'hum'].includes(ex.kind)) ? ' now' : ''), EX[s2].title)));
-  panel.append(el('b', 'ls-title', 'Line ' + (LS.k + 1) + ' of ' + LS.lines.length + ' · ' + l.idx.length + ' notes'), steps);
+  const panel = $('#lsPanel'); if (!panel) return; panel.textContent = ''; const ex = LS.ex = LS.plan[0], E = EX[ex.kind];
+  const main = ['listen', 'hum', 'back'], stepN = main.indexOf(ex.kind);
+  panel.appendChild(el('span', 'label ls-stepl', stepN >= 0 && !ex.review && !ex.style ? 'Step ' + (stepN + 1) + ' of 3 · ' + E.title : ex.review ? 'Warm-up' : ex.style ? 'Final touch' : 'Extra practice · ' + E.title));
   const bub = el('div', 'ls-coach'); bub.append(el('span', 'ls-coach-ic', '🎓'), el('div', 'ls-coach-t'));
-  const t = bub.lastChild; t.append(el('b', '', E.title + (ex.label ? ': ' + ex.label : '')), el('p', '', say || lsHow(ex)), el('p', 'ls-why muted', 'Why: ' + E.why));
+  const t = bub.lastChild; t.append(el('p', 'ls-say', say || lsHow(ex)));
+  if (say && !['listen', 'hum', 'back'].includes(ex.kind)) t.appendChild(el('p', 'ls-next', lsHow(ex)));
+  const why = el('details', 'ls-why'); why.append(el('summary', '', 'Why this helps'), el('p', 'muted', E.why)); t.appendChild(why);
   panel.appendChild(bub);
-  const row = el('div', 'row'), go = el('button', 'primary', lsGoLabel(ex)); go.dataset.act = 'go'; go.onclick = () => lsRun(); row.appendChild(go);
-  if (ex.kind !== 'listen') { const h = el('button', '', '▶ Hear his line'); h.dataset.act = 'hear'; h.onclick = () => lsHear(); row.appendChild(h); }
-  if (LS.myBuf) { const m = el('button', '', '▶ Hear yours'); m.dataset.act = 'mine'; m.onclick = () => lsPlayMine(); row.appendChild(m); }
-  if (ex.kind !== 'back' && !ex.review) { const sk = el('button', 'small', 'Skip'); sk.dataset.act = 'skip'; sk.onclick = () => { LS.plan.shift(); if (!LS.plan.length) LS.plan = [{ kind: 'back' }]; lsShow(); }; row.appendChild(sk); }
+  const go = el('button', 'primary ls-go', lsGoLabel(ex)); go.dataset.act = 'go'; go.onclick = () => lsRun(); panel.appendChild(go);
+  const row = el('div', 'row ls-small');
+  if (ex.kind !== 'listen') { const h = el('button', 'small', '▶ Hear him'); h.dataset.act = 'hear'; h.onclick = () => lsHear(); row.appendChild(h); }
+  if (LS.myBuf) { const m = el('button', 'small', '▶ Hear yours'); m.dataset.act = 'mine'; m.onclick = () => lsPlayMine(); row.appendChild(m); }
+  if (ex.kind !== 'back' && !ex.review) { const sk = el('button', 'small', 'Skip this step'); sk.dataset.act = 'skip'; sk.onclick = () => { lsStop(); LS.plan.shift(); if (!LS.plan.length) LS.plan = [{ kind: 'back' }]; lsShow(); }; row.appendChild(sk); }
+  const stop = el('button', 'small', '■ Stop'); stop.dataset.act = 'stop'; stop.hidden = true; stop.onclick = () => { lsStop(); lsShow(); }; row.appendChild(stop);
   panel.appendChild(row);
-  const live = el('p', 'ls-live muted', ''); live.id = 'lsLive'; panel.appendChild(live);
+  LS.setBusyUI = on => { go.disabled = on; go.textContent = on ? '… ' + lsGoLabel(ex).replace(/^\S+\s/, '') : lsGoLabel(ex); stop.hidden = !on; };
+  const live = el('p', 'ls-live', ''); live.id = 'lsLive'; panel.appendChild(live);
   const meter = el('div', 'ls-meter'); meter.id = 'lsMeter'; meter.hidden = true; meter.innerHTML = '<i class="ls-band"></i><i class="ls-dot"></i><span class="ls-note"></span>'; panel.appendChild(meter);
   const res = el('div', 'ls-res'); res.id = 'lsRes'; panel.appendChild(res);
+  if (LS.lastRes) { res.appendChild(LS.lastRes); setTimeout(() => rollDraw(LSR), 0); }
 }
 function lsHow(ex) {
   const n = ex.note, nm = n ? nameOf(n.midi) : '';
@@ -6054,27 +6123,31 @@ function lsHow(ex) {
     vibrato: 'Hold ' + nm + ' and, once it’s steady, let it wobble gently and evenly, like a slow shiver. Don’t force it: relax and let it come.',
     slide: 'On ' + nm + ', start just under the note and glide up into it, the way he does. Small and smooth.' }[ex.kind];
 }
-function lsGoLabel(ex) { return { listen: '▶ Listen', hum: '🎤 Hum along', back: '🎤 Sing it', hold: '🎤 Lock it in', glide: '🎤 Siren', chunk: '🎤 Sing this part', clicks: '🎤 Sing on the clicks', vibrato: '🎤 Try the vibrato', slide: '🎤 Try the slide' }[ex.kind]; }
-async function lsHear(from, to, rate) {
-  lsStop(); await ensureAudio(); if (!PRO.buf) return; const l = LS.lines[LS.k], a = from ?? l.t0, b = to ?? l.t1;
-  const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = PRO.buf; g.gain.value = 0.9; src.connect(g); g.connect(ac.destination);
-  src.start(0, Math.max(0, a - 0.25), b - a + 0.6); LS.src = src; const lv = $('#lsLive'); if (lv) lv.textContent = '🔊 His line…';
-  return new Promise(res => { src.onended = () => { if (LS.src === src) LS.src = null; res(); }; });
+function lsGoLabel(ex) { return { listen: '▶ Listen to the line', hum: '🎤 Hum along with it', back: '🎤 Sing the line', hold: '🎤 Sing and hold the note', glide: '🎤 Slide up to the note', chunk: '🎤 Sing this part', clicks: '🎤 Sing with the clicks', vibrato: '🎤 Try the vibrato', slide: '🎤 Try the slide' }[ex.kind]; }
+function lsPlayHis(from, to) {
+  const l = LS.lines[LS.k], a = from ?? l.t0, b = to ?? l.t1;
+  return lsWait(fin => {
+    if (!PRO.buf) return fin(null);
+    const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = PRO.buf; g.gain.value = 0.9; src.connect(g); g.connect(ac.destination);
+    src.start(0, Math.max(0, a - 0.25), b - a + 0.6); LS.src = src; const lv = $('#lsLive'); if (lv) lv.textContent = '🔊 Listen…';
+    src.onended = () => { if (LS.src === src) LS.src = null; fin(true); };
+  });
 }
+async function lsHear() { lsStop(); await ensureAudio(); await lsPlayHis(); const lv = $('#lsLive'); if (lv && !LS.busy) lv.textContent = ''; }
 function lsTones(notes, speed) {
-  return new Promise(res => { let t = 0.15; for (const n of notes) { playedNote(n.midi, (n.b - n.a) / speed * 0.92, t + n.a / speed); } t += notes[notes.length - 1].b / speed; LS.timer = setTimeout(res, t * 1000 + 200); });
+  return lsWait(fin => { const oscs = []; let t = 0.15; for (const n of notes) oscs.push(playedNote(n.midi, (n.b - n.a) / speed * 0.92, t + n.a / speed)); t += notes[notes.length - 1].b / speed; LS.pending.push(() => oscs.forEach(o => { try { o.stop(); } catch (e) {} })); setTimeout(() => fin(true), t * 1000 + 200); });
 }
-async function lsPlayMine() { if (!LS.myBuf) return; lsStop(); await ensureAudio(); const s2 = ac.createBufferSource(), g = ac.createGain(); s2.buffer = LS.myBuf; g.gain.value = 1.6; s2.connect(g); g.connect(ac.destination); s2.start(); LS.src = s2; }
+async function lsPlayMine() { if (!LS.myBuf) return; lsStop(); LS.render && LS.render(); await ensureAudio(); const s2 = ac.createBufferSource(), g = ac.createGain(); s2.buffer = LS.myBuf; g.gain.value = 1.6; s2.connect(g); g.connect(ac.destination); s2.start(); LS.src = s2; }
 // sing a set of notes: count-in, optional guide tone following the notes, optional clicks through, recorded
 function lsCapture(notes, o = {}) {
   const speed = o.speed || 1, beat = lsBeat() / speed, dur = notes[notes.length - 1].b / speed, live = $('#lsLive');
   for (let k = 0; k < 4; k++) click(0.1 + k * beat, k === 0);
   if (o.clicks) for (let k = 0; k * beat < dur; k++) click(0.1 + (4 + k) * beat, false);
   if (!o.guide) playTone(notes[0].midi, Math.max(0.6, 3 * beat - 0.3), PIPE, 0.1);
-  LS.start = ac.currentTime + 0.1 + 4 * beat; LS.samples = []; LS.phase = 'turn'; LS.cap = { notes, speed };
+  LS.start = ac.currentTime + 0.1 + 4 * beat; LS.samples = []; LS.phase = 'turn'; LS.cap = { notes, speed }; LS.pending.push(() => { LS.phase = 'idle'; stopTicks(); guideOff(true); });
   // record the try, so you can hear yours next to his
   let chunks = [], mr = null; try { if (typeof MediaRecorder !== 'undefined' && analyser) { if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); } mr = new MediaRecorder(recDest.stream); mr.ondataavailable = e => e.data.size && chunks.push(e.data); setTimeout(() => { try { mr.state === 'inactive' && mr.start(); } catch (e) {} }, Math.max(0, (LS.start - ac.currentTime - 0.2) * 1000)); LS.rec = mr; } } catch (e) { mr = null; }
-  return new Promise(resolve => {
+  return lsWait(resolve => {
     let gIdx = -1;
     LS.timer = setInterval(() => {
       const t = ac.currentTime - LS.start;
@@ -6095,8 +6168,8 @@ function lsCapture(notes, o = {}) {
 function lsHoldRun(target, o = {}) {
   const meter = $('#lsMeter'), live = $('#lsLive'); meter.hidden = false;
   playTone(o.from ?? target, 1.4, PIPE, 0.05);
-  LS.phase = 'turn'; LS.cap = { hold: target, from: o.from }; LS.start = ac.currentTime + 1.6; let inT = 0, last = null, nearFrom = o.from == null, vibV = [];
-  return new Promise(resolve => {
+  LS.phase = 'turn'; LS.cap = { hold: target, from: o.from }; LS.start = ac.currentTime + 1.6; LS.pending.push(() => { LS.phase = 'idle'; }); let inT = 0, last = null, nearFrom = o.from == null, vibV = [];
+  return lsWait(resolve => {
     LS.timer = setInterval(() => {
       const t = ac.currentTime - LS.start; if (t < 0) { live.textContent = '🔊 ' + nameOf(o.from ?? target) + '…'; return; }
       let c = null; if (S.voiced && S.midi != null) { const m = target + ((((S.midi - target) % 12) + 18) % 12) - 6; c = (m - target) * 100; if (o.from != null && Math.abs(m - o.from) < 0.8) nearFrom = true; if (o.vib && Math.abs(c) < 60) vibV.push(m); }
@@ -6129,20 +6202,21 @@ function lsEval(notes, sm) {
 }
 // run the current exercise, then let the coach decide what comes next
 async function lsRun() {
-  if (LS.busy) return; LS.busy = true; try { await lsRun1(); } finally { LS.busy = false; }
+  lsStop(); const g = LS.gen; LS.busy = true; try { await lsRun1(g); } finally { if (LS.gen === g) LS.busy = false; }
 }
-async function lsRun1() {
-  lsStop(); await ensureAudio(); const ex = LS.ex, k = LS.k, all = lsNotes(k), live = $('#lsLive');
-  if (ex.kind === 'listen') { await lsHear(); live.textContent = '🎵 Now the notes alone, slowly…'; await lsTones(all, 0.75); LS.plan.shift(); return lsShow(cue('good').replace(/!$/, '') + '. Now hum it along with the notes, slowly.'); }
-  if (!(await ensureListening())) return;
+async function lsRun1(g) {
+  await ensureAudio(); const ex = LS.ex, k = LS.k, all = lsNotes(k), live = $('#lsLive'), gone = () => LS.gen !== g;
+  LS.setBusyUI && LS.setBusyUI(true);
+  if (ex.kind === 'listen') { if (!(await lsPlayHis()) || gone()) return; live.textContent = '🎵 Now the notes alone, slowly…'; if (!(await lsTones(all, 0.75)) || gone()) return; LS.plan.shift(); return lsShow('Now hum it along with the notes, slowly.'); }
+  if (!(await ensureListening()) || gone()) return;
   if (ex.kind === 'hold' || ex.kind === 'glide' || ex.kind === 'vibrato') {
-    const r = await lsHoldRun(ex.note.midi, { from: ex.kind === 'glide' ? ex.from : null, vib: ex.kind === 'vibrato' });
+    const r = await lsHoldRun(ex.note.midi, { from: ex.kind === 'glide' ? ex.from : null, vib: ex.kind === 'vibrato' }); if (!r || gone()) return;
     if (r.ok) { LS.plan.shift(); const nx = LS.plan[0]; return lsShow(cue('good') + ' ' + (ex.kind === 'vibrato' ? 'That’s a real vibrato.' : 'You found ' + nameOf(ex.note.midi) + '.') + (nx && nx.kind === 'chunk' ? ' Now put it back where it belongs.' : ' Now the whole line again.')); }
     return lsFail(ex.kind, ex.kind === 'vibrato' ? 'Keep it relaxed: hold the note steady first, then let it wobble a little, slowly and evenly.' : (ex.note.c != null && ex.note.c > 0 ? cue('sharp') : cue('flat')));
   }
   const notes = ex.kind === 'chunk' ? lsNotes(k, ex.from, ex.to) : all;
-  if (ex.kind === 'chunk') await lsHear(notes[0].abs0, notes[0].abs0 + notes[notes.length - 1].b);
-  const sm = await lsCapture(notes, { speed: ex.kind === 'hum' ? 0.7 : ex.slow ? 0.8 : 1, guide: ex.kind === 'hum', clicks: ex.kind === 'clicks' });
+  if (ex.kind === 'chunk') { if (!(await lsPlayHis(notes[0].abs0, notes[0].abs0 + notes[notes.length - 1].b)) || gone()) return; }
+  const sm = await lsCapture(notes, { speed: ex.kind === 'hum' ? 0.7 : ex.slow ? 0.8 : 1, guide: ex.kind === 'hum', clicks: ex.kind === 'clicks' }); if (!sm || gone()) return;
   const R = lsEval(notes, sm); lsShowResult(notes, sm, R, ex);
   const rec = lsRec(k); rec.tries = (rec.tries || 0) + 1;
   if (ex.kind === 'back') { rec.best = Math.max(rec.best || 0, R.score); if (R.ok) { rec.ok = true; rec.at = Date.now(); } }
@@ -6172,7 +6246,7 @@ function lsDecide(ex, R, notes) {
     const nx = LS.lines.findIndex((_, j) => j > LS.k && !lsRec(j).ok);
     LS.plan = [{ kind: 'back' }];
     lsShow('✓ ' + (ex.style ? '★ That sounds like him! ' : '') + 'Line ' + (LS.k + 1) + ' learned. ' + (nx >= 0 ? 'On to line ' + (nx + 1) + ' when you’re ready.' : 'Every line is learned. Sing them in a row, or try the whole song along with him on headphones.'));
-    if (nx >= 0) { const b = el('button', 'primary', 'Next: line ' + (nx + 1) + ' →'); b.dataset.act = 'nextline'; b.onclick = () => lsLine(nx); $('#lsPanel .row').prepend(b); $('#lsPanel [data-act="go"]').classList.remove('primary'); $('#lsPanel [data-act="go"]').textContent = '↻ Sing it again'; }
+    if (nx >= 0) { const go = $('#lsPanel [data-act="go"]'), b = el('button', 'primary ls-go', 'Next: line ' + (nx + 1) + ' →'); b.dataset.act = 'nextline'; b.onclick = () => lsLine(nx); go.before(b); go.classList.remove('primary', 'ls-go'); go.classList.add('small'); go.textContent = '↻ Sing it again'; }
     return;
   }
   if (ex.kind === 'chunk') {
@@ -6212,12 +6286,12 @@ function lsShowResult(notes, sm, R, ex) {
   const his = mk(); for (let k = 0; k < his.length; k++) { const ti = Math.round((base - lead + k * hop - an.t0f) / an.hop); const v = an.trace[ti]; his[k] = v == null ? null : v + oct; }
   const ms = ns.map(n => n.midi);
   Object.assign(LSR, { an: { dur, notes: ns, trace: mine, ref: his, hop, t0f: hop / 2, lo: Math.min(...ms), hi: Math.max(...ms) }, buf: PRO.buf, audioOff: base - lead, gain: 0.9 });
-  const res = $('#lsRes'); if (!res) return; res.textContent = '';
+  const res = el('div'); LS.lastRes = res;
   const head = el('div', 'ls-score'); head.append(el('b', 'ls-big', String(R.score)), el('span', '', ' / 100 · ' + R.per.filter(p2 => !p2.miss && Math.abs(p2.c) <= 25).length + ' of ' + R.per.length + ' notes in tune' + (Math.abs(R.lagMs) > 60 ? ' · ' + Math.abs(R.lagMs) + ' ms ' + (R.lagMs > 0 ? 'behind' : 'ahead of') + ' him' : '')));
   res.appendChild(head);
   rollMount(LSR, res, { title: 'Your voice and his', idp: 'ls', hint: '▶ Play to hear his line with the playhead. Purple is his voice; yours is coloured by how close you are.' });
   res.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note</span><span><i class="lg-his"></i> his voice</span><span>your voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> 35¢ · <b class="lg-r">red</b> further</span>';
-  setTimeout(() => rollDraw(LSR), 0);
+  const box = $('#lsRes'); if (box) { box.textContent = ''; box.appendChild(res); } setTimeout(() => rollDraw(LSR), 0);
 }
 // ---------- What's inside: the whole app at a glance ----------
 // A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.

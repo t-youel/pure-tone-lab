@@ -917,8 +917,41 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const s8 = await run();                                               // ★
     const rec = await page.evaluate(() => ({ r: store.proLearn['pro:Test singer'][0], chip: $('#lsLines .ls-chip[data-line="0"]').textContent, next: !!document.querySelector('#lsPanel [data-act="nextline"]') }));
     const kinds = [s0, s1, s2, s3, s4, s5, s6, s7].map(x => x.kind).join();
-    expect(kinds === 'listen,hum,back,hold,chunk,back,vibrato,back' && /Note 3 \(E4\) was \d+¢ flat/.test(s3.say) && /Why:/.test(s3.say) && /learned/.test(s6.say) && mine
+    expect(kinds === 'listen,hum,back,hold,chunk,back,vibrato,back' && /Note 3 \(E4\) was \d+¢ flat/.test(s3.say) && /Why this helps/.test(s3.say) && /learned/.test(s6.say) && mine
       && /sounds like him/.test(s8.say) && rec.r.ok && rec.r.star && /✓ ★ Line 1/.test(rec.chip) && rec.next, JSON.stringify({ kinds, s3: s3.say.slice(0, 200), s6: s6.say.slice(0, 120), s8: s8.say.slice(0, 120), mine, rec }));
+  });
+
+  await test('Coached lesson controls: any button stops the running step cleanly; arrows move between lines; the line shows on a staff; typed words appear under the notes', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; save(); openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Test singer', 'file'); });
+    await page.waitForTimeout(100);
+    const ui = await page.evaluate(() => ({ nav: $('#lsLines').textContent, notes: document.querySelectorAll('#lsMusic svg ellipse').length, n0: LS.lines[0].idx.length, big: !!$('#lsPanel .ls-go'), chips: document.querySelectorAll('#lsLines .ls-chip').length }));
+    // start Listen, then interrupt it with Skip, then start Hum along and interrupt with Hear him, then Stop: the big button must work every time
+    await page.click('#lsPanel [data-act="go"]'); await page.waitForTimeout(600);
+    const busy1 = await page.evaluate(() => ({ busy: LS.busy, dis: $('#lsPanel [data-act="go"]').disabled, stop: !$('#lsPanel [data-act="stop"]').hidden }));
+    await page.click('#lsPanel [data-act="skip"]');
+    const afterSkip = await page.evaluate(() => ({ busy: LS.busy, kind: LS.ex.kind, dis: $('#lsPanel [data-act="go"]').disabled }));
+    await page.click('#lsPanel [data-act="go"]'); await page.waitForTimeout(1500);
+    const inHum = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase }));
+    await page.click('#lsPanel [data-act="hear"]'); await page.waitForTimeout(300);
+    const afterHear = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase, dis: $('#lsPanel [data-act="go"]').disabled, guide: !!guideTone }));
+    await page.click('#lsPanel [data-act="go"]'); await page.waitForTimeout(800);
+    const again = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase }));
+    await page.click('#lsPanel [data-act="stop"]');
+    const stopped = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase, pend: LS.pending.length, dis: $('#lsPanel [data-act="go"]').disabled }));
+    // arrows
+    await page.click('#lsLines [data-act="next"]');
+    const moved = await page.evaluate(() => ({ k: LS.k, nav: $('#lsLines').textContent }));
+    await page.click('#lsLines [data-act="prev"]');
+    // words
+    await page.click('#lsMusic [data-act="words"]'); await page.fill('#lsMusic .ls-wordin', 'Hap-py birth-day to you and to you, my friend'); await page.press('#lsMusic .ls-wordin', 'Enter');
+    const words = await page.evaluate(() => ({ lyr: [...document.querySelectorAll('#lsMusic svg .lyr')].map(t => t.textContent).slice(0, 4).join(' '), saved: store.proWords['pro:Test singer'][0] }));
+    expect(/Line 1 of \d+/.test(ui.nav) && /0 of \d+ lines learned/.test(ui.nav) && ui.notes === ui.n0 && ui.big && ui.chips === 1
+      && busy1.busy && busy1.dis && busy1.stop && !afterSkip.busy && afterSkip.kind === 'hum' && !afterSkip.dis
+      && inHum.busy && inHum.phase === 'turn' && !afterHear.busy && afterHear.phase === 'idle' && !afterHear.dis && !afterHear.guide
+      && again.busy && !stopped.busy && stopped.pend === 0 && !stopped.dis && moved.k === 1 && /Line 2 of/.test(moved.nav)
+      && words.lyr === 'Hap- py birth- day' && /birth-day/.test(words.saved), JSON.stringify({ ui, busy1, afterSkip, inHum, afterHear, again, stopped, moved, words }));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {
