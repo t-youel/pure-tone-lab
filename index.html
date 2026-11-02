@@ -971,7 +971,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · sing the whole song</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · words on the bars</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5557,14 +5557,57 @@ async function proLoad(blob, name, kind) {
   const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
   let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
   PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1; PRO.name = name; PRO.kind = kind;
-  PRO.vox = null; PRO.inst = null; PRO.mix = buf;
+  PRO.vox = null; PRO.inst = null; PRO.mix = buf; const known = proAutoInfo(name);
   const an = await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; }, proInfo(name));
-  an.name = name; an.kind = kind; PRO.an = an;
+  an.name = name; an.kind = kind; PRO.an = an; an.known = known;
   if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
-  proRender();
+  proPlaceWords(an); proRender();
 }
 function medArr(a) { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[s2.length >> 1]; }
 const proInfo = name => ((store.proInfo || {})[name]) || {};
+const KNOWN_SONGS = [{ match: /crazy\s*glue/i, key: 'E♭ major', bpm: 134, swing: true, credit: 'Words: “Crazy Glue” by Josh Woodward, CC BY, joshwoodward.com',
+  lyrics: `There’s no gravity that sucked me in your orbit
+There’s no magnet that was in your heart
+The one restriction was the friction that was keeping us
+A little too far apart
+Why fight it, I was secretly delighted
+I gave chase but then I let you win
+You felt lovely when you loved me like a fool
+But now I can’t let go of your skin
+You know that, I never knew
+That you are crazy glue, my darling
+And I’m stuck to you
+I am cozy and I don’t gonna wiggle loose
+You’re honey like a finger in the beehive
+The bees are buzzing in a tizzy fit
+They’re stinging but I’m singing like a fool
+Cuz you’re as sweet as a banana split
+You’re sticky like a hippie in the summer
+You’re like syrup in the slushie tray
+One touch of you and I will never leave
+Cuz I believe that I can’t get away
+You know that, I never knew
+That you are crazy glue, my darling
+And I’m stuck to you
+I am cozy and I don’t gonna wiggle loose
+Hold onto me
+And hand in hand we’ll follow
+Hold onto me
+As if you had a choice
+I never knew
+That you are crazy glue, my darling
+And I’m stuck to you
+I am cozy and I don’t gonna wiggle loose
+I don’t gonna wiggle loose` }];
+// a song we know gets its key, tempo, swing and words filled in, unless you've already given your own
+function proAutoInfo(name) {
+  const known = KNOWN_SONGS.find(k => k.match.test(name)); if (!known || (store.proInfo && store.proInfo[name])) return known || null;
+  (store.proInfo ||= {})[name] = { key: known.key, bpm: known.bpm, swing: known.swing, lyrics: known.lyrics, auto: true }; dirty = true; save(); return known;
+}
+function proPlaceWords(an) {
+  const info = proInfo(an.name); if (!info.lyrics) return; const w = ((store.proWords ||= {})['pro:' + an.name] ||= {});
+  if (Object.keys(w).length) return; const ls = proSplitLyrics(info.lyrics); proLines(an).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); dirty = true; save();
+}
 async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
@@ -5900,7 +5943,7 @@ function rollSelect(R, i) {
 }
 function rollGeom(R) {
   const an = R.an, top = 8, h = R.cv.clientHeight - 16, lo0 = an.lo - 2, hi0 = an.hi + 2, rows = hi0 - lo0 + 1, fit = h / rows;
-  if (fit >= 14) return { top, lo: lo0, hi: hi0, row: fit };
+  if (fit >= 14 || (R.fitAll && fit >= 7)) return { top, lo: lo0, hi: hi0, row: fit };
   // too many notes to show at a readable size: show ~h/24 rows around the singer, following them
   const row = 24, n = Math.floor(h / row), half = n / 2, c = Math.max(lo0 + half, Math.min(hi0 - half + 1, R.vc ?? (an.lo + an.hi) / 2));
   const hi = Math.round(c + half) - 1; return { top, lo: hi - n + 1, hi, row };
@@ -5932,12 +5975,12 @@ function rollDraw(R) {
     const b0 = n.b0 ?? n.t0, b1 = n.b1 ?? n.t1; if (b1 < R.view || b0 > t1v) return;
     const x0 = Math.max(L, X(b0)), x1 = X(b1), yy = y(n.midi), bh = Math.max(6, G.row * 0.72), off = n.c != null && Math.abs(n.c) > 25;
     g.globalAlpha = n.c == null ? 0.35 : 1;
-    g.fillStyle = 'rgba(240,151,58,.5)'; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
+    g.fillStyle = n.hit === undefined ? 'rgba(240,151,58,.5)' : n.hit === null ? 'rgba(140,145,170,.45)' : Math.abs(n.hit) <= 25 ? 'rgba(31,157,85,.5)' : Math.abs(n.hit) <= 50 ? 'rgba(217,164,0,.55)' : 'rgba(208,83,63,.5)'; if (n.hit !== undefined) g.globalAlpha = 1; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
     if (off || i === R.sel) { g.strokeStyle = i === R.sel ? ink : '#d0533f'; g.lineWidth = 2; g.stroke(); }
     else if (n.differs != null) { g.save(); g.setLineDash([4, 3]); g.strokeStyle = '#7a4fd0'; g.lineWidth = 2; g.stroke(); g.restore(); }
     g.globalAlpha = 1;
     if (off && x1 - x0 > 26) { g.fillStyle = '#d0533f'; g.font = '700 10px system-ui, sans-serif'; g.textBaseline = 'bottom'; g.fillText((n.c > 0 ? '+' : '') + n.c + '¢', x0 + 2, yy - bh / 2 - 1); g.textBaseline = 'middle'; }
-    if (n.word && x1 - x0 > 18 && G.row >= 9) { g.fillStyle = muted; g.font = '600 10px system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText(n.word, x0 + 2, yy + bh / 2 + 1); g.textBaseline = 'middle'; }
+    if (n.word && (R.bigWords ? x1 - x0 > 6 : x1 - x0 > 18) && G.row >= (R.bigWords ? 6 : 9)) { g.fillStyle = R.bigWords ? ink : muted; g.font = (R.bigWords ? '700 13px' : '600 10px') + ' system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText(n.word, x0 + 1, yy + bh / 2 + 2); g.textBaseline = 'middle'; }
   });
   for (const n of an.inst || []) { if (n.t1 < R.view || n.t0 > t1v || n.midi < G.lo || n.midi > G.hi) continue; const x0 = Math.max(L, X(n.t0)), bh = Math.max(5, G.row * 0.5); g.fillStyle = 'rgba(140,145,170,.35)'; g.fillRect(x0, y(n.midi) - bh / 2, Math.max(3, X(n.t1) - x0), bh); }
   const i0 = Math.max(0, Math.floor((R.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
@@ -6069,7 +6112,8 @@ async function proAddInstrumental(file) {
   const iso = await proIsolate(PRO.mix, ib, t => { msg.textContent = t + '…'; });
   PRO.inst = ib; PRO.vox = iso.vox; PRO.instLag = iso.lag; PRO.iso = iso;
   const an = await proAnalyze(PRO.vox, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + ' from his voice alone… ' + Math.round(f * 100) + '%'; }, proInfo(PRO.name), PRO.mix);
-  an.name = PRO.name; an.kind = PRO.kind; an.isolated = true; PRO.an = an;
+  an.name = PRO.name; an.kind = PRO.kind; an.isolated = true; PRO.an = an; an.known = KNOWN_SONGS.find(k => k.match.test(PRO.name)) || null;
+  const ww = (store.proWords || {})['pro:' + an.name]; if (ww && proInfo(an.name).auto) { delete store.proWords['pro:' + an.name]; } proPlaceWords(an);
   if (an.notes.length < 4) { msg.textContent = 'The instrumental didn’t line up with this song. Make sure it’s the instrumental of the same recording.'; return; }
   proRender(); toast('His voice is separated from the band');
 }
@@ -6117,7 +6161,8 @@ const KR = { R: { an: null }, on: false, iv: 0, src: null, t0: 0, from: 0, mode:
 function krStop() { KR.on = false; clearInterval(KR.iv); KR.iv = 0; if (KR.src) { try { KR.src.stop(); } catch (e) {} KR.src = null; } guideOff(true); rollStop(KR.R); const b = $('#krGo'); if (b) { b.textContent = '▶ Start singing'; b.classList.add('primary'); } }
 function karaokeCard(an) {
   KR.lines = proLines(an); const c = el('div', 'card kr-card'); c.dataset.card = 'karaoke';
-  c.append(el('h3', '', '🎤 Sing the whole song'), el('p', 'muted', 'Sing along from start to finish with the words. His notes scroll past as bars; your voice is drawn as you sing.'));
+  c.append(el('h3', '', '🎤 Sing the whole song'), el('p', 'muted', 'Sing along from start to finish. Every note is a bar with its word; as each word passes, its bar turns green, gold or red for how close you were.'));
+  if (an.known) c.appendChild(el('p', 'muted kr-credit', an.known.credit + '. Key, tempo and words filled in for you.'));
   if (!KR.lines.length) { c.appendChild(el('p', 'muted', 'I couldn’t find clear lines in this song yet.')); return c; }
   const modes = el('div', 'kr-modes'), opts = [['tones', '🔈 Guide notes', 'no headphones needed: the tune plays as a tone the mic ignores']].concat([['song', '🎧 The whole song', 'headphones on, so the mic hears only you']], PRO.inst ? [['band', '🎧 Just the band', 'headphones on: the instrumental, you sing his part']] : []);
   if (!opts.some(o => o[0] === KR.mode)) KR.mode = 'tones';
@@ -6135,10 +6180,13 @@ async function krStart(fromLine) {
   krStop(); lsStop(); proStop(); if (!(await ensureListening())) return; await ensureAudio();
   const an = PRO.an, lines = KR.lines, from = Math.max(0, lines[fromLine].t0 - 2), hop = an.hop;
   KR.user = new Array(an.trace.length).fill(null); KR.from = fromLine;
-  Object.assign(KR.R, { an: { dur: an.dur, notes: an.notes, trace: KR.user, ref: an.trace, hop, t0f: an.t0f, lo: an.lo, hi: an.hi, beat: an.beat }, buf: null });
+  // a bar per note, each with its word (the line's words spread over its notes in order)
+  KR.notes = an.notes.map(n => ({ t0: n.t0, t1: n.t1, b0: n.b0 ?? n.t0, b1: n.b1 ?? n.t1, midi: n.midi, c: 0, word: '' }));
+  lines.forEach((l, k) => { const toks = krWords(an, k).split(/\s+|(?<=-)/).filter(Boolean); l.idx.forEach((i, j) => { if (toks[j]) KR.notes[i].word = toks[j]; }); });
+  Object.assign(KR.R, { an: { dur: an.dur, notes: KR.notes, trace: KR.user, ref: an.trace, hop, t0f: an.t0f, lo: an.lo, hi: an.hi, beat: an.beat }, buf: null, fitAll: true, bigWords: true });
   const box = $('#krRoll'); box.textContent = ''; rollMount(KR.R, box, { title: an.name, idp: 'kr', hint: 'His voice is purple; yours is drawn as you sing: green on the note, gold close, red off.', noAudio: '' });
   box.querySelector('.pro-head button.primary').hidden = true; box.querySelector('.pro-head button.small').hidden = true; box.querySelector('.pro-pos').hidden = true;
-  box.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> his notes</span><span><i class="lg-his"></i> his voice</span><span>you: <b class="lg-g">green</b> on it · <b class="lg-y">gold</b> close · <b class="lg-r">red</b> off</span>';
+  box.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note and its word</span><span><i class="lg-his"></i> his voice</span><span>after each word, its bar turns <b class="lg-g">green</b> on it · <b class="lg-y">gold</b> close · <b class="lg-r">red</b> off · grey not heard</span>';
   $('#krSum').textContent = '';
   // what you hear
   const lag = KR.mode === 'band' ? (PRO.instLag || 0) : 0, buf = KR.mode === 'song' ? (PRO.mix || PRO.buf) : KR.mode === 'band' ? PRO.inst : null;
@@ -6161,6 +6209,10 @@ async function krStart(fromLine) {
       now.innerHTML = toks.length ? toks.map((w, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(w) + '</span>' + (/-$/.test(w) ? '' : ' ')).join('') : '<span class="muted">Line ' + (li + 1) + (krWords(an, 0) ? '' : ' · add the words in 🎼 Song details') + '</span>'; }
     else if (lastLine !== -1) now.innerHTML = '<span class="muted">♪</span>';
     lastLine = li; next.textContent = nli >= 0 && nli < lines.length ? krWords(an, nli) || '' : '';
+    // each note, once it has passed: how close you were (any octave), shown on its bar
+    for (const nn of KR.notes) { if (nn.hit !== undefined || nn.b1 > t - 0.05 || nn.b0 < from) continue; const len = nn.b1 - nn.b0, v = [];
+      for (let i = Math.max(0, Math.floor((nn.b0 + len * 0.15 - an.t0f) / hop)); i <= Math.min(KR.user.length - 1, Math.floor((nn.b1 - len * 0.1 - an.t0f) / hop)); i++) if (KR.user[i] != null) v.push(KR.user[i]);
+      nn.hit = v.length >= 3 ? Math.round((medArr(v) - nn.midi) * 100) : null; nn.c = nn.hit; }
     const R = KR.R; R.off = Math.max(0, t); const sp = rollSpan(R); R.view = Math.max(0, t - sp * 0.3); rollDraw(R);
   }, 20);
 }

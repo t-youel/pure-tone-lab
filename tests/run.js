@@ -1029,14 +1029,22 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.selectOption('#krFrom', '1');
     await page.click('#krGo');
     await page.waitForFunction(() => KR.on && ac.currentTime - KR.t0 > KR.lines[1].t0 + 1, null, { timeout: 15000 });
-    const mid = await page.evaluate(() => ({ now: $('#krLyric .kr-now').textContent, lit: ($('#krLyric .kr-now .kr-on') || {}).textContent, next: $('#krLyric .kr-next').textContent, guide: !!guideTone, drawn: KR.user.filter(v => v != null).length, roll: !!$('#krRoll canvas') }));
+    const mid = await page.evaluate(() => ({ words: KR.notes.filter(n => n.word).length, firstWord: KR.notes[KR.lines[1].idx[0]].word, fit: (() => { const g = rollGeom(KR.R); return g.lo <= PRO.an.lo && g.hi >= PRO.an.hi; })(), now: $('#krLyric .kr-now').textContent, lit: ($('#krLyric .kr-now .kr-on') || {}).textContent, next: $('#krLyric .kr-next').textContent, guide: !!guideTone, drawn: KR.user.filter(v => v != null).length, roll: !!$('#krRoll canvas') }));
     await page.waitForFunction(() => !KR.on && $('#krSum .kr-line'), null, { timeout: 60000 });
+    const bars = await page.evaluate(() => { const l1 = KR.lines[1].idx.map(i => KR.notes[i].hit), l2 = KR.lines[2].idx.map(i => KR.notes[i].hit), l0 = KR.lines[0].idx.map(i => KR.notes[i].hit); return { l0: l0.filter(h => h !== undefined).length, l1good: l1.filter(h => h != null && Math.abs(h) <= 25).length, l1n: l1.length, l2red: l2.filter(h => h != null && Math.abs(h) > 50).length, l2n: l2.length }; });
     const end = await page.evaluate(() => ({ rows: [...document.querySelectorAll('#krSum .kr-line')].map(r => [+r.dataset.line, +r.querySelector('.kr-ls').textContent, !!r.querySelector('[data-act="practise"]')]), head: $('#krSum').textContent.slice(0, 160), saved: store.proSings['Sing test'].length }));
     await page.click('#krSum [data-act="practise"]');
     const jumped = await page.evaluate(() => LS.k);
     const l2 = end.rows.find(r => r[0] === 2), ok = end.rows.filter(r => r[0] !== 2);
-    expect(card.card && card.modes === 2 && card.from === card.lines + 1 && /Hap-py birth-day|Happy|birth/.test(mid.now) && mid.lit && /third line/.test(mid.next) && mid.guide && mid.drawn > 20 && mid.roll
-      && end.rows[0][0] === 1 && ok.every(r => r[1] >= 80 && !r[2]) && l2 && l2[1] < 70 && l2[2] && end.saved === 1 && jumped === 2, JSON.stringify({ card, mid, end, jumped }));
+    expect(card.card && card.modes === 2 && card.from === card.lines + 1 && mid.words >= 30 && mid.firstWord === 'Hap-' && mid.fit && bars.l0 <= 3 && bars.l1good >= bars.l1n - 1 && bars.l2red >= bars.l2n - 2 && /Hap-py birth-day|Happy|birth/.test(mid.now) && mid.lit && /third line/.test(mid.next) && mid.guide && mid.drawn > 20 && mid.roll
+      && end.rows[0][0] === 1 && ok.every(r => r[1] >= 80 && !r[2]) && l2 && l2[1] < 70 && l2[2] && end.saved === 1 && jumped === 2, JSON.stringify({ card, mid, bars, end, jumped }));
+  });
+
+  await test('A song we know (Crazy Glue, CC BY): its key, tempo, swing and words fill in automatically, with credit to the artist', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => { openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue - Josh Woodward', 'file'); await new Promise(r => setTimeout(r, 150));
+      return { info: store.proInfo['Crazy Glue - Josh Woodward'], key: PRO.an.key, w0: store.proWords['pro:Crazy Glue - Josh Woodward'][0], credit: ($('[data-card="karaoke"] .kr-credit') || {}).textContent, staff: [...document.querySelectorAll('#lsMusic svg .lyr')].slice(0, 2).map(t => t.textContent).join(' ') }; });
+    expect(r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gravity/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {
