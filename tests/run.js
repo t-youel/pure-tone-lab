@@ -772,6 +772,21 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.stars === 0, 'stars without singing: ' + JSON.stringify(r));
   });
 
+  await test('First Notes: every screen fits an iPhone, the iPad in-app window, and a full iPad (nothing cut off)', async (page, browser) => {
+    const bad = [];
+    for (const [name, w, h] of [['iphone', 390, 664], ['ipad-sheet', 490, 500], ['ipad', 1180, 820]]) {
+      const pg = await open(browser, { width: w, height: h });
+      await pg.evaluate(async () => { store.settings = { easyMode: true, ezWords: true }; store.easy = { days: { '2026-10-30': { stars: 9, best: 40, times: 1 } } }; save(); await ensureAudio(); setMode('mic', 'x'); $('#t-easy').click(); });
+      const states = { start: () => easyOpen(['match']), menu: () => ezMenu(), songpick: () => easyOpen(['song']), piano: () => { easyOpen(['piano']); ezStart(); }, end: () => { easyOpen(['match']); EZ.stars = 6; EZ.voiced = 10; EZ.inTune = 4; EZ.i = 1; EZ.phase = 'done'; ezRender(); } };
+      for (const [label, fn] of Object.entries(states)) {
+        await pg.evaluate(fn); await pg.waitForTimeout(300);
+        const r = await pg.evaluate(() => { const stage = $('.easy-stage').getBoundingClientRect(); const ov = ['#easyCard', '#easyMenu', '#easyPiano'].map(id => $(id)).filter(e => e && !e.hidden); return document.documentElement.scrollHeight > innerHeight + 2 || ov.some(e => e.scrollHeight > e.clientHeight + 2 || [...e.querySelectorAll('button')].some(bt => { const q = bt.getBoundingClientRect(); return q.bottom > stage.bottom + 1 || q.top < stage.top - 1; })); });
+        if (r) bad.push(name + ':' + label);
+      }
+    }
+    expect(!bad.length, 'does not fit: ' + bad.join(', '));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

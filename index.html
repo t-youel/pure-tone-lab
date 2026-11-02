@@ -338,6 +338,17 @@ body[data-screen="easy"] .status, body[data-screen="easy"] #backBar { display: n
   body[data-screen="easy"] #btnTour, body[data-screen="easy"] #btnUser { display: none; }
   body[data-screen="easy"] .top { gap: 8px; }
 }
+@media (max-height: 620px) {
+  #tab-easy .easy-btn { min-height: 50px; padding: 2px; } #tab-easy .easy-btn .ei { font-size: 1.3rem; } #tab-easy .easy-btn .el { font-size: .65rem; }
+  #tab-easy .easy-steps .es { width: 30px; height: 30px; font-size: .95rem; border-width: 2px; }
+  #tab-easy .easy-card { padding: 10px 12px; gap: 4px; } #tab-easy .ec-pic { font-size: 2rem; } #tab-easy .ec-name { font-size: 1.1rem; } #tab-easy .ec-how { font-size: .9rem; line-height: 1.3; } #tab-easy .ec-small { display: none; }
+  #tab-easy .ec-go { font-size: 1rem; min-height: 42px; padding: 6px 16px; } #tab-easy .ec-go span:first-child { font-size: 1.3rem; }
+  #tab-easy .ez-big { font-size: 1.5rem; } #tab-easy .ez-pct { font-size: 1.1rem; } #tab-easy .ez-day i { max-height: 18px; } #tab-easy .ez-flower { font-size: 1rem; }
+  #tab-easy .easy-piano { gap: 6px; padding: 8px; } #tab-easy .pn-say { font-size: 1rem; } #tab-easy .pn-w { font-size: .85rem; padding: 1px 6px; } #tab-easy .pn-words .ez-pic { font-size: 1.2rem; }
+  #tab-easy .pn-key { border-bottom-width: 8px; padding: 4px 1px; } #tab-easy .pn-key .pn-syl { font-size: .9rem; } #tab-easy .pn-key .pn-word { font-size: .85rem; }
+  #tab-easy .easy-face { font-size: 2.4rem; } #tab-easy .easy-tip { font-size: .85rem; padding: 3px 10px; }
+  body[data-screen="easy"] .top .brand h1, body[data-screen="easy"] .top h1 { font-size: 1.1rem; }
+}
 .easy { display: grid; gap: 8px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
 html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; touch-action: none; }
 .easy button { touch-action: manipulation; }
@@ -382,9 +393,9 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .ec-go span:first-child { font-size: 2rem; }
 .easy-tip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: calc(100% - 150px); padding: 6px 16px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 2px solid var(--line); font: 700 1.1rem var(--display); text-align: center; pointer-events: none; }
 .menu-how { grid-column: 1 / -1; text-align: center; font-size: 1.15rem; }
-.easy-menu { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 16px; align-content: center; background: color-mix(in srgb, var(--surface) 94%, transparent); }
-.easy-tile { min-height: 120px; border-radius: 22px; display: grid; place-items: center; gap: 4px; border: 3px solid var(--line); background: var(--surface); }
-.easy-tile .ei { font-size: 3rem; line-height: 1; } .easy-tile .el { font: 700 1rem var(--display); }
+.easy-menu { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 10px; padding: 12px; align-content: stretch; overflow: hidden; background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.easy-tile { min-height: 0; padding: 4px; border-radius: 22px; display: grid; place-items: center; gap: 4px; border: 3px solid var(--line); background: var(--surface); }
+.easy-tile .ei { font-size: clamp(1.4rem, 6vh, 3rem); line-height: 1; } .easy-tile .el { font: 700 clamp(.75rem, 2.2vh, 1rem) var(--display); }
 .easy-tile:hover, .easy-tile:focus-visible { border-color: var(--accent); }
 .easy-piano { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; gap: 12px; padding: 14px; background: var(--surface); }
 .pn-head { display: grid; gap: 6px; justify-items: center; }
@@ -403,8 +414,8 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pn-song { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
 .pn-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--nc); opacity: .35; }
 .pn-dot.done { opacity: 1; } .pn-dot.now { opacity: 1; outline: 4px solid var(--ink); outline-offset: 2px; }
-.pn-keys { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); gap: 0; min-height: 0; }
-.pn-key { border-radius: 0 0 12px 12px; border: 2px solid #b9bccb; background: #fdfdfd; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding: 8px 2px; min-height: 180px; border-bottom: 14px solid var(--nc); box-shadow: inset 0 -6px 0 rgba(0,0,0,.06); }
+.pn-keys { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); gap: 0; min-height: 0; height: 100%; }
+.pn-key { border-radius: 0 0 12px 12px; border: 2px solid #b9bccb; background: #fdfdfd; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding: 8px 2px; min-height: 0; border-bottom: 14px solid var(--nc); box-shadow: inset 0 -6px 0 rgba(0,0,0,.06); }
 .pn-key .pn-syl { text-shadow: none; }
 .pn-key.black { position: absolute; top: 0; width: 9%; height: 58%; min-height: 0; background: linear-gradient(#2a2a2e, #111); border: 2px solid #000; border-bottom-width: 6px; border-radius: 0 0 8px 8px; z-index: 2; padding: 0; }
 .pn-key .pn-syl { font: 700 1.2rem var(--display); color: var(--nc); } .pn-key .pn-nm { font: 600 .75rem var(--mono); color: var(--muted); }
@@ -753,7 +764,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · screen fix 3</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · fits everywhere</p>
 </section>
 
 <!-- YOUR PATH -->
