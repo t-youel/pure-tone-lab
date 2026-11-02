@@ -322,7 +322,9 @@ details b { color: var(--ink); }
 .staff .sg.on .ln { stroke: var(--accent); }
 #btnSigns[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .sign-list { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; }
-.easy { display: grid; gap: 8px; }
+.easy { display: grid; gap: 8px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; touch-action: none; }
+.easy button { touch-action: manipulation; }
 .easy-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .easy-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .easy-btn { min-width: 74px; min-height: 74px; border-radius: 18px; display: grid; place-items: center; gap: 0; padding: 6px 8px; border: 3px solid var(--line); background: var(--surface); }
@@ -716,7 +718,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · start card</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · steady screen</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4366,12 +4368,14 @@ const ezStep = () => { const k = ezKey(); return k ? { k, ...EASY_GAMES[k] } : n
 function easyOpen(list) {
   if (!$('#easyCanvas')) return;
   Object.assign(EZ, { on: true, list: list || EASY_ROUTINE, i: 0, stars: 0, inTune: 0, voiced: 0, phase: 'ready', readyAt: 0, song: null, piano: null, home: EZ.home });
-  $('#easyMenu').hidden = true;
+  $('#easyMenu').hidden = true; document.documentElement.classList.add('ez-lock'); window.scrollTo(0, 0);
   clearInterval(EZ.iv); EZ.iv = setInterval(ezTick, 40);
   if (mode === 'idle') startMic().catch(() => {});
   ezRender();
 }
-function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); }
+function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); document.documentElement.classList.remove('ez-lock'); }
+// a stray drag on the game must never scroll, swipe back, zoom, or pull the page closed
+['touchmove', 'gesturestart'].forEach(ev => document.addEventListener(ev, e => { if (EZ.on && document.body.dataset.screen === 'easy' && !e.target.closest('.info-card')) e.preventDefault(); }, { passive: false }));
 // the top bar: big picture buttons, always in the same place
 function ezBar() {
   const b = $('#easyBtns'); b.textContent = '';
@@ -5060,6 +5064,9 @@ async function keepAwake() {
 }
 setInterval(keepAwake, 2000);
 document.addEventListener('visibilitychange', keepAwake);
+// iPad Safari only grants the lock in response to a tap, so each tap renews it
+document.addEventListener('pointerdown', () => { if (!WAKE.lock) keepAwake(); }, true);
+document.addEventListener('touchend', () => { if (!WAKE.lock) keepAwake(); }, true);
 applyLevel();
 checkLevel(true);
 document.body.dataset.screen = 'home';
