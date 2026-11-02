@@ -455,6 +455,20 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-intro select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 100%; }
 .small-print { font-size: .88rem; }
 .pro-out { display: grid; gap: 10px; }
+.learn-card { display: grid; gap: 10px; border: 2px solid var(--accent); }
+.learn-card h3, .learn-card p { margin: 0; }
+.ls-lines { display: flex; flex-wrap: wrap; gap: 6px; }
+.ls-chip { border-radius: 999px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: .9rem; }
+.ls-chip.on { border-color: var(--accent); font-weight: 700; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.ls-chip.done { background: color-mix(in srgb, var(--pure) 18%, var(--surface)); }
+.ls-panel { display: grid; gap: 8px; }
+.ls-title { font-size: 1rem; }
+.ls-live { margin: 0; font-weight: 600; min-height: 1.3em; }
+.ls-res { display: grid; gap: 8px; }
+.ls-score { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.ls-big { font: 700 2rem var(--display); }
+.ls-tip { margin: 0; font-size: 1.02rem; line-height: 1.45; }
+.lg-his { width: 22px; height: 3px; background: rgba(122,79,208,.7); border-radius: 2px; }
 .take-roll { display: grid; gap: 8px; margin: 6px 0 4px; }
 .take-roll .pro-roll { height: min(320px, 45vh); }
 .pro-msg { font-weight: 600; }
@@ -886,7 +900,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · three passes</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · learn to sing it like this</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5439,7 +5453,7 @@ function startCard() {
 const PRO = { buf: null, an: null, src: null, gain: null, t0: 0, off: 0, view: 0, sel: -1, raf: 0, playing: false, drag: null };
 const KEY_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
-function proStop() { rollStop(PRO); }
+function proStop() { rollStop(PRO); lsStop(); }
 function proStart() {
   const box = $('#proBox'); box.textContent = ''; PRO.an = null; PRO.buf = null;
   const intro = el('div', 'pro-intro');
@@ -5736,6 +5750,7 @@ function proRender() {
   how.appendChild(el('p', 'muted pp-note', 'Without sheet music the tune is learned from the singing itself, so a note missed by a whole step the same way every time can’t be caught.'));
   out.appendChild(how);
   out.appendChild(proStats(an));
+  out.appendChild(learnCard(an));
   out.appendChild(proCompare(an));
   rollDraw(PRO);
 }
@@ -5784,7 +5799,7 @@ function rollBind(R) {
     if (best >= 0) rollSelect(R, best);
   };
 }
-window.addEventListener('resize', () => { for (const R of [PRO, TAKE]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
+window.addEventListener('resize', () => { for (const R of [PRO, TAKE, LSR]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
 function rollSelect(R, i) {
   const n = R.an.notes[i]; R.sel = i; const was = R.playing; rollStop(R); R.off = n.t0; rollDraw(R);
   const off = n.c == null ? 'not heard' : Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
@@ -5834,6 +5849,11 @@ function rollDraw(R) {
   });
   for (const n of an.inst || []) { if (n.t1 < R.view || n.t0 > t1v || n.midi < G.lo || n.midi > G.hi) continue; const x0 = Math.max(L, X(n.t0)), bh = Math.max(5, G.row * 0.5); g.fillStyle = 'rgba(140,145,170,.35)'; g.fillRect(x0, y(n.midi) - bh / 2, Math.max(3, X(n.t1) - x0), bh); }
   const i0 = Math.max(0, Math.floor((R.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
+  if (an.ref) {
+    g.strokeStyle = 'rgba(122,79,208,.6)'; g.lineWidth = 3; g.lineJoin = 'round'; g.beginPath(); let on2 = false;
+    for (let i = 0; i < an.ref.length; i++) { const v = an.ref[i], px = X(an.t0f + i * an.hop); if (v == null || px < L || px > W || v < G.lo - 1 || v > G.hi + 1) { on2 = false; continue; } if (!on2) { g.moveTo(px, y(v)); on2 = true; } else g.lineTo(px, y(v)); }
+    g.stroke();
+  }
   // which note each moment belongs to, for colouring the line by accuracy
   let ni = 0; const noteAt = t => { while (ni < an.notes.length && Math.max(an.notes[ni].t1, an.notes[ni].b1 ?? 0) < t) ni++; for (let k = ni; k < Math.min(an.notes.length, ni + 2); k++) { const n = an.notes[k]; if (t >= Math.min(n.t0, n.b0 ?? n.t0) && t <= Math.max(n.t1, n.b1 ?? n.t1)) return n; } return null; };
   const colOf = (v, t) => { const n = noteAt(t); if (!n) return muted; const c = Math.abs((v - n.midi) * 100); return c <= 20 ? '#1f9d55' : c <= 35 ? '#d9a400' : '#d0533f'; };
@@ -5916,6 +5936,125 @@ function proCompare(an) {
     c.appendChild(el('p', '', 'You: ' + an.sum.acc20 + '% within 20¢ (' + an.sum.avg + '¢ off on average). Your pros: ' + pa + '% (' + pv + '¢). ' + (an.sum.acc20 >= pa ? 'You’re right up there with them!' : 'The gap is ' + (pa - an.sum.acc20) + ' points. Every lesson closes it.')));
   } else c.appendChild(el('p', 'muted', 'Analyse a pro singer’s song too, then come back to compare your take with theirs.'));
   return c;
+}
+
+// ---------- Learn to sing it: line by line, the way a teacher would ----------
+// The analysed song is split into its lines. For each: hear his line, then sing it back alone (count-in and starting
+// note, so the mic hears only you), then see your voice and his on the same notes, with a score and one thing to change.
+const LS = { an: null, lines: [], k: 0, phase: 'idle', samples: [], start: 0, oct: 0, timer: 0, src: null };
+const LSR = { an: null };
+function lsStop() { clearInterval(LS.timer); LS.timer = 0; if (LS.src) { try { LS.src.stop(); } catch (e) {} LS.src = null; } if (LS.phase === 'turn') LS.phase = 'idle'; rollStop(LSR); }
+function proLines(an) {
+  const ns = an.notes, bp = an.beat ? an.beat.period : 0.6, bt0 = n => n.b0 ?? n.t0, bt1 = n => n.b1 ?? n.t1, raw = []; let cur = [];
+  ns.forEach((n, i) => { const pv = ns[i - 1]; if (pv && (bt0(n) - bt1(pv) >= Math.max(0.45, bp * 1.25) || cur.length >= 12)) { raw.push(cur); cur = []; } cur.push(i); });
+  if (cur.length) raw.push(cur);
+  const out = []; for (const l of raw) { if (l.length < 3 && out.length) out[out.length - 1].push(...l); else out.push(l); }
+  return out.filter(l => l.length >= 3).map(idx => ({ idx, t0: bt0(ns[idx[0]]), t1: bt1(ns[idx[idx.length - 1]]) }));
+}
+const lsKey = () => 'pro:' + (LS.an && LS.an.name);
+function learnCard(an) {
+  LS.an = an; LS.lines = proLines(an); LS.k = 0; LS.phase = 'idle';
+  const p = store.profile, mid = p ? ((p.zlo ?? p.low) + (p.zhi ?? p.high)) / 2 : null, sm = (an.lo + an.hi) / 2;
+  LS.oct = mid == null ? 0 : 12 * Math.round((mid - sm) / 12);
+  const c = el('div', 'card learn-card'); c.dataset.card = 'learn';
+  c.append(el('h3', '', '🎤 Learn to sing it like this'),
+    el('p', '', 'Line by line, the way a voice teacher would: hear his line, sing it back on your own, then see your voice and his on the same notes, with one thing to change. When every line has a ✓, you’ve learned the song.'));
+  if (LS.oct) c.appendChild(el('p', 'muted', 'You’ll sing it an octave ' + (LS.oct < 0 ? 'lower' : 'higher') + ' than him, which suits your voice. Any octave counts.'));
+  if (!LS.lines.length) { c.appendChild(el('p', 'muted', 'I couldn’t find clear lines in this song to practise.')); return c; }
+  const chips = el('div', 'ls-lines'); chips.id = 'lsLines'; c.appendChild(chips);
+  const panel = el('div', 'ls-panel'); panel.id = 'lsPanel'; c.appendChild(panel);
+  setTimeout(() => { lsChips(); lsOpen(0); }, 0);
+  return c;
+}
+function lsChips() {
+  const box = $('#lsLines'); if (!box) return; box.textContent = ''; const best = (store.proLearn || {})[lsKey()] || {};
+  LS.lines.forEach((l, k) => { const r = best[k] || {}; const b = el('button', 'ls-chip' + (k === LS.k ? ' on' : '') + (r.ok ? ' done' : ''), (r.ok ? '✓ ' : '') + 'Line ' + (k + 1)); b.dataset.line = k;
+    b.title = Math.floor(l.t0 / 60) + ':' + String(Math.floor(l.t0 % 60)).padStart(2, '0') + (r.best != null ? ' · best ' + r.best : ''); b.onclick = () => lsOpen(k); box.appendChild(b); });
+}
+function lsOpen(k) {
+  lsStop(); LS.k = k; lsChips();
+  const l = LS.lines[k], panel = $('#lsPanel'); if (!panel) return; panel.textContent = '';
+  const best = (((store.proLearn || {})[lsKey()] || {})[k] || {}).best;
+  panel.append(el('b', 'ls-title', 'Line ' + (k + 1) + ' of ' + LS.lines.length + ' · ' + l.idx.length + ' notes · ' + Math.floor(l.t0 / 60) + ':' + String(Math.floor(l.t0 % 60)).padStart(2, '0') + (best != null ? ' · your best ' + best : '')));
+  const row = el('div', 'row'); const hear = el('button', '', '▶ Hear his line'); hear.dataset.act = 'hear'; hear.onclick = () => lsHear();
+  const turn = el('button', 'primary', '🎤 Your turn'); turn.dataset.act = 'turn'; turn.onclick = () => lsTurn();
+  row.append(hear, turn); panel.appendChild(row);
+  const live = el('p', 'ls-live muted', 'Listen to his line first, then tap Your turn. You’ll hear four clicks and your starting note.'); live.id = 'lsLive'; panel.appendChild(live);
+  const res = el('div', 'ls-res'); res.id = 'lsRes'; panel.appendChild(res);
+}
+async function lsHear() {
+  lsStop(); await ensureAudio(); const l = LS.lines[LS.k]; if (!PRO.buf) return;
+  const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = PRO.buf; g.gain.value = 0.9; src.connect(g); g.connect(ac.destination);
+  src.start(0, Math.max(0, l.t0 - 0.3), l.t1 - l.t0 + 0.7); LS.src = src; $('#lsLive').textContent = '🔊 His line…';
+  src.onended = () => { if (LS.src === src) { LS.src = null; const lv = $('#lsLive'); if (lv) lv.textContent = 'Now tap Your turn and sing it back.'; } };
+}
+async function lsTurn() {
+  lsStop(); if (!(await ensureListening())) return; await ensureAudio();
+  const an = LS.an, l = LS.lines[LS.k], beat = an.beat && an.beat.conf >= 0.08 ? an.beat.period : 0.6, first = an.notes[l.idx[0]].midi + LS.oct;
+  for (let k = 0; k < 4; k++) click(0.1 + k * beat, k === 0);
+  playTone(first, Math.max(0.6, 3 * beat - 0.3), PIPE, 0.1);
+  LS.start = ac.currentTime + 0.1 + 4 * beat; LS.samples = []; LS.phase = 'turn';
+  const dur = l.t1 - l.t0, live = $('#lsLive'); live.className = 'ls-live';
+  LS.timer = setInterval(() => {
+    const t = ac.currentTime - LS.start;
+    if (t < 0) { live.textContent = 'Get ready… starting note ' + nameOf(first) + ' · ' + Math.ceil(-t / beat); return; }
+    const tl = t + l.t0, n = an.notes.find(x => tl >= (x.b0 ?? x.t0) && tl <= (x.b1 ?? x.t1));
+    if (S.voiced && S.midi != null) LS.samples.push({ t, m: S.midi });
+    live.textContent = '🎤 Sing now' + (n ? ' · ' + nameOf(n.midi + LS.oct) : '') + (S.voiced && S.midi != null ? ' · you: ' + nameOf(Math.round(S.midi)) : '');
+    if (t > dur + 0.8) { clearInterval(LS.timer); LS.timer = 0; LS.phase = 'idle'; lsScore(); }
+  }, 20);
+}
+// your line against his: pitch per note (any octave), timing, how notes start, vibrato
+function lsScore() {
+  const an = LS.an, l = LS.lines[LS.k], oct = LS.oct, sm = LS.samples, live = $('#lsLive');
+  const fold = (m, tgt) => tgt + ((((m - tgt) % 12) + 18) % 12) - 6;
+  const ns = l.idx.map(i => an.notes[i]), rel = n => [(n.b0 ?? n.t0) - l.t0, (n.b1 ?? n.t1) - l.t0];
+  // your lag: when you arrive on each note compared with him
+  const lags = [];
+  for (const n of ns) { const [a, b] = rel(n), tg = n.midi + oct; const hit = sm.find(q => q.t >= a - 0.3 && q.t <= Math.min(b, a + 0.5) && Math.abs(fold(q.m, tg) - tg) < 1); if (hit) lags.push(hit.t - a); }
+  const lag = lags.length >= 2 ? medArr(lags) : 0, sh = Math.max(-0.3, Math.min(0.3, lag));
+  const per = ns.map(n => {
+    const [a, b] = rel(n), len = b - a, tg = n.midi + oct, v = sm.filter(q => q.t >= a + sh + len * 0.15 && q.t <= b + sh - len * 0.1).map(q => fold(q.m, tg));
+    if (v.length < 3) return { n, miss: true, score: 0 };
+    const c = Math.round((medArr(v) - tg) * 100), st = sm.filter(q => q.t >= a + sh && q.t < a + sh + 0.12).map(q => fold(q.m, tg)).filter(m2 => Math.abs(m2 - tg) <= 1.2).slice(0, 3); // skip the mic settling between notes
+    let vib = 0; if (v.length >= 20) { const ma = v.map((_, k) => mean(v.slice(Math.max(0, k - 7), k + 8))); vib = Math.round(Math.sqrt(mean(v.map((y, k) => (y - ma[k]) ** 2))) * 141); }
+    return { n, c, on: st.length ? Math.round((mean(st) - tg) * 100) : c, vib, score: clamp(1 - (Math.abs(c) - 15) / 85) };
+  });
+  let score = Math.round(100 * mean(per.map(p2 => p2.score))); const lagMs = Math.round(lag * 1000);
+  if (Math.abs(lagMs) > 120) score = Math.max(0, score - Math.min(15, Math.round((Math.abs(lagMs) - 120) / 20)));
+  const learned = score >= 80 && per.every(p2 => !p2.miss && Math.abs(p2.c) <= 35);
+  const P = (store.proLearn ||= {}), rec = (P[lsKey()] ||= {}), old = rec[LS.k] || {}, prevBest = old.best; rec[LS.k] = { best: Math.max(prevBest || 0, score), ok: !!(old.ok || learned) }; dirty = true; save();
+  // one thing to change, the way a teacher would pick it
+  const nm = p2 => 'note ' + (per.indexOf(p2) + 1) + ' (' + nameOf(p2.n.midi + oct) + ')';
+  const worst = per.filter(p2 => p2.miss || Math.abs(p2.c) > 25).sort((x, y) => (y.miss ? 999 : Math.abs(y.c)) - (x.miss ? 999 : Math.abs(x.c)))[0];
+  const hisOn = p2 => p2.n.on - p2.n.c < -40, youOn = p2 => !p2.miss && p2.on - p2.c < -60;
+  const slideDiff = per.find(p2 => !p2.miss && hisOn(p2) !== youOn(p2) && p2.n.t1 - p2.n.t0 > 0.25);
+  const vibNote = per.find(p2 => !p2.miss && p2.n.vib && p2.vib < 12);
+  let tip;
+  if (worst) tip = worst.miss ? 'I didn’t hear ' + nm(worst) + '. Keep singing through the line, one breath to the end.'
+    : 'On ' + nm(worst) + ' you were ' + Math.abs(worst.c) + '¢ ' + (worst.c < 0 ? 'flat' : 'sharp') + '; he ' + (Math.abs(worst.n.c) <= 15 ? 'sits right on it' : 'is ' + Math.abs(worst.n.c) + '¢ ' + (worst.n.c < 0 ? 'under' : 'over') + ' it') + '. ' + (worst.c < 0 ? 'Aim a touch higher and keep the air moving.' : 'Ease off; less push, and let it settle.');
+  else if (Math.abs(lagMs) > 120) tip = 'Your notes are right. You came in ' + Math.abs(lagMs) + ' ms ' + (lagMs > 0 ? 'late' : 'early') + ': ' + (lagMs > 0 ? 'breathe in on the last click so the first note lands on the beat.' : 'wait for the beat; let the line sit back a little like he does.');
+  else if (slideDiff) tip = hisOn(slideDiff) ? 'Lovely pitch. One style touch: he slides up into ' + nm(slideDiff) + '. Try starting it just under the note and gliding up.' : 'Lovely pitch. On ' + nm(slideDiff) + ' you slide up into the note; he lands straight on it. Hear it in your head first and start right on it.';
+  else if (vibNote) tip = 'Spot on. To sound like him, let ' + nm(vibNote) + ' wobble gently near its end: that’s his vibrato.';
+  else tip = score >= 85 ? 'That’s very close to how he sings it. On to the next line!' : 'Good. Sing it once more and it’ll settle.';
+  // the picture: his voice (purple) and yours (coloured) on the same notes
+  const lead = 0.3, hop = 0.02, dur = l.t1 - l.t0 + 0.6, mk = () => new Array(Math.ceil(dur / hop)).fill(null);
+  const notes = ns.map((n, i) => { const [a, b] = rel(n); return { t0: a + lead, t1: b + lead, b0: a + lead, b1: b + lead, midi: n.midi + oct, c: per[i].miss ? null : per[i].c, on: per[i].on }; });
+  const mine = mk(); for (const q of sm) { const k = Math.floor((q.t - sh + lead) / hop), tl = q.t - sh, nn = notes.find(x => tl + lead >= x.t0 - 0.1 && tl + lead <= x.t1 + 0.1); if (k >= 0 && k < mine.length) mine[k] = nn ? fold(q.m, nn.midi) : null; }
+  const his = mk(); for (let k = 0; k < his.length; k++) { const ti = Math.round((l.t0 - lead + k * hop - an.t0f) / an.hop); const v = an.trace[ti]; his[k] = v == null ? null : v + oct; }
+  const ms = notes.map(n => n.midi);
+  Object.assign(LSR, { an: { dur, notes, trace: mine, ref: his, hop, t0f: hop / 2, lo: Math.min(...ms), hi: Math.max(...ms) }, buf: PRO.buf, audioOff: l.t0 - lead, gain: 0.9 });
+  const res = $('#lsRes'); res.textContent = '';
+  const head = el('div', 'ls-score'); head.append(el('b', 'ls-big', String(score)), el('span', '', ' / 100' + (prevBest != null && score > prevBest ? ' · new best! ↑' + (score - prevBest) : '') + ' · ' + per.filter(p2 => !p2.miss && Math.abs(p2.c) <= 25).length + ' of ' + per.length + ' notes in tune' + (Math.abs(lagMs) > 60 ? ' · ' + Math.abs(lagMs) + ' ms ' + (lagMs > 0 ? 'behind' : 'ahead of') + ' him' : '')));
+  res.append(head, el('p', 'ls-tip', tip));
+  rollMount(LSR, res, { title: 'Your voice and his', idp: 'ls', hint: '▶ Play to hear his line with the playhead. Purple is his voice; yours is coloured by how close you are.' });
+  res.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note</span><span><i class="lg-his"></i> his voice</span><span>your voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> 35¢ · <b class="lg-r">red</b> further</span>';
+  const row = el('div', 'row'); const again = el('button', 'primary', '↻ Again'); again.dataset.act = 'again'; again.onclick = () => lsTurn();
+  row.appendChild(again);
+  if (LS.k < LS.lines.length - 1) { const nx = el('button', learned ? 'primary' : '', 'Next line →'); nx.dataset.act = 'next'; nx.onclick = () => lsOpen(LS.k + 1); row.appendChild(nx); }
+  res.appendChild(row); lsChips(); setTimeout(() => rollDraw(LSR), 0);
+  live.className = 'ls-live muted'; live.textContent = learned ? '✓ Line ' + (LS.k + 1) + ' learned.' : score >= 80 ? 'Nearly: fix that one note and this line is learned.' : 'Hear his line again, then try once more.';
+  const all = LS.lines.every((_, k) => rec[k] && rec[k].ok); if (all) toast('Every line learned. Now sing the whole song along with him!');
 }
 // ---------- What's inside: the whole app at a glance ----------
 // A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.

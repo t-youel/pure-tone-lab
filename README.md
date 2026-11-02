@@ -83,6 +83,10 @@ Three passes:
 2. **Check every note** against the learned tune: cents off, early or late, misses (an off-centre note the other times disagree with, shown red) and deliberate variations (a centred note that differs, dashed purple, not counted wrong).
 3. **Fine-tune**: tuning measured from the band's bass line (so flat and sharp are against the band), each note's pitch re-measured with a longer window near the note, tempo re-fitted to the note starts; then re-scored.
 
+### Learn to sing it like this
+
+Under the analysis, the song is split into its lines (at the pauses between phrases, at most 12 notes each). For each line: ▶ Hear his line (just that stretch of the recording), then 🎤 Your turn (four clicks at the song's tempo and the starting note, then you sing it back alone, so the mic hears only you; any octave counts, and the octave is chosen to suit your voice). The result shows your voice and his on the same notes (his in purple, yours green/gold/red), a score, and one thing to change, picked the way a teacher would: the worst note (with how he sings it), then timing, then how he starts notes, then his vibrato. A line is learned (✓) at 80+ with every note within 35¢; when every line has a ✓ you've learned the song.
+
 ## Your take, note by note
 
 After every song, the results show the same graph as Learn from the pros for your own singing: each note of the song as a bar (its length is how long it lasts, its word underneath), your voice as a line, notes more than 25¢ off outlined with their cents, and ▶ Play to hear your recorded take with the playhead moving along.

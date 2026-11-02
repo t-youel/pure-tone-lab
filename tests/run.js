@@ -890,6 +890,29 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, rep3, band, bass }));
   });
 
+  await test('Learn to sing it like this: line by line, hear his line, sing it back, see your voice against his with a score and one thing to change', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; save(); openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Test singer', 'file'); });
+    await page.waitForTimeout(100);
+    const setup = await page.evaluate(() => ({ lines: LS.lines.length, oct: LS.oct, chips: document.querySelectorAll('#lsLines .ls-chip').length, first: LS.lines[0].idx.length }));
+    // the simulated singer follows the line; note 3 is sung half a semitone flat on the first try
+    await page.evaluate(() => { window.flat3 = true; setInterval(() => { if (LS.phase !== 'turn') { V.on = false; return; } const t = ac.currentTime - LS.start, l = LS.lines[LS.k], tl = t + l.t0;
+      const i = l.idx.find(j => { const n = LS.an.notes[j]; return tl >= (n.b0 ?? n.t0) && tl <= (n.b1 ?? n.t1) - 0.03; }); V.on = i != null; if (i != null) V.m = LS.an.notes[i].midi + LS.oct + (flat3 && i === l.idx[2] ? -0.5 : 0); }, 15); });
+    await page.click('#lsPanel [data-act="turn"]');
+    await page.waitForFunction(() => LS.phase === 'idle' && document.querySelector('#lsRes .ls-big'), null, { timeout: 30000 });
+    const r1 = await page.evaluate(() => ({ live: $('#lsLive').textContent, score: +$('#lsRes .ls-big').textContent, tip: $('#lsRes .ls-tip').textContent, ref: LSR.an.ref.filter(v => v != null).length, mine: LSR.an.trace.filter(v => v != null).length, legend: $('#lsRes .pro-legend').textContent }));
+    await page.evaluate(() => { flat3 = false; });
+    await page.click('#lsRes [data-act="again"]');
+    await page.waitForFunction(() => LS.phase === 'idle' && document.querySelector('#lsRes .ls-big'), null, { timeout: 30000 });
+    const r2 = await page.evaluate(() => ({ score: +$('#lsRes .ls-big').textContent, tip: $('#lsRes .ls-tip').textContent, best: store.proLearn['pro:Test singer'][0].best, ok: store.proLearn['pro:Test singer'][0].ok, chip: $('#lsLines .ls-chip[data-line="0"]').textContent }));
+    await page.click('#lsRes [data-act="next"]');
+    const nx = await page.evaluate(() => LS.k);
+    expect(setup.lines >= 3 && setup.oct === 0 && setup.chips === setup.lines && setup.first >= 3
+      && /note 3/.test(r1.tip) && /flat/.test(r1.tip) && r1.score < r2.score && r1.ref > 20 && r1.mine > 20 && /his voice/.test(r1.legend)
+      && !/✓/.test(r1.live) && r2.score >= 85 && r2.ok && /vibrato|very close|next line|slide/i.test(r2.tip) && r2.best === r2.score && /✓/.test(r2.chip) && nx === 1, JSON.stringify({ setup, r1, r2, nx }));
+  });
+
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });
