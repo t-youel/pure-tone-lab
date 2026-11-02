@@ -1,9 +1,9 @@
 // builds a synthetic "pro" recording inside the page and returns a WAV blob; shared by the check script and the test
-window.makeProSong = async function () {
+window.makeProSong = async function (opts = {}) {
   const SR = 44100, beat = 0.6, tune = 0.10; // 100 bpm, recording 10 cents sharp
   // [midi, beats, cents off, vibrato, slide-in]
   const mel = [[60,1,0],[62,1,0],[64,1,0],[65,1,0],[67,2,0,1],[69,1,0],[67,1,-40],[65,1,0],[64,1,0],[62,2,0,1],[60,1,0,0,1],[64,1,0],[67,3,0,1]];
-  const lead = 1.2, total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
+  const lead = opts.bass ? 3.6 : 1.2, total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
   const off = new OfflineAudioContext(2, Math.ceil(SR * total), SR);
   const vox = off.createGain(); vox.gain.value = 0.5; vox.connect(off.destination);
   let t = lead;
@@ -14,6 +14,12 @@ window.makeProSong = async function () {
     if (vib) { const l = off.createOscillator(), lg = off.createGain(); l.frequency.value = 5.5; lg.gain.value = f * 0.02; l.connect(lg); lg.connect(o.frequency); l.start(t + 0.35); l.stop(t + d); }
     const g = off.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.04); g.gain.setValueAtTime(0.4, t + d - 0.05); g.gain.linearRampToValueAtTime(0, t + d);
     o.connect(g); g.connect(vox); o.start(t); o.stop(t + d + 0.02); t += b * beat;
+  }
+  // optional bass guitar: low root notes, two beats each, an octave and more below the voice
+  if (opts.bass) for (let k = 0, tt = lead - beat * 4; tt < total - 1; k++, tt += beat * 2) {
+    const o = off.createOscillator(), lp = off.createBiquadFilter(), g = off.createGain(); o.type = 'sawtooth'; o.frequency.value = 440 * Math.pow(2, ([40, 45, 43, 38][k % 4] + tune - 69) / 12);
+    lp.type = 'lowpass'; lp.frequency.value = 350; g.gain.setValueAtTime(0.14, tt); g.gain.setValueAtTime(0.14, tt + beat * 1.8); g.gain.linearRampToValueAtTime(0, tt + beat * 1.95);
+    o.connect(lp); lp.connect(g); g.connect(off.destination); o.start(tt); o.stop(tt + beat * 2);
   }
   // drums: kick on every beat, hats on the eighths
   const nb = off.createBuffer(1, SR, SR), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;

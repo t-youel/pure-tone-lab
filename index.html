@@ -466,9 +466,11 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-info { margin: 0; min-height: 1.3em; font-weight: 600; }
 .pro-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
 .pro-legend i { display: inline-block; vertical-align: middle; margin-right: 4px; }
-.lg-bar { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.85); }
+.lg-bar { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.5); }
 .lg-line { width: 22px; height: 3px; background: var(--ink); border-radius: 2px; }
-.lg-off { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.85); outline: 2px solid #d0533f; }
+.lg-g { color: #1f9d55; } .lg-y { color: #b38700; } .lg-r { color: #d0533f; }
+.lg-inst { width: 22px; height: 6px; background: rgba(140,145,170,.45); }
+.lg-off { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.5); outline: 2px solid #d0533f; }
 .pro-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .pro-stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
 .pro-stat b { font: 700 1.35rem var(--display); }
@@ -878,7 +880,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · any song file can be picked</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · zoomed graph, coloured voice line</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5469,7 +5471,7 @@ async function proAnalyze(buf, onProg) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
     const off = new OfflineAudioContext(1, len, SR), src = off.createBufferSource(); src.buffer = buf; let node = src;
-    if (filt) { const hp = off.createBiquadFilter(), hp2 = off.createBiquadFilter(); hp.type = hp2.type = 'highpass'; hp.frequency.value = hp2.frequency.value = 180; const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; src.connect(hp); hp.connect(hp2); hp2.connect(lp); node = lp; }
+    if (filt) { let n2 = src; for (const f of [250, 250, 250]) { const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = f; n2.connect(hp); n2 = hp; } const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; n2.connect(lp); node = lp; }
     node.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0);
   };
   const x = await render(true), raw = await render(false);
@@ -5541,6 +5543,12 @@ async function proAnalyze(buf, onProg) {
     for (let s4 = 0; s4 < 5 && i > 0; s4++) { const w = weak[i - 1]; if (w == null || Math.abs(w - tune - n.midi) > 1 || (i - 1) * HOP / SR < floor) break; i--; }
     n.t0 = i * HOP / SR; delete n.v;
   });
+  if (notes.length) {
+    const ms = notes.map(n => n.midi); let best = { w: 0, d: -1 };
+    for (let w = Math.min(...ms); w <= Math.max(...ms); w++) { const d = notes.reduce((a, n) => a + (n.midi >= w && n.midi <= w + 19 ? n.t1 - n.t0 : 0), 0); if (d > best.d) best = { w, d }; }
+    for (const n of notes) if (n.midi < best.w - 1 || n.midi > best.w + 20) n.inst = true;
+  }
+  const allNotes = notes.slice(); notes.length = 0; notes.push(...allNotes.filter(n => !n.inst));
   // key from the time spent on each pitch class
   const pc = new Array(12).fill(0); for (const n of notes) pc[((n.midi % 12) + 12) % 12] += n.t1 - n.t0;
   const corr = (prof, k) => { const a = pc, b = prof.map((_, j) => prof[(j - k + 12) % 12]), ma = mean(a), mb = mean(b); let sab = 0, saa = 0, sbb = 0; for (let j = 0; j < 12; j++) { sab += (a[j] - ma) * (b[j] - mb); saa += (a[j] - ma) ** 2; sbb += (b[j] - mb) ** 2; } return sab / Math.sqrt(saa * sbb || 1); };
@@ -5569,7 +5577,9 @@ async function proAnalyze(buf, onProg) {
     drift: longs.length ? medArr(longs.map(n => n.drift)) : null, lo: Math.min(...notes.map(n => n.midi)), hi: Math.max(...notes.map(n => n.midi)),
   };
   const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
-  return { dur, notes, trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
+  const vlo = notes.length ? Math.min(...notes.map(n => n.midi)) : 48, vhi = notes.length ? Math.max(...notes.map(n => n.midi)) : 72;
+  for (let i = 0; i < trace.length; i++) if (trace[i] != null && (trace[i] < vlo - 3 || trace[i] > vhi + 3)) trace[i] = null;
+  return { dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
@@ -5594,7 +5604,7 @@ function rollMount(R, out, o) {
   sl.oninput = () => { const t = sl.value / 10, was = R.playing; if (was) rollStop(R); R.off = t; R.view = Math.max(0, t - rollSpan(R) * 0.25); rollDraw(R); if (was) rollPlay(R); };
   out.appendChild(sl);
   const info = el('p', 'pro-info muted', o.hint); info.id = o.idp + 'Info'; out.appendChild(info); R.info = info;
-  const legend = el('div', 'pro-legend'); legend.innerHTML = '<span><i class="lg-bar"></i> the note (bar length = how long it lasts)</span><span><i class="lg-line"></i> the voice</span><span><i class="lg-off"></i> more than 25¢ off</span>';
+  const legend = el('div', 'pro-legend'); legend.innerHTML = '<span><i class="lg-bar"></i> the note (bar length = how long it lasts)</span><span>the voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> within 35¢ · <b class="lg-r">red</b> further off</span><span><i class="lg-off"></i> note more than 25¢ off</span>' + (R.an.inst && R.an.inst.length ? '<span><i class="lg-inst"></i> probably an instrument (not scored)</span>' : '');
   out.appendChild(legend);
   rollBind(R);
 }
@@ -5629,13 +5639,26 @@ function rollSelect(R, i) {
   R.info.textContent = (n.word ? '“' + n.word + '” · ' : '') + nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on != null && n.c != null ? (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '');
   if (was) rollPlay(R);
 }
-function rollGeom(R) { const an = R.an, top = 8, h = R.cv.clientHeight - 16, lo = an.lo - 2, hi = an.hi + 2, row = h / (hi - lo + 1); return { top, lo, hi, row }; }
+function rollGeom(R) {
+  const an = R.an, top = 8, h = R.cv.clientHeight - 16, lo0 = an.lo - 2, hi0 = an.hi + 2, rows = hi0 - lo0 + 1, fit = h / rows;
+  if (fit >= 22) return { top, lo: lo0, hi: hi0, row: fit };
+  // too many notes to show at a readable size: show ~h/24 rows around the singer, following them
+  const row = 24, n = Math.floor(h / row), half = n / 2, c = Math.max(lo0 + half, Math.min(hi0 - half + 1, R.vc ?? (an.lo + an.hi) / 2));
+  const hi = Math.round(c + half) - 1; return { top, lo: hi - n + 1, hi, row };
+}
+// the note the camera centres on: the notes on screen now
+function rollCentre(R, snap) {
+  const an = R.an, t1 = R.view + rollSpan(R), vis = an.notes.filter(n => n.t1 >= R.view && n.t0 <= t1);
+  if (!vis.length) return; const tgt = (Math.min(...vis.map(n => n.midi)) + Math.max(...vis.map(n => n.midi))) / 2;
+  R.vc = snap || R.vc == null ? tgt : R.vc + (tgt - R.vc) * 0.12;
+}
 const proGeom = () => rollGeom(PRO), proDraw = () => rollDraw(PRO);
 function rollDraw(R) {
   const cv = R.cv; if (!cv || !R.an || !cv.isConnected) return; const an = R.an, dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight; if (!W) return; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim() || '#1a1c2c', line = css.getPropertyValue('--line').trim() || '#d9dce8', muted = css.getPropertyValue('--muted').trim() || '#646a85', surf = css.getPropertyValue('--surface').trim() || '#fff';
+  rollCentre(R, !R.playing);
   const L = ROLL_L, PX = ROLL_PX, G = rollGeom(R), y = mm => G.top + (G.hi - mm) * G.row + G.row / 2, X = t => L + (t - R.view) * PX, t1v = R.view + (W - L) / PX;
   g.fillStyle = surf; g.fillRect(0, 0, W, H);
   g.font = '600 11px system-ui, sans-serif'; g.textBaseline = 'middle';
@@ -5643,25 +5666,30 @@ function rollDraw(R) {
     const pc2 = ((mm % 12) + 12) % 12, nat = [0, 2, 4, 5, 7, 9, 11].includes(pc2);
     g.strokeStyle = line; g.globalAlpha = pc2 === 0 ? 0.9 : nat ? 0.45 : 0.18; g.lineWidth = pc2 === 0 ? 1.2 : 1;
     g.beginPath(); g.moveTo(L, y(mm)); g.lineTo(W, y(mm)); g.stroke(); g.globalAlpha = 1;
-    if (nat && G.row >= 7) { g.fillStyle = pc2 === 0 ? ink : muted; g.fillText(pc2 === 0 ? nameOf(mm) : nameOf(mm).replace(/\d+$/, ''), 6, y(mm)); }
+    if ((nat && G.row >= 14) || (pc2 === 0 && G.row >= 6)) { g.fillStyle = pc2 === 0 ? ink : muted; g.fillText(pc2 === 0 ? nameOf(mm) : nameOf(mm).replace(/\d+$/, ''), 6, y(mm)); }
   }
   if (an.beat && an.beat.conf >= 0.08) { g.strokeStyle = line; g.globalAlpha = 0.5; for (let t = an.beat.phase + Math.ceil((R.view - an.beat.phase) / an.beat.period) * an.beat.period; t < t1v; t += an.beat.period) { g.beginPath(); g.moveTo(X(t), G.top); g.lineTo(X(t), H - 8); g.stroke(); } g.globalAlpha = 1; }
   an.notes.forEach((n, i) => {
     if (n.t1 < R.view || n.t0 > t1v) return;
-    const x0 = Math.max(L, X(n.t0)), x1 = X(n.t1), yy = y(n.midi), bh = Math.max(6, G.row * 0.8), off = n.c != null && Math.abs(n.c) > 25;
+    const x0 = Math.max(L, X(n.t0)), x1 = X(n.t1), yy = y(n.midi), bh = Math.max(6, G.row * 0.72), off = n.c != null && Math.abs(n.c) > 25;
     g.globalAlpha = n.c == null ? 0.35 : 1;
-    g.fillStyle = 'rgba(240,151,58,.82)'; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
+    g.fillStyle = 'rgba(240,151,58,.5)'; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
     if (off || i === R.sel) { g.strokeStyle = i === R.sel ? ink : '#d0533f'; g.lineWidth = 2; g.stroke(); }
     g.globalAlpha = 1;
     if (off && x1 - x0 > 26) { g.fillStyle = '#d0533f'; g.font = '700 10px system-ui, sans-serif'; g.textBaseline = 'bottom'; g.fillText((n.c > 0 ? '+' : '') + n.c + '¢', x0 + 2, yy - bh / 2 - 1); g.textBaseline = 'middle'; }
     if (n.word && x1 - x0 > 18 && G.row >= 9) { g.fillStyle = muted; g.font = '600 10px system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText(n.word, x0 + 2, yy + bh / 2 + 1); g.textBaseline = 'middle'; }
   });
+  for (const n of an.inst || []) { if (n.t1 < R.view || n.t0 > t1v || n.midi < G.lo || n.midi > G.hi) continue; const x0 = Math.max(L, X(n.t0)), bh = Math.max(5, G.row * 0.5); g.fillStyle = 'rgba(140,145,170,.35)'; g.fillRect(x0, y(n.midi) - bh / 2, Math.max(3, X(n.t1) - x0), bh); }
   const i0 = Math.max(0, Math.floor((R.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
-  for (const [w, col] of [[4.5, 'rgba(255,255,255,.9)'], [2, ink]]) {
-    g.strokeStyle = col; g.lineWidth = w; g.lineJoin = 'round'; g.beginPath(); let on = false;
-    for (let i = i0; i <= i1; i++) { const v = an.trace[i]; if (v == null || v < G.lo - 1 || v > G.hi + 1) { on = false; continue; } const px = X(an.t0f + i * an.hop); if (px < L) { on = false; continue; } if (!on) { g.moveTo(px, y(v)); on = true; } else g.lineTo(px, y(v)); }
-    g.stroke();
-  }
+  // which note each moment belongs to, for colouring the line by accuracy
+  let ni = 0; const noteAt = t => { while (ni < an.notes.length && an.notes[ni].t1 < t) ni++; const n = an.notes[ni]; return n && t >= n.t0 && t <= n.t1 ? n : null; };
+  const colOf = (v, t) => { const n = noteAt(t); if (!n) return muted; const c = Math.abs((v - n.midi) * 100); return c <= 20 ? '#1f9d55' : c <= 35 ? '#d9a400' : '#d0533f'; };
+  const pts = []; for (let i = i0; i <= i1; i++) { const v = an.trace[i]; const t = an.t0f + i * an.hop, px = X(t); pts.push(v == null || v < G.lo - 1 || v > G.hi + 1 || px < L ? null : { x: px, y: y(v), col: colOf(v, t) }); }
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 5; g.beginPath(); let on = false;
+  for (const p of pts) { if (!p) { on = false; continue; } if (!on) { g.moveTo(p.x, p.y); on = true; } else g.lineTo(p.x, p.y); } g.stroke();
+  g.lineWidth = 2.5;
+  for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k]; if (!a || !b) continue; g.strokeStyle = b.col; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
   const ph = X(R.off); if (ph >= L && ph <= W) { g.strokeStyle = '#3b3fb5'; g.lineWidth = 2; g.beginPath(); g.moveTo(ph, 0); g.lineTo(ph, H); g.stroke(); }
   g.fillStyle = muted; g.font = '11px system-ui, sans-serif'; g.textBaseline = 'top'; const tt = Math.max(0, R.off); g.fillText(Math.floor(tt / 60) + ':' + String(Math.floor(tt % 60)).padStart(2, '0'), L + 4, 2);
   if (R.pos && document.activeElement !== R.pos) R.pos.value = Math.round(R.off * 10);

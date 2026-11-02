@@ -865,11 +865,16 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const cal = await page.evaluate(() => ({ refs: store.proRefs.length, tol: store.settings.proTol, acc: pitchAcc(22) }));
     await page.evaluate(async () => { await proLoad(await makeProSong(), 'My take: test', 'mine'); });
     const cmp = await page.evaluate(() => $('.pro-compare').textContent);
+    // with a bass guitar under the voice (and a bass-only intro): bass notes are set aside, the voice is still measured
+    const bass = await page.evaluate(async () => { await proLoad(await makeProSong({ bass: true }), 'With bass', 'file'); const a = PRO.an, voice = [60, 62, 64, 65, 67, 69];
+      PRO.view = 3; rollDraw(PRO); const g = rollGeom(PRO);
+      return { inst: a.inst.length, instLow: a.inst.every(n => n.midi < 50), voiceNotes: a.notes.filter(n => voice.includes(n.midi)).length, other: a.notes.filter(n => !voice.includes(n.midi)).length, row: g.row, legend: /instrument/.test($('.pro-legend').textContent) }; });
     await page.evaluate(() => { store.settings.proTol = null; });
     expect(intro.shown && intro.file && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
       && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
       && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
-      && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp), JSON.stringify({ intro, an, info, play, before, cal, cmp }));
+      && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp)
+      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, bass }));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
