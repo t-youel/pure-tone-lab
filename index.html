@@ -426,6 +426,19 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .band-song { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); }
 .band-song b { font: 700 1.05rem var(--display); }
 .band-offer { border-color: var(--pure); }
+.band-mix { flex-basis: 100%; display: grid; gap: 6px; }
+.mix-row { display: grid; grid-template-columns: 8.5em 1fr 3.2em; align-items: center; gap: 8px; font-weight: 600; }
+.mix-row input { width: 100%; accent-color: var(--pure); }
+.mix-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.line-notes { flex-basis: 100%; display: grid; gap: 8px; }
+.line-row { border-radius: 10px; padding: 8px 10px; border-left: 5px solid var(--line); background: var(--surface); display: grid; gap: 4px; }
+.lr-good { border-left-color: var(--ok, #2e9e5b); } .lr-fair { border-left-color: #d9a400; } .lr-work { border-left-color: #d0533f; }
+.lr-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.lr-score { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lr-words { font-size: 1.05rem; }
+.lr-tip { font-size: .95rem; }
+.lr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 600px) { .mix-row { grid-template-columns: 7em 1fr 3em; } }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -768,7 +781,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · sing with the band</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · band mix + line notes</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -2259,60 +2272,150 @@ function chordPlan(seq, beat, doMidi) {
   return out;
 }
 // ---------- the band: drums, bass and piano, made by the app ----------
-let bandNodes = [], noiseBuf = null;
+let bandNodes = [], noiseBuf = null, bandBus = null;
+const bandDest = () => bandBus || toneOut;
 function bandNoise() { if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const dd = noiseBuf.getChannelData(0); for (let i = 0; i < dd.length; i++) dd[i] = Math.random() * 2 - 1; } return noiseBuf; }
 function bandHit(kind, t) {
-  const g = ac.createGain(); g.connect(toneOut); bandNodes.push(g);
+  const g = ac.createGain(); g.connect(bandDest()); bandNodes.push(g);
   if (kind === 'kick') { const o = ac.createOscillator(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); g.gain.setValueAtTime(0.75, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(g); o.start(t); o.stop(t + 0.32); bandNodes.push(o); return; }
   const n = ac.createBufferSource(), f = ac.createBiquadFilter(); n.buffer = bandNoise(); n.connect(f); f.connect(g); bandNodes.push(n);
   if (kind === 'snare') { f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18); n.start(t); n.stop(t + 0.2);
-    const o = ac.createOscillator(), og = ac.createGain(); o.frequency.value = 190; og.gain.setValueAtTime(0.18, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.08); o.connect(og); og.connect(toneOut); o.start(t); o.stop(t + 0.1); bandNodes.push(o, og); }
+    const o = ac.createOscillator(), og = ac.createGain(); o.frequency.value = 190; og.gain.setValueAtTime(0.18, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.08); o.connect(og); og.connect(bandDest()); o.start(t); o.stop(t + 0.1); bandNodes.push(o, og); }
   else { f.type = 'highpass'; f.frequency.value = 7000; g.gain.setValueAtTime(kind === 'hatO' ? 0.09 : 0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + (kind === 'hatO' ? 0.12 : 0.04)); n.start(t); n.stop(t + 0.14); }
 }
 function bandBass(m, t, dur) {
   const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
   o.type = 'sawtooth'; o.frequency.value = m2f(m); lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 3;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.28, t + 0.01); g.gain.exponentialRampToValueAtTime(0.06, t + dur * 0.8); g.gain.linearRampToValueAtTime(0, t + dur);
-  o.connect(lp); lp.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + 0.02); bandNodes.push(o, g);
+  o.connect(lp); lp.connect(g); g.connect(bandDest()); o.start(t); o.stop(t + dur + 0.02); bandNodes.push(o, g);
 }
 function bandStab(pcs, base, t, dur) {
   for (const pc of pcs) { const m = base + ((pc - base) % 12 + 12) % 12, o = ac.createOscillator(), g = ac.createGain();
     o.setPeriodicWave(makeWave([1, 0.5, 0.25, 0.12, 0.06])); o.frequency.value = m2f(m);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.01); g.gain.exponentialRampToValueAtTime(0.012, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + 0.05);
-    o.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + 0.07); bandNodes.push(o, g); }
+    o.connect(g); g.connect(bandDest()); o.start(t); o.stop(t + dur + 0.07); bandNodes.push(o, g); }
 }
 // play the band for a song: count-in, then drums on every beat, bass on the chord roots, piano chords on 2 and 4
-function bandPlay(notes, beat, doM, firstAt) {
+function bandPlay(notes, beat, doM, firstAt, win) {
   const seq = notes.map(([m, b]) => ({ m, b })), total = seq.reduce((a, n) => a + n.b, 0), plan = chordPlan(seq, beat, doM);
   let bassBase = doM; while (bassBase > 45) bassBase -= 12; while (bassBase < 33) bassBase += 12;
   let compBase = doM; while (compBase > 60) compBase -= 12; while (compBase < 50) compBase += 12;
-  for (let k = 1; k <= 4; k++) bandHit('hat', firstAt - k * beat); // count-in
+  if (!win) for (let k = 1; k <= 4; k++) bandHit('hat', firstAt - k * beat); // count-in
   const beats = Math.ceil(total) + 2;
   for (let k = 0; k < beats; k++) {
     const t = firstAt + k * beat, inBar = k % 4;
+    if (win && (k < win[0] - 1e-6 || k >= win[1] - 1e-6)) continue; // only the beats of one line
     bandHit(inBar === 0 || inBar === 2 ? 'kick' : 'snare', t);
     bandHit('hat', t); bandHit('hat', t + beat / 2);
     const c = plan.find(p => k * beat >= p.t - 1e-6 && k * beat < p.t + p.dur - 1e-6) || plan[plan.length - 1];
     if (k < total + 1) { bandBass(bassBase + ((c.pcs[0] - bassBase) % 12 + 12) % 12, t, beat * 0.9); if (inBar === 1 || inBar === 3) bandStab(c.pcs, compBase, t, beat * 0.8); }
   }
+  if (win) return firstAt + win[1] * beat;
   bandHit('kick', firstAt + beats * beat); bandHit('hatO', firstAt + beats * beat);
   return firstAt + (beats + 1) * beat;
 }
 function bandStop() { bandNodes.forEach(n => { try { n.stop ? n.stop() : n.disconnect(); } catch (e) {} }); bandNodes = []; }
 let bandTake = null;
 // your recorded take, played back with the band in sync
-async function playWithBand(clip, btn) {
-  if (bandTake) { bandTake.stop(); return; }
-  await ensureAudio();
+const takeBufs = new Map();
+async function takeBuffer(clip) {
+  if (takeBufs.has(clip.id)) return takeBufs.get(clip.id);
   let blob = null; try { blob = await idbDo('readonly', s2 => s2.get(clipKey(clip.id))); } catch (e) {}
-  if (!blob || clip.lead == null || !clip.notes) { toast('This take can\'t be played with the band. Sing it once more.'); return; }
-  let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { toast('This take couldn\'t be played back.'); return; }
-  const src = ac.createBufferSource(), vg = ac.createGain(); src.buffer = buf; vg.gain.value = 1.6; src.connect(vg); vg.connect(toneOut);
-  const t0 = ac.currentTime + 0.25, end = bandPlay(clip.notes, clip.beat, clip.doM, t0 + clip.lead + 0.06);
-  src.start(t0); bandNodes.push(src);
-  const done = () => { bandStop(); bandTake = null; if (btn) btn.textContent = '🎸 Hear it with the band'; };
-  bandTake = { stop: done }; if (btn) btn.textContent = '■ Stop the band';
-  setTimeout(() => { if (bandTake && bandTake.stop === done) done(); }, Math.max(buf.duration, end - ac.currentTime) * 1000 + 600);
+  if (!blob) return null;
+  try { const buf = await ac.decodeAudioData(await blob.arrayBuffer()); takeBufs.clear(); takeBufs.set(clip.id, buf); return buf; } catch (e) { return null; }
+}
+// the mix: your voice and the band each have their own level, kept between takes
+const bandMix = () => Object.assign({ v: 1.5, b: 0.5 }, store.bandMix || {});
+const VOICE_BASE = 1.6;
+function setBandMix(k, val) {
+  store.bandMix = Object.assign(bandMix(), { [k]: val }); save();
+  if (bandTake && bandTake.vg && k === 'v') bandTake.vg.gain.setTargetAtTime(VOICE_BASE * val, ac.currentTime, 0.03);
+  if (bandBus && k === 'b') bandBus.gain.setTargetAtTime(val, ac.currentTime, 0.03);
+}
+// your recorded take, played back with the band in sync; seg = [first note, last note] plays one line
+async function playWithBand(clip, btn, seg) {
+  if (bandTake) { const same = bandTake.btn === btn; bandTake.stop(); if (same) return; }
+  await ensureAudio();
+  if (clip.lead == null || !clip.notes) { toast('This take can\'t be played with the band. Sing it once more.'); return; }
+  const buf = await takeBuffer(clip);
+  if (!buf) { toast('This take couldn\'t be played back.'); return; }
+  const mix = bandMix(), src = ac.createBufferSource(), vg = ac.createGain(); src.buffer = buf; vg.gain.value = VOICE_BASE * mix.v; src.connect(vg); vg.connect(toneOut);
+  bandBus = ac.createGain(); bandBus.gain.value = mix.b; bandBus.connect(toneOut);
+  const beat = clip.beat, starts = []; let acc = 0; for (const [, b] of clip.notes) { starts.push(acc); acc += b; }
+  let t0 = ac.currentTime + 0.25, end, label = btn ? btn.textContent : '';
+  if (seg) {
+    // one line: start a beat early so you hear the lead-in, stop a beat after
+    const fromB = Math.max(0, starts[seg[0]] - 1), toB = starts[seg[1]] + clip.notes[seg[1]][1] + 1;
+    const off = Math.max(0, clip.lead + fromB * beat), dur = (toB - fromB) * beat + 0.1;
+    src.start(t0, off, dur);
+    end = bandPlay(clip.notes, beat, clip.doM, t0 - fromB * beat + 0.06, [Math.floor(fromB), Math.ceil(toB)]);
+    end = Math.max(end, t0 + dur);
+  } else { src.start(t0); end = Math.max(t0 + buf.duration, bandPlay(clip.notes, beat, clip.doM, t0 + clip.lead + 0.06)); }
+  bandNodes.push(src, vg, bandBus);
+  const bus = bandBus;
+  const done = () => { bandStop(); if (bandBus === bus) bandBus = null; if (bandTake && bandTake.stop === done) bandTake = null; if (btn) btn.textContent = label; };
+  bandTake = { stop: done, vg, btn, seg: seg || null }; if (btn) btn.textContent = '■ Stop';
+  setTimeout(() => { if (bandTake && bandTake.stop === done) done(); }, (end - ac.currentTime) * 1000 + 600);
+}
+// how one line should go: the melody in the app's warm tone
+let lineDemo = null;
+function playLineDemo(seg, btn) {
+  if (lineDemo) { const same = lineDemo.btn === btn; lineDemo.stop(); if (same) return; }
+  if (bandTake) bandTake.stop();
+  const beat = beatSec(), oscs = []; let t = 0.1; const label = btn.textContent;
+  for (let i = seg[0]; i <= seg[1]; i++) { const n = G.seq[i]; oscs.push(playedNote(n.m, n.b * beat * 0.92, t)); t += n.b * beat; }
+  const stop = () => { oscs.forEach(o => { try { o.stop(); } catch (e) {} }); clearTimeout(tm); if (lineDemo && lineDemo.stop === stop) lineDemo = null; btn.textContent = label; };
+  const tm = setTimeout(stop, t * 1000 + 300);
+  lineDemo = { stop, btn }; btn.textContent = '■ Stop';
+}
+// line by line: what went well and what needs work, from the notes you just sang
+function lineNotes(st) {
+  return G.lines.map(([a, b], k) => {
+    const rs = st.all.slice(a, b + 1), score = Math.round(mean(rs.map(scoreOfNote))), ok = rs.filter(r => r.status === 'pure' || r.status === 'ok').length;
+    const words = G.seq.slice(a, b + 1).map(n => n.cont ? '' : n.w.replace(/-$/, '~')).filter(Boolean).join(' ').replace(/~ /g, '').replace(/ _+(?=[,.;:!?]|$)/g, '');
+    const bad = rs.map((r, j) => ({ r, i: a + j })).filter(x => x.r.status === 'missed' || x.r.status === 'low' || x.r.status === 'high');
+    const worst = bad.sort((x, y) => (y.r.status === 'missed' ? 999 : Math.abs(y.r.c)) - (x.r.status === 'missed' ? 999 : Math.abs(x.r.c)))[0];
+    let tip = '';
+    if (worst) {
+      const w = '“' + wordAt(worst.i) + '”', r = worst.r;
+      tip = r.status === 'missed' ? 'I didn’t hear ' + w + '. Come in right on the beat and keep the sound going.'
+        : r.status === 'low' ? w + ' was flat (' + Math.abs(Math.round(r.c)) + '¢ low). Aim a touch higher.'
+        : w + ' was sharp (' + Math.abs(Math.round(r.c)) + '¢ high). Ease it down a little.';
+      if (bad.length > 1) tip += ' ' + (bad.length - 1) + ' more note' + (bad.length > 2 ? 's' : '') + ' in this line ' + (bad.length > 2 ? 'were' : 'was') + ' off too.';
+    }
+    return { k, seg: [a, b], words, score, ok, n: rs.length, tip };
+  });
+}
+function lineReport(st, getClip) {
+  const ls = lineNotes(st); if (ls.length < 2) return null;
+  const best = Math.max(...ls.map(l => l.score));
+  const box = el('div', 'line-notes'); box.dataset.card = 'lines';
+  box.appendChild(el('span', 'label', 'Your lines'));
+  for (const l of ls) {
+    const fr = l.ok / l.n, tag = l.score >= 80 && fr >= 0.8 ? ['good', '✓ Sung well'] : l.score >= 60 && fr >= 0.5 ? ['fair', 'Nearly there'] : ['work', 'Needs work'];
+    if (tag[0] !== 'good' && l.score === best && l.score >= 40) tag[1] = 'Your best line';
+    const row = el('div', 'line-row lr-' + tag[0]); row.dataset.line = l.k;
+    const head = el('div', 'lr-head'); head.append(el('b', 'lr-tag', tag[1]), el('span', 'lr-score', l.score + ' · ' + l.ok + ' of ' + l.n + ' in tune'));
+    row.append(head, el('div', 'lr-words', l.words));
+    if (l.tip && tag[0] !== 'good') row.appendChild(el('div', 'lr-tip', l.tip));
+    const btns = el('div', 'lr-btns');
+    const me = el('button', 'small', '▶ Hear me'); me.dataset.act = 'me';
+    me.onclick = async () => { if (lineDemo) lineDemo.stop(); const c = await getClip(); if (c) playWithBand(c, me, l.seg); else toast('Your take is still saving. Try again in a moment.'); };
+    btns.appendChild(me);
+    if (tag[0] !== 'good') { const how = el('button', 'small', '♪ How it goes'); how.dataset.act = 'how'; how.onclick = () => playLineDemo(l.seg, how); btns.appendChild(how); }
+    row.appendChild(btns); box.appendChild(row);
+  }
+  return box;
+}
+function mixSliders() {
+  const m = bandMix(), box = el('div', 'band-mix');
+  const one = (k, icon, txt, max) => {
+    const lab = el('label', 'mix-row'); const r = document.createElement('input'); r.type = 'range'; r.min = 0; r.max = max; r.step = 5; r.value = Math.round(m[k] * 100); r.dataset.mix = k;
+    const v = el('span', 'mix-val', r.value + '%'); r.oninput = () => { v.textContent = r.value + '%'; setBandMix(k, r.value / 100); };
+    lab.append(el('span', 'mix-name', icon + ' ' + txt), r, v); return lab;
+  };
+  box.append(one('v', '🎤', 'Your voice', 300), one('b', '🥁', 'Band', 150));
+  return box;
 }
 function padChord(pcs, start, dur, base) {
   const t = ac.currentTime + 0.03 + start, end = t + dur + 0.25, nodes = [];
@@ -2564,9 +2667,12 @@ function renderReport() {
   if (!G.song.lab && !CO.on) { const sc = showcasePanel(st); if (sc) box.appendChild(sc); }
   if (!G.song.lab && !CO.on && G.recorded) {
     const bc = el('div', 'coach-offer band-offer'); bc.dataset.card = 'band';
-    const bb = el('button', 'primary', '🎸 Hear it with the band');
-    bb.onclick = async () => { let c = null; for (let k = 0; k < 20 && !c; k++) { c = [...(store.clips || [])].filter(x => x.song === G.song.id && x.at >= G.runEnd - 500).sort((a, b2) => b2.at - a.at)[0]; if (!c) await new Promise(r => setTimeout(r, 150)); } if (c) playWithBand(c, bb); else toast('Your take is still saving. Try again in a moment.'); };
-    bc.append(el('span', '', G.bandMode ? 'Now hear yourself with a band: drums, bass and piano, in your key.' : 'Hear your singing played back with a band.'), bb); box.appendChild(bc);
+    const getClip = async () => { let c = null; for (let k = 0; k < 20 && !c; k++) { c = [...(store.clips || [])].filter(x => x.song === G.song.id && x.at >= G.runEnd - 500).sort((a, b2) => b2.at - a.at)[0]; if (!c) await new Promise(r => setTimeout(r, 150)); } return c; };
+    const bb = el('button', 'primary', '🎸 Hear it with the band'); bb.dataset.act = 'all';
+    bb.onclick = async () => { if (lineDemo) lineDemo.stop(); const c = await getClip(); if (c) playWithBand(c, bb); else toast('Your take is still saving. Try again in a moment.'); };
+    bc.append(el('span', '', G.bandMode ? 'Now hear yourself with a band: drums, bass and piano, in your key.' : 'Hear your singing played back with a band.'), bb, mixSliders());
+    const lr = lineReport(st, getClip); if (lr) bc.appendChild(lr);
+    box.appendChild(bc);
   }
   const tiles = document.createElement('div'); tiles.className = 'tiles';
   const LBL = { pure: '✦ pure', ok: '✓ in tune', low: '↑ low', high: '↓ high', missed: 'missed' };

@@ -801,9 +801,37 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('#report [data-card="band"] button');
     await page.waitForFunction(() => !!bandTake, null, { timeout: 8000 });
     const playing = await page.evaluate(() => ({ nodes: bandNodes.length, label: $('#report [data-card="band"] button').textContent }));
-    await page.click('#report [data-card="band"] button');
+    // the mix: raise the voice, lower the band, live while it plays
+    await page.evaluate(() => { const set = (k, v) => { const r = document.querySelector('[data-mix="' + k + '"]'); r.value = v; r.dispatchEvent(new Event('input')); }; set('v', 250); set('b', 20); });
+    await page.waitForTimeout(300);
+    const mix = await page.evaluate(() => ({ v: bandTake.vg.gain.value, b: bandBus.gain.value, saved: store.bandMix }));
+    await page.click('#report [data-card="band"] button[data-act="all"]');
     const stopped = await page.evaluate(() => ({ take: !!bandTake, nodes: bandNodes.length }));
-    expect(songs === 'saints,bday,jingle,twinkle,grace' && loaded.song === 'bday' && loaded.screen === 'songs' && loaded.band && clip.lead > 1 && clip.notes === 25 && clip.offer && playing.nodes > 100 && /Stop/.test(playing.label) && !stopped.take && stopped.nodes === 0, JSON.stringify({ songs, loaded, clip, playing, stopped }));
+    // line by line notes: every line listed, with a tag, and playable on its own
+    const lines = await page.evaluate(() => [...document.querySelectorAll('#report .line-row')].map(r => ({ tag: r.querySelector('.lr-tag').textContent, words: r.querySelector('.lr-words').textContent, tip: (r.querySelector('.lr-tip') || {}).textContent || '', how: !!r.querySelector('[data-act="how"]') })));
+    await page.click('#report .line-row[data-line="2"] [data-act="me"]');
+    await page.waitForFunction(() => !!bandTake, null, { timeout: 8000 });
+    const seg = await page.evaluate(() => ({ seg: bandTake.seg, nodes: bandNodes.length, v: bandTake.vg.gain.value }));
+    await page.waitForFunction(() => !bandTake, null, { timeout: 15000 });
+    expect(songs === 'saints,bday,jingle,twinkle,grace' && loaded.song === 'bday' && loaded.screen === 'songs' && loaded.band && clip.lead > 1 && clip.notes === 25 && clip.offer && playing.nodes > 100 && /Stop/.test(playing.label)
+      && Math.abs(mix.v - 4) < 0.2 && Math.abs(mix.b - 0.2) < 0.05 && mix.saved.v === 2.5 && !stopped.take && stopped.nodes === 0
+      && lines.length === 4 && lines[2].words === 'happy birthday dear friend,' && lines.every(l => /Sung well|Nearly|Needs work|best line/.test(l.tag))
+      && seg.seg.join() === '12,18' && seg.nodes > 10 && seg.nodes < playing.nodes && Math.abs(seg.v - 4) < 0.01, JSON.stringify({ songs, loaded, clip, playing, mix, stopped, lines, seg }));
+  });
+
+  await test('Line notes: a flat line is marked Needs work with a tip naming the word, and How it goes plays that line', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { openLab('band'); }); await page.click('.band-song[data-song="bday"]');
+    // sing lines 1, 2 and 4 in tune but line 3 a semitone flat
+    await page.evaluate(() => { G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.6 : 0; }, 20); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(300);
+    const lines = await page.evaluate(() => [...document.querySelectorAll('#report .line-row')].map(r => ({ cls: r.className, tag: r.querySelector('.lr-tag').textContent, tip: (r.querySelector('.lr-tip') || {}).textContent || '', how: !!r.querySelector('[data-act="how"]') })));
+    await page.evaluate(async () => { await ensureAudio(); window.pn = []; const p0 = playedNote; window.playedNote = (m, d, w) => { pn.push(m); return p0(m, d, w); }; });
+    await page.click('#report .line-row[data-line="2"] [data-act="how"]');
+    const played = await page.evaluate(() => ({ pn, want: G.seq.slice(12, 19).map(n => n.m), demo: !!lineDemo }));
+    expect(/lr-good/.test(lines[0].cls) && /lr-good/.test(lines[3].cls) && /lr-work|lr-fair/.test(lines[2].cls) && /flat/.test(lines[2].tip) && lines[2].how && !lines[0].how
+      && played.pn.join() === played.want.join() && played.demo, JSON.stringify({ lines, played }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
