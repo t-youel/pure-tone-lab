@@ -64,7 +64,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
         tabs: vis($('.tabs')), meters: vis($('.live')), status: vis($('.status')), back: vis($('#backBar')) };
     });
     expect(s.cards.join('|') === 'Unit 1 · Your voice today', JSON.stringify(s.cards));
-    expect(s.next === 'Unit 1 · Your voice today' && /Find your voice/.test(s.btn), JSON.stringify(s));
+    expect(s.next === 'Unit 1 · Your voice today' && /voice check-up/.test(s.btn), JSON.stringify(s));
     expect(!s.tabs && !s.meters && !s.status && !s.back, 'too much on the first screen: ' + JSON.stringify(s));
   });
 
@@ -396,7 +396,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
     await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
-    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+    expect(first.cards === 'today' && /voice check-up/.test(first.btn) && later.cards === 'today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
 
   await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {

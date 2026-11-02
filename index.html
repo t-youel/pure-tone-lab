@@ -878,7 +878,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · any song file can be picked's inside</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · any song file can be picked</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4393,7 +4393,7 @@ const STAGES = [
 ];
 const UNITS = [
   { id: 'u1', n: 1, stage: 1, title: 'Your voice today', check: { kind: 'u1' }, song: 'saints',
-    learn: 'Find your range and voice type, then sing one song. That song is your starting point: everything later is compared with it.',
+    learn: 'A 4-minute voice check-up: your range and voice type, pitch matching, one long note, a recorded song and how you feel. It is your starting point: everything later is compared with it.',
     cue: 'Relaxed shoulders · easy breath · no pushing',
     how: 'Your voice is two small folds in your throat. Breath makes them vibrate; your throat and mouth shape the sound. Sip water through the day, and rest when your voice feels tired.' },
   { id: 'u2', n: 2, stage: 1, title: 'Posture & breath', check: { kind: 'lab', id: 'hold', lab: 'hold', label: 'Steady hold: 6 seconds in the green band' }, song: 'doxology', extra: 'exhale',
@@ -4649,7 +4649,7 @@ function unitPage(u, btn) {
     const r = el('div', 'row');
     if (u.song) r.appendChild(btn('▶ Listen to ' + songName(u.song), 'primary', () => { singSongId(u.song); setTimeout(() => singSong(), 300); }));
     if (u.check.lab) r.appendChild(btn('Try the exercise', u.song ? 'small' : 'primary', () => startUnitCheck(u)));
-    if (u.check.kind === 'u1' && !store.profile) r.appendChild(btn('Find your voice →', 'primary', () => startUnitCheck(u)));
+    if (u.check.kind === 'u1' && !store.start) r.appendChild(btn('Take your voice check-up →', 'primary', () => startUnitCheck(u)));
     if (!r.children.length) r.appendChild(btn('Pick a song and listen', 'primary', () => singSongId(null)));
     body.appendChild(r);
     body.appendChild(btn('Next: Name it →', 'small', () => { unitStep = 1; renderPath(); }));
@@ -4666,7 +4666,7 @@ function unitPage(u, btn) {
     const t = unitTries(u, c);
     if (t.length) { const ch = el('div', 'chips-row'); t.slice(-8).forEach(x => ch.appendChild(el('span', 'r-chip ' + (x.s >= PASS ? 'pure' : x.s >= PERSIST ? 'ok' : 'near'), String(x.s)))); body.appendChild(ch); }
     const r = el('div', 'row');
-    r.appendChild(btn(unitPassed(u) ? 'Practise again' : c.kind === 'u1' ? (store.profile ? 'Sing ' + songName(u.song) + ' →' : 'Find your voice →') : 'Start the skill check →', 'primary', () => startUnitCheck(u)));
+    r.appendChild(btn(unitPassed(u) ? 'Practise again' : c.kind === 'u1' ? (store.start ? 'Sing ' + songName(u.song) + ' →' : 'Take your voice check-up →') : 'Start the skill check →', 'primary', () => startUnitCheck(u)));
     if (u.song && c.id !== u.song) r.appendChild(btn('Sing ' + songName(u.song), 'small', () => singSongId(u.song)));
     if (u.check2) for (const cx of unitChecks(u)) if (cx !== c) r.appendChild(btn((checkPassed(u, cx) ? '✓ ' : '') + cx.label, 'small', () => { if (cx.lab) { openLab(cx.lab, true); $('#t-lab').click(); ensureListening(); } }));
     if (u.extra) { const L = LAB.find(x => x.id === u.extra); r.appendChild(btn('Also: ' + L.title, 'small', () => { openLab(u.extra, true); $('#t-lab').click(); })); }
@@ -6077,7 +6077,7 @@ function renderHome() {
   const newSinger = easyOn && !(store.easy && Object.keys(store.easy.days || {}).length);
   if (newSinger) box.appendChild(easyCard());
   // 1. today's unit
-  const tGo = first ? 'Find your voice →' : '▶ Start today\'s session';
+  const tGo = first ? (store.start ? 'Find your voice →' : 'Take your voice check-up →') : '▶ Start today\'s session';
   if (isTester()) {
     const t = el('div', 'hc tester'); t.dataset.card = 'tester';
     t.append(el('span', 'num', '🔧'));
