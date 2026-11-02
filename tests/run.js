@@ -1114,7 +1114,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('first song lesson: When the Saints sung through', async page => {
     await voice(page);
-    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = null; startUnitCheck(UNITS[0]); }); await page.waitForTimeout(300);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; store.baseline = null; store.start = { at: 1, raw: {}, attrs: {} }; startUnitCheck(UNITS[0]); }); await page.waitForTimeout(300);
     await page.click('[data-tempo="normal"]'); await page.evaluate(() => { V.follow = true; });
     await page.click('#btnSing');
     await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(2000);
