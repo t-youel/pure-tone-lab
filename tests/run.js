@@ -691,12 +691,15 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test('First Notes: one screen, buttons on top; the daily games flow on their own; seven games to choose from', async page => {
     await voice(page);
     await page.click('#homeCards [data-card="easy"] button');
-    const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, bar: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join(), steps: document.querySelectorAll('#easySteps .es').length, fits: document.documentElement.scrollHeight <= innerHeight + 2 }));
+    const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, bar: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join(), steps: document.querySelectorAll('#easySteps .es').length, fits: document.documentElement.scrollHeight <= innerHeight + 2, first: ezKey(), card: !$('#easyCard').hidden && /eggs/.test($('#easyCard').textContent) && !!$('#easyCard .ec-go') }));
+    // start the first game with the big Start button; the rest start by themselves
+    await page.click('#easyCard .ec-go');
+    const tip = await page.evaluate(() => !$('#easyTip').hidden && /gold band/.test($('#easyTip').textContent));
     // a singer who follows whatever the target asks for
     await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
-    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 150000 });
+    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 200000 });
     const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !!document.querySelector('.ez-done') }));
-    expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && routine.stars >= 12 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, routine }));
+    expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && open.first === 'match' && open.card && tip && routine.stars >= 10 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, tip, routine }));
     // the games menu, and two of the new games
     await page.click('#easyBtns >> text=Games');
     const tiles = await page.evaluate(() => [...document.querySelectorAll('#easyMenu .easy-tile')].map(x => x.dataset.game).join());

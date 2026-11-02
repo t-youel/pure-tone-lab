@@ -353,6 +353,14 @@ details b { color: var(--ink); }
 .ez-day { display: grid; justify-items: center; gap: 2px; }
 .ez-day i { width: 14px; background: var(--good); border-radius: 4px; }
 .ez-flower { font-size: 1.6rem; }
+.easy-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 32px)); display: grid; justify-items: center; gap: 10px; padding: 20px 22px; border-radius: 26px; background: color-mix(in srgb, var(--surface) 94%, transparent); border: 3px solid var(--accent); box-shadow: 0 10px 40px color-mix(in srgb, var(--ink) 18%, transparent); text-align: center; }
+.ec-pic { font-size: 4.5rem; line-height: 1; } .ec-name { font: 700 1.7rem var(--display); }
+.ec-how { font-size: 1.2rem; line-height: 1.4; max-width: 34ch; }
+.ec-small { font-size: .95rem; color: var(--muted); }
+.ec-go { display: inline-flex; align-items: center; gap: 12px; font: 700 1.6rem var(--display); padding: 14px 34px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: none; min-height: 72px; }
+.ec-go span:first-child { font-size: 2rem; }
+.easy-tip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: calc(100% - 150px); padding: 6px 16px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 2px solid var(--line); font: 700 1.1rem var(--display); text-align: center; pointer-events: none; }
+.menu-how { grid-column: 1 / -1; text-align: center; font-size: 1.15rem; }
 .easy-menu { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; padding: 16px; align-content: center; background: color-mix(in srgb, var(--surface) 94%, transparent); }
 .easy-tile { min-height: 120px; border-radius: 22px; display: grid; place-items: center; gap: 4px; border: 3px solid var(--line); background: var(--surface); }
 .easy-tile .ei { font-size: 3rem; line-height: 1; } .easy-tile .el { font: 700 1rem var(--display); }
@@ -708,7 +716,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-01 · seven games</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · start card</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -833,6 +841,8 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       <div class="easy-face" id="easyFace" aria-hidden="true"></div>
       <div class="easy-pic" id="easyPic" aria-hidden="true"></div>
       <div class="easy-words" id="easyWords"></div>
+      <div class="easy-tip" id="easyTip" hidden></div>
+      <div class="easy-card" id="easyCard" hidden></div>
       <div class="easy-menu" id="easyMenu" hidden></div>
       <div class="easy-piano" id="easyPiano" hidden></div>
     </div>
@@ -944,6 +954,8 @@ const TOL = 30; // cents either side of a note that still sounds in tune
 const QUIET = 0.001; // below this input level the app treats the room as silent
 
 function toast(msg) {
+  // First Notes stays quiet: only a microphone problem interrupts it
+  if (document.body.dataset.screen === 'easy' && !/microphone/i.test(msg) || document.body.dataset.screen === 'easy' && /^Step \d/.test(msg)) return;
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600);
 }
@@ -4304,15 +4316,17 @@ const EASY_SONGS = [
   { id: 'moon', pic: '🌙', name: 'Night Sky', words: 'Good- night, moon, good- night, sky; / good- night, stars, way up high.', notes: [[4,1],[4,1],[2,2],[4,1],[4,1],[2,2],[2,1],[2,1],[4,1],[2,1],[0,2],[0,2]] },
 ];
 const EASY_GAMES = {
-  hello: { icon: '🐦', name: 'Wake the bird', sprite: '🐦' },
-  match: { icon: '🪺', name: 'Mother bird home', sprite: '🐦', goal: '🪺', chicks: true },
-  updown: { icon: '🎈', name: 'Balloon ride', sprite: '🎈', goal: '☁️' },
-  echo: { icon: '🐸', name: 'Frog hops', sprite: '🐸', goal: '🪷' },
-  grow: { icon: '🌻', name: 'Grow a flower' },
-  piano: { icon: '🎹', name: 'Piano play-along' },
-  song: { icon: '🎵', name: 'Sing a song' },
+  hello: { icon: '🐦', name: 'Wake the bird', sprite: '🐦', how: 'Make any sound: hum, sing "ooo", or say "la". Your voice makes the bird fly up and down.', tip: 'Any sound moves the bird' },
+  match: { icon: '🪺', name: 'Mother bird home', sprite: '🐦', goal: '🪺', chicks: true, how: 'Listen to the note, then sing "ooo" with it. Keep the bird inside the gold band and she flies home to her eggs.', tip: 'Keep the bird in the gold band' },
+  updown: { icon: '🎈', name: 'Balloon ride', sprite: '🎈', goal: '☁️', how: 'Sing the note to float the balloon. Higher notes lift it to the cloud; lower notes bring it down.', tip: 'Higher lifts it, lower brings it down' },
+  echo: { icon: '🐸', name: 'Frog hops', sprite: '🐸', goal: '🪷', how: 'Listen as each lily pad plays its note. Then sing the same notes, one by one, to hop the frog across.', tip: 'Listen, then sing the same notes' },
+  grow: { icon: '🌻', name: 'Grow a flower', how: 'Sing one long, steady "ooo" on the note. The longer you hold it in the gold band, the taller the flower grows.', tip: 'Hold one long, steady "ooo"' },
+  piano: { icon: '🎹', name: 'Piano play-along', how: 'Tap the glowing key to play the song, one note at a time. Then sing it along with the music.', tip: 'Tap the glowing key' },
+  song: { icon: '🎵', name: 'Sing a song', how: 'Pick a song by its picture. Sing each word as it lights up, matching its colour.', tip: 'Sing each word as it lights up' },
 };
-const EASY_ROUTINE = ['hello', 'match', 'updown', 'echo', 'song'];
+const EASY_ROUTINE = ['match', 'updown', 'echo', 'grow', 'song'];
+// words for the teacher or helper: on for the first few days, and whenever a helper turns them on
+const ezWordsOn = () => { const v = store.settings && store.settings.ezWords; return v === true || (v !== false && Object.keys((store.easy || {}).days || {}).length < 3); };
 const EZ = { on: false, list: EASY_ROUTINE, i: 0, phase: 'ready', t0: 0, stars: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, echo: null, inTune: 0, voiced: 0, grow: 0, flowers: 0, piano: null };
 const EZ_TOL = 50; // cents: a wider, kinder band
 // Each scale note has its own colour, like the coloured bells in a classroom: Do is always red, Re orange, and so on.
@@ -4366,10 +4380,26 @@ function ezBar() {
   add('🎮', 'Games', () => ezMenu(), !$('#easyMenu').hidden ? 'go' : '');
   add('🔁', 'Again', () => { if (EZ.phase === 'done') easyOpen(EZ.list); else { guideOff(); EZ.phase = 'ready'; EZ.readyAt = 0; EZ.song = null; EZ.piano = null; ezRender(); } });
   add('⏭', 'Next', () => ezNext());
-  add('ⓘ', 'Helpers', () => infoSheet('For helpers', [el('p', '', 'First Notes is an easy start for every new singer, and needs no reading. Each game shows a target: sing so the bird, balloon or frog reaches it, and a star appears. The note keeps playing so it is easy to match, and each scale note has its own colour.'), el('p', '', 'Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best. If nothing moves, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.')]));
+  add('ⓘ', 'Helpers', () => { const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'ezWordsTog'; cb.checked = ezWordsOn(); cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.ezWords = cb.checked; dirty = true; save(); ezRender(); }; lab.append(cb, document.createTextNode(' Show instructions in words (on for the first few days)'));
+    infoSheet('For helpers', [lab, el('p', '', 'First Notes is an easy start for every new singer, and needs no reading. Each game shows a target: sing so the bird, balloon or frog reaches it, and a star appears. The note keeps playing so it is easy to match, and each scale note has its own colour.'), el('p', '', 'Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best. If nothing moves, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.')]); });
+}
+// the start card: picture, name, one or two plain sentences a helper can read out, and a big Start button
+function ezCard() {
+  const c = $('#easyCard'), s0 = ezStep(), tip = $('#easyTip');
+  const show = s0 && EZ.phase === 'ready' && s0.k !== 'song' && $('#easyMenu').hidden;
+  c.hidden = !show; c.textContent = '';
+  if (show) {
+    c.append(el('div', 'ec-pic', s0.icon), el('div', 'ec-name', s0.name));
+    if (ezWordsOn()) c.appendChild(el('p', 'ec-how', s0.how));
+    const go = el('button', 'ec-go'); go.append(el('span', '', '▶'), el('span', 'ec-gl', 'Start')); go.setAttribute('aria-label', 'Start ' + s0.name); go.onclick = () => ezStart(); c.appendChild(go);
+    if (ezWordsOn() && s0.k !== 'piano') c.appendChild(el('p', 'ec-small', 'It also starts by itself when you begin to sing.'));
+  }
+  const tipOn = s0 && EZ.phase === 'run' && ezWordsOn() && !(s0.k === 'piano' && EZ.piano && !EZ.song);
+  tip.hidden = !tipOn; tip.textContent = tipOn ? s0.icon + ' ' + (EZ.song ? EASY_GAMES.song.tip : s0.tip) : '';
+  if (s0 && s0.k === 'song' && EZ.phase === 'ready' && ezWordsOn() && !$('#easyMenu').hidden && !$('#easyMenu .ec-how')) $('#easyMenu').prepend(el('p', 'ec-how menu-how', EASY_GAMES.song.how));
 }
 function ezMenu() {
-  guideOff(); const m = $('#easyMenu'); m.textContent = ''; m.hidden = false;
+  guideOff(); const m = $('#easyMenu'); m.textContent = ''; m.hidden = false; $('#easyCard').hidden = true;
   for (const [k, g] of Object.entries(EASY_GAMES)) { const x = el('button', 'easy-tile'); x.dataset.game = k; x.append(el('span', 'ei', g.icon), el('span', 'el', g.name)); x.setAttribute('aria-label', g.name); x.onclick = () => easyOpen([k]); m.appendChild(x); }
   EZ.phase = 'menu'; ezBar();
 }
@@ -4386,7 +4416,7 @@ function ezRender() {
     $('#easyWords').textContent = '';
     if (s0.k === 'song') ezSongPick();
   }
-  ezPianoDraw();
+  ezCard(); ezPianoDraw();
 }
 async function ezStart() {
   if (EZ.starting) return; EZ.starting = true; setTimeout(() => { EZ.starting = false; }, 300);
@@ -4422,7 +4452,7 @@ function ezTick() {
     const waited = t - EZ.readyAt, heard = S.rawM != null && waited > 1;
     if (k === 'song') { if (waited > 7 || heard) { const n = Object.keys((store.easy || {}).days || {}).length; ezSongStart(EASY_SONGS[n % EASY_SONGS.length]); } }
     else if (k === 'piano') ezStart();
-    else if (waited > (k === 'hello' ? 2 : 4) || heard) ezStart();
+    else if (waited > (ezWordsOn() ? 9 : 5) || heard) ezStart();
   }
   const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
   if (v != null) EZ.trail.push({ t, m: v }); while (EZ.trail.length && EZ.trail[0].t < t - 4) EZ.trail.shift();
@@ -4468,7 +4498,7 @@ function ezTick() {
 // size the stage so the whole game fits on one screen
 function ezFit() {
   const c = $('#easyCanvas'); if (!c) return;
-  const r = c.getBoundingClientRect(), pageBelow = document.documentElement.scrollHeight - (r.bottom + window.scrollY), avail = window.innerHeight - r.top - pageBelow - 4;
+  const r = c.getBoundingClientRect(), avail = window.innerHeight - r.top - 36; // leave the page's bottom margin
   const hgt = Math.max(260, Math.min(720, avail)); if (Math.abs(c.clientHeight - hgt) > 2) c.style.height = hgt + 'px';
 }
 function ezDraw(v, inb) {
@@ -4489,7 +4519,7 @@ function ezDraw(v, inb) {
     ezLanes(x, Y, mid, span, w, d, mid);
     x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(100 * d, Y(mid + 0.5), w - 100 * d, Y(mid - 0.5) - Y(mid + 0.5)); x.globalAlpha = 1;
     if (k0 === 'grow') { emoji(['🌱', '🌿', '🌷', '🌻'][Math.min(3, Math.floor(prog * 4))], w * 0.55, h * 0.78, big * (0.8 + prog)); emoji('🎤', w * 0.55, Y(mid + off), big * 0.8); }
-    else { if (g.goal) emoji(g.goal, w * 0.86, Y(mid)); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, 150 * d + (w * 0.86 - 210 * d) * prog, Y(mid + off)); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
+    else { const sz = k0 === 'echo' ? big * 1.4 : big; if (g.goal) emoji(g.goal, w * 0.86, Y(mid), sz); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, 150 * d + (w * 0.86 - 210 * d) * prog, Y(mid + off), sz); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
     const f = $('#easyFace'); f.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; f.className = 'easy-face' + (inside ? ' good' : '');
     return;
   }
@@ -4523,9 +4553,9 @@ function ezDraw(v, inb) {
   }
   if (EZ.phase === 'run' && k0 === 'echo' && EZ.echo) {
     const e = EZ.echo, n2 = e.notes.length;
-    e.notes.forEach((m, j) => { const px = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : j / (n2 - 1))), lit = e.phase === 'listen' ? Math.floor((t - e.t0) / 1.1) === j : e.i === j; emoji('🪷', px, Y(m), big * (lit ? 1.1 : 0.85), lit ? 1 : 0.6); x.save(); x.fillStyle = DEG_COLOR[ezDeg(m)] || C.muted; x.globalAlpha = 0.8; x.beginPath(); x.arc(px, Y(m) + big * 0.6, 7 * d, 0, 7); x.fill(); x.restore(); });
+    e.notes.forEach((m, j) => { const px = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : j / (n2 - 1))), lit = e.phase === 'listen' ? Math.floor((t - e.t0) / 1.1) === j : e.i === j; emoji('🪷', px, Y(m), big * (lit ? 1.6 : 1.3), lit ? 1 : 0.6); x.save(); x.fillStyle = DEG_COLOR[ezDeg(m)] || C.muted; x.globalAlpha = 0.8; x.beginPath(); x.arc(px, Y(m) + big * 0.6, 7 * d, 0, 7); x.fill(); x.restore(); });
     const fx = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : Math.min(e.i, n2 - 1) / (n2 - 1))), fy = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : Y(e.notes[Math.min(e.i, n2 - 1)]) - big * 0.6;
-    emoji('🐸', e.phase === 'listen' ? w * 0.15 : fx, e.phase === 'listen' ? Y(e.notes[0]) : fy, big, v != null || e.phase === 'listen' ? 1 : 0.6);
+    emoji('🐸', e.phase === 'listen' ? w * 0.15 : fx, e.phase === 'listen' ? Y(e.notes[0]) : fy - big * 0.3, big * 1.5, v != null || e.phase === 'listen' ? 1 : 0.6);
     if (v != null) ezChip(x, fx, fy + big * 0.75, v, d);
     return;
   }
