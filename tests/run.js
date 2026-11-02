@@ -701,18 +701,23 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     // a singer who follows whatever the target asks for
     await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
     await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 400000 });
-    const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !!document.querySelector('.ez-done') }));
+    const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !$('#easyCard').hidden && /Play again/.test($('#easyCard').textContent) && /More games/.test($('#easyCard').textContent) }));
     expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && open.first === 'match' && open.card && tip && routine.stars >= 10 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, tip, routine }));
     // the games menu, and two of the new games
-    await page.click('#easyBtns >> text=Games');
+    await page.click('#easyCard >> text=More games');
     const tiles = await page.evaluate(() => [...document.querySelectorAll('#easyMenu .easy-tile')].map(x => x.dataset.game).join());
     await page.click('.easy-tile[data-game="piano"]');
     await page.waitForFunction(() => EZ.piano && !$('#easyPiano').hidden, null, { timeout: 5000 });
-    // tap a wrong key first (it just sounds), then the glowing ones
+    // first the app plays the song, lighting the keys; then it's your turn
+    const demo = await page.evaluate(() => EZ.piano.phase);
+    await page.waitForFunction(() => EZ.piano.phase === 'play', null, { timeout: 20000 });
+    // a wrong key doesn't play; the right one wiggles to show the way
     await page.click('.pn-key:nth-child(8)');
+    const wrong = await page.evaluate(() => ({ i: EZ.piano.i, wiggle: !!document.querySelector('.pn-key.wiggle') }));
     const n = await page.evaluate(() => EZ.piano.notes.length);
     for (let i = 0; i < n; i++) await page.click('.pn-key.want');
-    await page.waitForFunction(() => EZ.song && EZ.phase === 'run', null, { timeout: 5000 });
+    await page.waitForFunction(() => EZ.song && EZ.phase === 'run', null, { timeout: 20000 });
+    expect(demo === 'demo' && wrong.i === 0 && wrong.wiggle, 'piano teaching: ' + JSON.stringify({ demo, wrong }));
     const piano = await page.evaluate(() => ({ singAlong: !!EZ.song, stars: EZ.stars }));
     await page.evaluate(() => easyOpen(['grow']));
     await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 60000 });

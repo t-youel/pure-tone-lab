@@ -382,6 +382,19 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .easy-tile .ei { font-size: 3rem; line-height: 1; } .easy-tile .el { font: 700 1rem var(--display); }
 .easy-tile:hover, .easy-tile:focus-visible { border-color: var(--accent); }
 .easy-piano { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; gap: 12px; padding: 14px; background: var(--surface); }
+.pn-head { display: grid; gap: 6px; justify-items: center; }
+.pn-say { font: 700 1.3rem var(--display); }
+.pn-words { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; justify-content: center; }
+.pn-w { padding: 3px 10px; border-radius: 12px; font: 700 1.1rem var(--display); color: var(--muted); border-bottom: 4px solid var(--nc); }
+.pn-w.now { background: var(--nc); color: #fff; transform: scale(1.15); } .pn-w.done { color: var(--good); }
+.pn-key.lit { background: var(--nc); } .pn-key.lit .pn-syl { color: #fff; }
+.pn-key.dim { opacity: .55; }
+.pn-key .pn-word { font: 800 1.2rem var(--display); color: var(--ink); background: var(--surface); border-radius: 10px; padding: 2px 6px; margin-bottom: auto; }
+.pn-key.wiggle { animation: pnwig .5s; }
+@keyframes pnwig { 20% { transform: rotate(-4deg) translateY(-6px); } 60% { transform: rotate(4deg) translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .pn-key.wiggle { animation: none; } }
+.ec-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.ec-go.ec-alt { background: var(--surface); color: var(--ink); border: 3px solid var(--line); }
 .pn-song { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
 .pn-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--nc); opacity: .35; }
 .pn-dot.done { opacity: 1; } .pn-dot.now { opacity: 1; outline: 4px solid var(--ink); outline-offset: 2px; }
@@ -732,7 +745,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · note road</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · piano teaches</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4411,7 +4424,7 @@ function ezBar() {
 // the start card: picture, name, one or two plain sentences a helper can read out, and a big Start button
 function ezCard() {
   const c = $('#easyCard'), s0 = ezStep(), tip = $('#easyTip');
-  if (EZ.dead > 2) return;
+  if (EZ.dead > 2 || EZ.phase === 'done') return;
   const show = s0 && EZ.phase === 'ready' && s0.k !== 'song' && $('#easyMenu').hidden;
   c.hidden = !show; c.textContent = '';
   if (show) {
@@ -4496,6 +4509,7 @@ function ezChicks(x, cx, cy, s, open, t) {
 // while the app plays a note, the mic hears the speaker: ignore it, and learn how loud the speaker is in this room
 function ezMute(secs) { EZ.muteUntil = now() + secs; }
 function ezNext() {
+  if (EZ.phase === 'done') { $('#easyCard').hidden = true; return ezMenu(); }
   guideOff(); EZ.readyAt = 0; EZ.song = null; EZ.piano = null; $('#easyMenu').hidden = true;
   if (EZ.phase === 'menu') { EZ.phase = 'ready'; return ezRender(); }
   EZ.i++; EZ.phase = EZ.i >= EZ.list.length ? 'done' : 'ready';
@@ -4727,35 +4741,59 @@ function ezSongTick(t, inb) {
 }
 // ---- the piano game: tap the glowing key to play the song, then sing along with it
 const PIANO_DEG = [0, 2, 4, 5, 7, 9, 11, 12];
+// The piano teaches a song: watch and listen first (the keys light up in order), then play it one glowing key at a time,
+// hear your whole song played back, and finally sing it along the note road.
 function ezPianoStart() {
   const n = Object.keys((store.easy || {}).days || {}).length, sg = EASY_SONGS[(n + 1) % EASY_SONGS.length], h = ezHome();
-  EZ.piano = { sg, doM: h, notes: sg.notes.map(([o]) => o), i: 0 };
+  const toks = sg.words.split(/\s+/).filter(x => x && x !== '/').map(w => w.replace(/[-,.;!?]+$/, ''));
+  EZ.piano = { sg, doM: h, notes: sg.notes.map(([o]) => o), beats: sg.notes.map(([, b]) => b), words: toks, i: 0, phase: 'demo', lit: -1, wiggle: -1 };
+  ezPianoPlayAll('demo');
+}
+// play the whole song on the piano, lighting each key as it sounds; then move on
+function ezPianoPlayAll(kind) {
+  const P = EZ.piano, beat = 0.62; P.phase = kind; let t0 = 0.6;
+  P.notes.forEach((dg, j) => {
+    setTimeout(() => { if (EZ.piano !== P || !EZ.on) return; P.lit = j; ezPianoDraw(); playedNote(P.doM + dg, P.beats[j] * beat * 0.9, 0); }, t0 * 1000);
+    t0 += P.beats[j] * beat;
+  });
+  setTimeout(() => {
+    if (EZ.piano !== P || !EZ.on) return; P.lit = -1;
+    if (kind === 'demo') { P.phase = 'play'; P.i = 0; ezPianoDraw(); }
+    else { ezStar(); ezSongStart(P.sg, true); }
+  }, (t0 + 0.5) * 1000);
   ezPianoDraw();
 }
 function ezPianoDraw() {
   const box = $('#easyPiano'); if (!box) return;
   const on = ezKey() === 'piano' && EZ.piano && EZ.phase === 'run' && !EZ.song; box.hidden = !on; if (!on) { box.textContent = ''; return; }
   const P = EZ.piano; box.textContent = '';
-  const want = P.notes[P.i];
-  const songRow = el('div', 'pn-song'); songRow.append(el('span', 'ez-pic', P.sg.pic));
-  P.notes.forEach((o, j) => { const dot = el('span', 'pn-dot' + (j < P.i ? ' done' : j === P.i ? ' now' : '')); dot.style.setProperty('--nc', DEG_COLOR[o % 12] || 'var(--muted)'); songRow.appendChild(dot); });
+  const play = P.phase === 'play', cur = play ? P.i : P.lit, want = play ? P.notes[P.i] : null;
+  // the header: what to do, and the song's words with the current one highlighted
+  const head = el('div', 'pn-head');
+  head.append(el('div', 'pn-say', P.phase === 'demo' ? '👀 👂 ' + (ezWordsOn() ? 'Watch and listen' : '') : play ? '👉 ' + (ezWordsOn() ? 'Your turn: tap the glowing key' : '') : '🎉 ' + (ezWordsOn() ? 'Your song!' : '')));
+  const words = el('div', 'pn-words'); words.append(el('span', 'ez-pic', P.sg.pic));
+  P.words.forEach((wd, j) => { const sp = el('span', 'pn-w' + (j === cur ? ' now' : j < (play ? P.i : cur) ? ' done' : ''), wd); sp.style.setProperty('--nc', DEG_COLOR[P.notes[j] % 12] || 'var(--muted)'); words.appendChild(sp); });
+  head.appendChild(words);
   const keys = el('div', 'pn-keys');
   PIANO_DEG.forEach(dg => {
-    const k = el('button', 'pn-key' + (dg === want ? ' want' : '')); k.style.setProperty('--nc', DEG_COLOR[dg % 12]);
-    k.append(el('span', 'pn-syl', DEG_NAME[dg % 12]), el('span', 'pn-nm', nameOf(P.doM + dg)));
-    k.setAttribute('aria-label', DEG_NAME[dg % 12] + (dg === want ? ', play this one' : ''));
+    const isLit = (!play && P.lit >= 0 && P.notes[P.lit] === dg) || (play && dg === want);
+    const k = el('button', 'pn-key' + (isLit ? (play ? ' want' : ' lit') : '') + (P.wiggle === dg ? ' wiggle' : '') + (play && !isLit ? ' dim' : ''));
+    k.style.setProperty('--nc', DEG_COLOR[dg % 12]);
+    if (isLit && play) k.append(el('span', 'pn-word', P.words[P.i] || ''));
+    k.append(el('span', 'pn-syl', DEG_NAME[dg % 12]));
+    if (ezNames()) k.append(el('span', 'pn-nm', nameOf(P.doM + dg)));
+    k.setAttribute('aria-label', DEG_NAME[dg % 12] + (isLit && play ? ', play this one' : ''));
     k.onclick = () => ezPianoPress(dg); keys.appendChild(k);
   });
-  box.append(songRow, keys);
+  box.append(head, keys);
 }
 async function ezPianoPress(dg) {
-  await ensureAudio(); const P = EZ.piano; if (!P) return;
-  const m = P.doM + dg;
+  await ensureAudio(); const P = EZ.piano; if (!P || P.phase !== 'play') return;
   if (dg === P.notes[P.i]) {
-    playedNote(m, 0.6, 0); P.i++;
-    if (P.i >= P.notes.length) { ezStar(); $('#easyPic').textContent = '🎉'; setTimeout(() => { $('#easyPic').textContent = ''; if (EZ.on && EZ.piano === P) ezSongStart(P.sg, true); }, 1500); }
+    playedNote(P.doM + dg, 0.6, 0); P.i++; P.wiggle = -1;
+    if (P.i >= P.notes.length) { ezPianoPlayAll('playback'); return; }
     ezPianoDraw();
-  } else playTone(m, 0.4, PURE); // any key sounds; no "wrong"
+  } else { P.wiggle = P.notes[P.i]; ezPianoDraw(); setTimeout(() => { if (EZ.piano === P) { P.wiggle = -1; ezPianoDraw(); } }, 700); } // the right key wiggles to show the way
 }
 function ezDone() {
   guideOff(); $('#easyPiano').hidden = true;
@@ -4765,8 +4803,15 @@ function ezDone() {
   const days = Object.entries((store.easy || {}).days || {}).sort().slice(-14);
   const w = $('#easyWords'); w.textContent = '';
   const garden = el('div', 'ez-garden'); days.forEach(([d, r]) => { const f = el('span', 'ez-day'); f.title = d + ': ' + r.stars + ' stars, ' + r.best + '% in the band'; f.append(el('span', 'ez-flower', r.best >= 60 ? '🌻' : r.best >= 30 ? '🌷' : '🌱'), el('i', '', '')); f.querySelector('i').style.height = Math.max(4, r.best * 0.6) + 'px'; garden.appendChild(f); });
-  const done = el('div', 'ez-done'); done.append(el('div', 'ez-big', '🏆 ⭐ × ' + EZ.stars), el('div', 'ez-pct', '🎯 ' + pct + '%'), garden);
-  w.appendChild(done);
+  $('#easyTip').hidden = true;
+  const c = $('#easyCard'); c.textContent = ''; c.hidden = false;
+  c.append(el('div', 'ez-big', '🏆 ⭐ × ' + EZ.stars), el('div', 'ez-pct', '🎯 ' + pct + '%'), garden);
+  const row = el('div', 'ec-row');
+  const btn = (icon, label, fn, main) => { const b = el('button', 'ec-go' + (main ? '' : ' ec-alt')); b.append(el('span', '', icon), el('span', 'ec-gl', label)); b.setAttribute('aria-label', label); b.onclick = fn; row.appendChild(b); };
+  btn('🔁', 'Play again', () => easyOpen(EZ.list), true);
+  btn('🎮', 'More games', () => { $('#easyCard').hidden = true; ezMenu(); });
+  btn('🏠', 'Home', () => $('#t-home').click());
+  c.appendChild(row);
 }
 
 // ---------- What's inside: the whole app at a glance ----------
