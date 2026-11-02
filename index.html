@@ -322,6 +322,19 @@ details b { color: var(--ink); }
 .staff .sg.on .ln { stroke: var(--accent); }
 #btnSigns[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .sign-list { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; }
+body[data-screen="easy"] .status, body[data-screen="easy"] #backBar { display: none !important; }
+@media (max-width: 600px) {
+  body[data-screen="easy"] .top h1 { font-size: 1.2rem; }
+  #tab-easy .easy-btns { flex-wrap: nowrap; gap: 6px; width: 100%; }
+  #tab-easy .easy-btn { flex: 1 1 0; min-width: 0; min-height: 60px; border-radius: 14px; padding: 4px 2px; }
+  #tab-easy .easy-btn .ei { font-size: 1.5rem; } #tab-easy .easy-btn .el { font-size: .68rem; }
+  #tab-easy .easy-steps .es { width: 36px; height: 36px; font-size: 1.1rem; }
+  #tab-easy .easy-stars { font-size: 1.1rem; }
+  #tab-easy .easy-face { font-size: 2.6rem; }
+  #tab-easy .easy-tip { font-size: .9rem; max-width: calc(100% - 90px); }
+  #tab-easy .easy-card { padding: 14px; gap: 6px; } #tab-easy .ec-pic { font-size: 3rem; } #tab-easy .ec-name { font-size: 1.3rem; } #tab-easy .ec-how { font-size: 1rem; }
+  #tab-easy .ec-go { font-size: 1.3rem; min-height: 60px; padding: 10px 26px; }
+}
 .easy { display: grid; gap: 8px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
 html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; touch-action: none; }
 .easy button { touch-action: manipulation; }
@@ -719,7 +732,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · kinder band</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · fits iPhone</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4345,13 +4358,14 @@ function ezLanes(x, Y, mid, span, w, d, target) {
   x.save(); x.textBaseline = 'middle';
   for (let m = Math.ceil(mid - span); m <= Math.floor(mid + span); m++) {
     const dg = ezDeg(m), col = DEG_COLOR[dg], y = Y(m);
-    if (!col) { x.strokeStyle = C.line; x.globalAlpha = 0.35; x.lineWidth = d; x.beginPath(); x.moveTo(110 * d, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1; continue; }
+    if (!col) { x.strokeStyle = C.line; x.globalAlpha = 0.35; x.lineWidth = d; x.beginPath(); x.moveTo(EZ.lw, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1; continue; }
     const isT = target != null && Math.round(target) === m;
-    x.strokeStyle = col; x.globalAlpha = isT ? 0.9 : 0.35; x.lineWidth = (isT ? 4 : 2) * d; x.beginPath(); x.moveTo(110 * d, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1;
+    x.strokeStyle = col; x.globalAlpha = isT ? 0.9 : 0.35; x.lineWidth = (isT ? 4 : 2) * d; x.beginPath(); x.moveTo(EZ.lw, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1;
     // the label: a coloured dot with the syllable, then the note name
-    x.fillStyle = col; x.beginPath(); x.arc(28 * d, y, (isT ? 20 : 16) * d, 0, 7); x.fill();
-    x.fillStyle = '#fff'; x.font = `700 ${(isT ? 15 : 12) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], 28 * d, y + 1 * d);
-    x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y);
+    const narrow = EZ.lw < 80 * d, cx0 = narrow ? 20 * d : 28 * d;
+    x.fillStyle = col; x.beginPath(); x.arc(cx0, y, (isT ? 18 : 14) * d, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = `700 ${(isT ? 14 : 11) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], cx0, y + 1 * d);
+    if (!narrow) { x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y); }
   }
   x.restore();
 }
@@ -4416,7 +4430,7 @@ function ezRender() {
   ezBar();
   const st = $('#easySteps'); st.textContent = '';
   EZ.list.forEach((k, i) => { const d = el('span', 'es' + (i < EZ.i ? ' done' : i === EZ.i ? ' now' : ''), i < EZ.i ? '✓' : EASY_GAMES[k].icon); d.title = EASY_GAMES[k].name; st.appendChild(d); });
-  $('#easyStars').textContent = '⭐'.repeat(Math.min(EZ.stars, 12)) + (EZ.stars > 12 ? '+' + (EZ.stars - 12) : '');
+  $('#easyStars').textContent = EZ.stars ? '⭐ × ' + EZ.stars : '';
   if (EZ.phase === 'done') return ezDone();
   const s0 = ezStep(); if (!s0) return;
   $('#easyPic').textContent = EZ.phase === 'ready' && s0.k === 'hello' ? '🐦' : '';
@@ -4528,21 +4542,22 @@ function ezDraw(v, inb) {
   const c = $('#easyCanvas'); if (!c || c.offsetParent === null) return;
   ezFit(); sizeCanvas(c);
   const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
+  EZ.lw = w < 600 * d ? 42 * d : 110 * d;
   const st0 = ezStep(), k0 = st0 && st0.k, g = st0 || {};
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
   if (EZ.phase === 'menu' || EZ.phase === 'done' || !st0) return;
   const pianoH = k0 === 'piano' && EZ.piano && !EZ.song ? 0 : 0, h2 = h;
   const mid = EZ.tgt != null ? EZ.tgt : ezHome(), span = 5;
-  const Y = m => h2 / 2 - (m - mid) / span * (h2 / 2 - 24 * d), X = tt => 120 * d + (w * 0.86 - 150 * d) * (1 - (t - tt) / 4);
+  const Y = m => h2 / 2 - (m - mid) / span * (h2 / 2 - 24 * d), X = tt => EZ.lw + 10 * d + (w * 0.86 - EZ.lw - 40 * d) * (1 - (t - tt) / 4);
   const big = Math.round(Math.min(w, h) / 9);
   const emoji = (ch, px, py, size, alpha) => { x.save(); x.globalAlpha = alpha == null ? 1 : alpha; x.font = `${size || big}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ch, px, py); x.restore(); };
   // the demo before a game: the sprite settles into the band and travels to its goal
   if (EZ.phase === 'ready' && k0 !== 'hello' && k0 !== 'song' && k0 !== 'piano') {
     const ph = (t % 6) / 6, off = ph < 0.35 ? 3 * Math.cos(ph * 14) * (1 - ph / 0.35) : 0, inside = Math.abs(off) <= 0.5, prog = ph < 0.35 ? 0 : Math.min(1, (ph - 0.35) / 0.5);
     ezLanes(x, Y, mid, span, w, d, mid);
-    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(100 * d, Y(mid + 0.5), w - 100 * d, Y(mid - 0.5) - Y(mid + 0.5)); x.globalAlpha = 1;
+    x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(EZ.lw - 8 * d, Y(mid + 0.5), w - EZ.lw + 8 * d, Y(mid - 0.5) - Y(mid + 0.5)); x.globalAlpha = 1;
     if (k0 === 'grow') { emoji(['🌱', '🌿', '🌷', '🌻'][Math.min(3, Math.floor(prog * 4))], w * 0.55, h * 0.78, big * (0.8 + prog)); emoji('🎤', w * 0.55, Y(mid + off), big * 0.8); }
-    else { const sz = k0 === 'echo' ? big * 1.4 : big; if (g.goal) emoji(g.goal, w * 0.86, Y(mid), sz); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, 150 * d + (w * 0.86 - 210 * d) * prog, Y(mid + off), sz); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
+    else { const sz = k0 === 'echo' ? big * 1.4 : big; if (g.goal) emoji(g.goal, w * 0.86, Y(mid), sz); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, EZ.lw + 40 * d + (w * 0.86 - EZ.lw - 100 * d) * prog, Y(mid + off), sz); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
     const f = $('#easyFace'); f.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; f.className = 'easy-face' + (inside ? ' good' : '');
     return;
   }
@@ -4551,7 +4566,7 @@ function ezDraw(v, inb) {
   if (EZ.tgt != null) {
     const tol = ezTol() / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
     x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
-    const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(100 * d, y1, w - 100 * d, y2 - y1, r) : x.rect(100 * d, y1, w - 100 * d, y2 - y1); x.fill(); x.globalAlpha = 1;
+    const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(EZ.lw - 8 * d, y1, w - EZ.lw + 8 * d, y2 - y1, r) : x.rect(EZ.lw - 8 * d, y1, w - EZ.lw + 8 * d, y2 - y1); x.fill(); x.globalAlpha = 1;
   }
   // picture cues in the open space: 👂 while the note plays, a pulsing 🎤 when it's your turn
   const cueEar = EZ.phase === 'run' && ((EZ.tgt != null && ['match', 'updown', 'grow'].includes(k0) && t - EZ.tStart < 1.5) || (k0 === 'echo' && EZ.echo && EZ.echo.phase === 'listen'));
@@ -4569,7 +4584,7 @@ function ezDraw(v, inb) {
     const need = k0 === 'match' ? 2 : 1, prog = Math.min(1, EZ.inBand / need);
     emoji(g.goal, w * 0.86, Y(EZ.tgt)); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(EZ.tgt) + big * 0.75, big * 0.55);
     ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.9, EZ.tgt, d, '🎯 ');
-    const bx = 150 * d + (w * 0.86 - 210 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + big);
+    const bx = EZ.lw + 40 * d + (w * 0.86 - EZ.lw - 100 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + big);
     if (v != null) EZ.lastBy = by;
     emoji(g.sprite, bx, by, big, v != null ? 1 : 0.4); if (v != null) ezChip(x, bx, by + big * 0.75, v, d);
     return;
@@ -4585,7 +4600,7 @@ function ezDraw(v, inb) {
   if (EZ.phase === 'run' && k0 === 'grow') {
     const pr = Math.min(1, EZ.inBand / 3);
     for (let j = 0; j < 3; j++) { const px = w * (0.35 + j * 0.2), grown = j < EZ.flowers ? 1 : j === EZ.flowers ? pr : 0; emoji(grown >= 1 ? '🌻' : grown > 0.66 ? '🌷' : grown > 0.33 ? '🌿' : '🌱', px, h * 0.82 - grown * big * 0.6, big * (0.6 + grown * 0.8), j <= EZ.flowers ? 1 : 0.35); }
-    if (v != null) { const by = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('💧', w * (0.35 + Math.min(2, EZ.flowers) * 0.2), by, big * 0.7); ezChip(x, w * 0.16, by, v, d); }
+    if (v != null) { const by = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('💧', w * (0.35 + Math.min(2, EZ.flowers) * 0.2), by, big * 0.7); ezChip(x, Math.min(w - 70 * d, w * (0.35 + Math.min(2, EZ.flowers) * 0.2) + big), by, v, d); }
     ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.6, EZ.tgt, d, '🎯 ');
     return;
   }
