@@ -719,7 +719,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · easy mode</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · kinder band</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4333,6 +4333,8 @@ const EASY_ROUTINE = ['match', 'updown', 'echo', 'grow', 'song'];
 const ezWordsOn = () => { const v = store.settings && store.settings.ezWords; return v === true || (v !== false && Object.keys((store.easy || {}).days || {}).length < 3); };
 const EZ = { on: false, list: EASY_ROUTINE, i: 0, phase: 'ready', t0: 0, stars: 0, trail: [], home: null, tgt: null, inBand: 0, round: 0, iv: 0, hello: [], song: null, echo: null, inTune: 0, voiced: 0, grow: 0, flowers: 0, piano: null };
 const EZ_TOL = 50; // cents: a wider, kinder band
+// the band widens if the singer is singing but not landing: a safety net that never lets the bird look stuck
+const ezTol = () => EZ.sungT > 10 ? 120 : EZ.sungT > 5 ? 80 : EZ_TOL;
 // Each scale note has its own colour, like the coloured bells in a classroom: Do is always red, Re orange, and so on.
 const DEG_COLOR = { 0: '#e53935', 2: '#fb8c00', 4: '#f2b600', 5: '#43a047', 7: '#00a3b4', 9: '#3f51b5', 11: '#d81b60' };
 const DEG_NAME = { 0: 'Do', 2: 'Re', 4: 'Mi', 5: 'Fa', 7: 'So', 9: 'La', 11: 'Ti' };
@@ -4429,8 +4431,9 @@ async function ezStart() {
   if (EZ.starting) return; EZ.starting = true; setTimeout(() => { EZ.starting = false; }, 300);
   if (mode === 'idle') await startMic(); if (mode === 'idle') return;
   await ensureAudio();
+  if (EZ.home == null) EZ.home = ezHome(); // fix the easy note for the whole game, so targets don't drift
   const k = ezKey(), h = ezHome();
-  Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0, grow: 0, flowers: 0 });
+  Object.assign(EZ, { phase: 'run', t0: now(), trail: [], inBand: 0, round: 0, tgt: null, got: 0, grow: 0, flowers: 0, sungT: 0 });
   guideOff(); $('#easyWords').textContent = '';
   if (k === 'hello') { EZ.hello = []; }
   if (k === 'match') ezSetTarget(h);
@@ -4476,7 +4479,7 @@ function ezTick() {
   }
   const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
   if (v != null) EZ.trail.push({ t, m: v }); while (EZ.trail.length && EZ.trail[0].t < t - 4) EZ.trail.shift();
-  const off = v != null && EZ.tgt != null ? (v - EZ.tgt) * 100 : null, inb = off != null && Math.abs(off) <= EZ_TOL;
+  const off = v != null && EZ.tgt != null ? (v - EZ.tgt) * 100 : null, inb = off != null && Math.abs(off) <= ezTol(), near = off != null && !inb && Math.abs(off) <= 2 * ezTol();
   if (EZ.phase === 'run' && v != null) { EZ.voiced++; if (inb) EZ.inTune++; }
   if (EZ.phase === 'run') {
     if (k === 'hello') {
@@ -4486,9 +4489,9 @@ function ezTick() {
     }
     if ((k === 'match' || k === 'updown' || k === 'grow') && EZ.tgt != null) {
       if (v != null) EZ.sungT = (EZ.sungT || 0) + 0.04;
-      if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else guideLevel(1);
+      if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else { if (near) EZ.inBand += 0.012; guideLevel(1); }
       const need = k === 'match' ? 2 : k === 'grow' ? 3 : 1, rounds = k === 'match' ? 3 : k === 'grow' ? 3 : EZ.seq.length;
-      const nextTarget = () => { const h = ezHome(); return k === 'match' ? h + [0, 2, -1][EZ.round] : k === 'grow' ? h + [0, 2, 0][EZ.round] : EZ.seq[EZ.round]; };
+      const nextTarget = () => { const h = ezHome(); return k === 'match' ? h + [0, 2, 4][EZ.round] : k === 'grow' ? h + [0, 2, 0][EZ.round] : EZ.seq[EZ.round]; };
       if (EZ.inBand >= need || EZ.sungT > 15) {
         if (EZ.inBand >= need) { ezStar(); if (k === 'grow') EZ.flowers++; }
         EZ.round++; if (EZ.round >= rounds) ezWon(); else ezSetTarget(nextTarget());
@@ -4546,7 +4549,7 @@ function ezDraw(v, inb) {
   if (k0 === 'piano' && EZ.piano && !EZ.song) return; // the keyboard takes the stage
   ezLanes(x, Y, mid, span, w, d, EZ.tgt);
   if (EZ.tgt != null) {
-    const tol = EZ_TOL / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
+    const tol = ezTol() / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);
     x.fillStyle = inb ? C.pure : C.good; x.globalAlpha = inb ? 0.45 : 0.25;
     const r = (y2 - y1) / 2; x.beginPath(); x.roundRect ? x.roundRect(100 * d, y1, w - 100 * d, y2 - y1, r) : x.rect(100 * d, y1, w - 100 * d, y2 - y1); x.fill(); x.globalAlpha = 1;
   }

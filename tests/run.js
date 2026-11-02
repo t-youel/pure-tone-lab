@@ -731,6 +731,17 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(vid.src && vid.playing, JSON.stringify(vid));
   });
 
+  await test('First Notes: a singer a half step off still gets the bird home (the band widens, close counts a little); targets are whole steps', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.settings = { easyMode: true }; save(); $('#t-easy').click(); easyOpen(['match']); });
+    await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; if (EZ.tgt != null) V.m = EZ.tgt + 1; }, 20); });
+    await page.click('#easyCard .ec-go');
+    const targets = []; for (let k = 0; k < 90 && (await page.evaluate(() => EZ.phase)) === 'run'; k++) { const tg = await page.evaluate(() => EZ.tgt); if (tg != null && !targets.includes(tg)) targets.push(tg); await page.waitForTimeout(500); }
+    const r = await page.evaluate(() => ({ phase: EZ.phase, stars: EZ.stars }));
+    const steps = targets.slice(1).map((m, i) => m - targets[i]);
+    expect(r.stars >= 3 && steps.every(x => x === 2), JSON.stringify({ r, targets, steps }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
