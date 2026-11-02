@@ -227,7 +227,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .staff svg { display: block; width: 100%; height: auto; max-height: 150px; color: var(--ink); overflow: visible; }
 .staff .ln { stroke: var(--muted); stroke-width: 1; }
 .staff .glyph { font-family: "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif; fill: var(--ink); }
-.staff .lyr { font: 600 13px var(--body); fill: var(--ink); text-anchor: middle; }
+.staff .lyr { font: 700 16px var(--body); fill: var(--ink); text-anchor: middle; }
 .staff .brm { font: 700 22px var(--body); fill: var(--accent); text-anchor: middle; }
 .staff .nn { font: 10px var(--mono); fill: var(--muted); text-anchor: middle; }
 .staff .n-done { color: var(--warn); }
@@ -243,7 +243,7 @@ canvas { display: block; width: 100%; border-radius: 8px; }
 .sing-controls .sep { flex: 1; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 6px; max-height: 76px; overflow-y: auto; padding-right: 2px; }
 .tile { border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px 0; display: grid; gap: 1px; text-align: center; min-height: 68px; overflow: clip; }
-.tile b { font: 600 0.8rem/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile b { font: 700 0.95rem/1.2 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .tn { font: 0.68rem/1 var(--mono); color: var(--muted); }
 .tile .tp { font: 700 1.15rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
 .tile .tp.pure { color: var(--pure); }
@@ -372,6 +372,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .ec-pic { font-size: 4.5rem; line-height: 1; } .ec-name { font: 700 1.7rem var(--display); }
 .ec-how { font-size: 1.2rem; line-height: 1.4; max-width: 34ch; }
 .ec-small { font-size: .95rem; color: var(--muted); }
+.wake-btn.warn { border-color: var(--warn); color: var(--warn); }
 #btnEasy[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .ec-go { display: inline-flex; align-items: center; gap: 12px; font: 700 1.6rem var(--display); padding: 14px 34px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: none; min-height: 72px; }
 .ec-go span:first-child { font-size: 2rem; }
@@ -682,6 +683,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     <button id="btnTour" class="small tour-btn" title="Everything in Pure Tone Lab">🧭 What's inside</button>
     <button id="btnUser" class="small user-btn" aria-haspopup="true">👤 Singer 1</button>
     <div class="user-menu" id="userMenu" hidden></div>
+    <button id="btnWake" class="small wake-btn" hidden title="Is the screen being kept on?">🔆</button>
     <button id="btnMic" class="small mic-btn">🎙 Mic off</button>
     <button id="lvlBadge" class="lvl-badge" hidden>Level 1</button>
     <button id="btnStop" hidden>Stop</button>
@@ -747,7 +749,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · real piano</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · screen check</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4377,10 +4379,10 @@ function ezLanes(x, Y, mid, span, w, d, target) {
     const isT = target != null && Math.round(target) === m;
     x.strokeStyle = col; x.globalAlpha = isT ? 0.9 : 0.35; x.lineWidth = (isT ? 4 : 2) * d; x.beginPath(); x.moveTo(EZ.lw, y); x.lineTo(w, y); x.stroke(); x.globalAlpha = 1;
     // the label: a coloured dot with the syllable, then the note name
-    const narrow = EZ.lw < 80 * d, cx0 = narrow ? 20 * d : 28 * d;
-    x.fillStyle = col; x.beginPath(); x.arc(cx0, y, (isT ? 18 : 14) * d, 0, 7); x.fill();
-    x.fillStyle = '#fff'; x.font = `700 ${(isT ? 14 : 11) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], cx0, y + 1 * d);
-    if (!narrow && ezNames()) { x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y); }
+    const narrow = EZ.lw < 80 * d, cx0 = narrow ? 26 * d : 30 * d;
+    x.fillStyle = col; x.beginPath(); x.arc(cx0, y, (isT ? 23 : 18) * d, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = `800 ${(isT ? 18 : 15) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], cx0, y + 1 * d);
+    if (!narrow && ezNames()) { x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 60 * d, y); }
   }
   x.restore();
 }
@@ -4599,7 +4601,7 @@ function ezDraw(v, inb) {
   const c = $('#easyCanvas'); if (!c || c.offsetParent === null) return;
   ezFit(); sizeCanvas(c);
   const x = c.getContext('2d'), w = c.width, h = c.height, d = devicePixelRatio || 1, t = now();
-  EZ.lw = w < 600 * d ? 42 * d : 110 * d;
+  EZ.lw = w < 600 * d ? 58 * d : 110 * d;
   const st0 = ezStep(), k0 = st0 && st0.k, g = st0 || {};
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
   if (EZ.phase === 'menu' || EZ.phase === 'done' || !st0) return;
@@ -5245,6 +5247,18 @@ setInterval(keepAwake, 2000);
 document.addEventListener('visibilitychange', keepAwake);
 // iPad Safari only grants the lock in response to a tap, so each tap renews it
 document.addEventListener('pointerdown', () => { const v = $('#keepAwake'); if ((SES.on || mode === 'mic' || playback || EZ.on) && v && v.paused) { try { v.muted = true; v.play().catch(() => {}); } catch (e) {} } if (!WAKE.lock) keepAwake(); }, true);
+function renderWakeBtn() {
+  const b = $('#btnWake'); if (!b) return;
+  const want = SES.on || mode === 'mic' || !!playback || EZ.on, v = $('#keepAwake'), on = !!WAKE.lock || (v && !v.paused);
+  b.hidden = !want; b.textContent = on ? '🔆 Screen on' : '🌙 May sleep'; b.classList.toggle('warn', !on);
+}
+setInterval(renderWakeBtn, 1500);
+$('#btnWake').onclick = () => { keepAwake(); infoSheet('Keeping the screen on', [
+  el('p', 'unit-cue', '🔆 ' + wakeStatus()),
+  el('p', '', 'The app asks the phone to keep the screen on while you sing. Some browsers, especially the browser inside other apps, don\'t allow it.'),
+  el('p', '', 'Best for students: Guided Access (Settings › Accessibility › Guided Access). In its Options, set Display Auto-Lock to Never. Triple-click the side button to start it: the screen stays on and the student can\'t leave the app by accident.'),
+  el('p', '', 'Other ways: open the app in Safari, or add it to your Home Screen from Safari\'s Share menu and open it from there. Or set Settings › Display & Brightness › Auto-Lock to Never while practising.'),
+]); };
 function wakeStatus() { const v = $('#keepAwake'); return WAKE.lock ? 'Keeping the screen on (wake lock) ✓' : v && !v.paused ? 'Keeping the screen on (video) ✓' : ('wakeLock' in navigator ? 'Not keeping the screen on yet: tap the screen once' : 'This browser can\'t keep the screen on: tap the screen once, or open in Safari'); }
 document.addEventListener('touchend', () => { if (!WAKE.lock || $('#keepAwake').paused) keepAwake(); }, true);
 applyLevel();
