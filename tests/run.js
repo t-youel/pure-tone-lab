@@ -76,9 +76,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(big <= 34, 'markers too big: ' + big);
   });
 
-  await test('Home step 1 opens the voice test with its five phases shown; result leads to the first song', async page => {
+  await test('Home step 1 opens the starting-point check-up, then the voice test with its five phases shown; result leads to step 2', async page => {
     await voice(page);
-    await page.click('[data-card="today"] button'); await page.waitForTimeout(400);
+    await page.click('[data-card="today"] button'); await page.waitForTimeout(200);
+    expect(await page.evaluate(() => !!$('#asModal')), 'no check-up intro');
+    await page.click('#asModal [data-act="start"]'); await page.waitForTimeout(400);
     const chips = await page.evaluate(() => ({ n: document.querySelectorAll('#vfStrip .vf-chip').length, screen: document.body.dataset.screen, title: $('#screenTitle').textContent }));
     expect(chips.n === 5 && chips.screen === 'voice' && /Find your voice/.test(chips.title), JSON.stringify(chips));
     await page.evaluate(() => { store.settings = { speak: false }; setInterval(() => { const ph = D.phase; V.on = ['speak', 'natural', 'low', 'high', 'stretch'].includes(ph); V.m = ph === 'low' ? 43 : ph === 'high' ? 60 : ph === 'stretch' ? 40 + ((performance.now() / 120) % 24) : ph === 'speak' ? 46 + Math.sin(performance.now() / 300) * 2 : 48; }, 30); });
@@ -86,10 +88,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 120000 });
     const done = await page.evaluate(() => [...document.querySelectorAll('#vfStrip .vf-chip.done')].length);
     expect(done === 5, 'chips done: ' + done);
-    await page.click('#dBtns >> text=Next: sing your first song');
+    await page.click('#dBtns >> text=Next: step 2 of 5');
     await page.waitForTimeout(400);
-    const s = await page.evaluate(() => ({ song: G.song.id, screen: document.body.dataset.screen }));
-    expect(s.song === 'saints' && s.screen === 'songs', JSON.stringify(s));
+    const s = await page.evaluate(() => ({ drill: D.id, step: ASSESS.step }));
+    expect(s.drill === 'match' && s.step === 1, JSON.stringify(s));
   });
 
   await test('first lesson: Do-Re-Mi with words, then "Strongest notes: …"', async page => {

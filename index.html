@@ -475,6 +475,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .attr-bar { position: relative; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--line) 60%, var(--surface)); overflow: hidden; }
 .attr-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
 .attr-bar i.then { background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
+.lv-strong .attr-bar i.then { background: var(--pure); } .lv-good .attr-bar i.then { background: #d9a400; } .lv-work .attr-bar i.then { background: #d0533f; }
 .attr-bar i.now { background: var(--accent); opacity: .85; height: 50%; top: 25%; }
 .attr-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .92rem; }
 .attr-num.up { color: var(--pure); }
@@ -5371,7 +5372,8 @@ function startCard() {
   const t = el('div', 'attr-list'), now_ = L ? assessAttrs(L.raw) : null;
   assessAttrs(S0.raw).forEach((a, i) => {
     const [k, name, v0, txt0] = a, n = now_ ? now_[i] : null, v1 = n ? n[2] : null;
-    const row = el('div', 'attr-row'); row.dataset.attr = k;
+    const lvl = v0 == null ? '' : v0 >= 80 ? ' lv-strong' : v0 >= 60 ? ' lv-good' : ' lv-work';
+    const row = el('div', 'attr-row' + (n ? '' : lvl)); row.dataset.attr = k;
     const bar = el('span', 'attr-bar'); const f0 = el('i', 'then'); f0.style.width = (v0 ?? 0) + '%'; bar.appendChild(f0);
     if (v1 != null) { const f1 = el('i', 'now'); f1.style.width = v1 + '%'; bar.appendChild(f1); }
     const delta = v0 != null && v1 != null ? v1 - v0 : null;
@@ -5385,7 +5387,7 @@ function startCard() {
   const c0 = clipOf(S0), c1 = clipOf(L);
   if (c0) { const b = el('button', 'small', '▶ Hear your first song'); b.dataset.act = 'hear-start'; b.onclick = () => playClip(c0); row.appendChild(b); }
   if (c1) { const b = el('button', 'small', '▶ Hear it now'); b.dataset.act = 'hear-now'; b.onclick = () => playClip(c1); row.appendChild(b); }
-  const again = el('button', L ? 'small' : 'primary', '↻ Take the check-up again'); again.dataset.act = 'checkup'; again.onclick = () => assessIntro(true); row.appendChild(again);
+  const again = el('button', 'small', '↻ Take the check-up again'); again.dataset.act = 'checkup'; again.onclick = () => assessIntro(true); row.appendChild(again);
   c.appendChild(row);
   if (!L) c.appendChild(el('p', 'muted', 'Best time to retake it: when you finish a stage, or every few weeks.'));
   return c;
