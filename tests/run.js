@@ -32,7 +32,7 @@ async function voice(page) {
     let wv = '';
     setInterval(() => {
       if (V.follow) { const tg = G.seq[G.idx]; V.on = G.run === 'singing'; if (tg) V.m = tg.m + V.off; }
-      g.gain.value = V.on && V.osc !== false ? .35 * (V.vol == null ? 1 : V.vol) : 0; ng.gain.value = V.on ? V.noise : 0;
+      g.gain.value = V.on && V.osc !== false ? .35 * (V.vol == null ? 1 : V.vol) : 0; ng.gain.value = V.on ? V.noise : 0.0004; // a faint room hiss, as a real mic always has
       const k = V.wave.join(); if (k !== wv) { wv = k; o.setPeriodicWave(makeWave(V.wave)); }
       o.frequency.setTargetAtTime(m2f(V.m), ac.currentTime, .03);
     }, 25);
@@ -57,14 +57,14 @@ async function test(name, fn) {
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
 (async () => {
-  await test('Home: a new singer starts with First Notes, then Unit 1 · Find your voice, and nothing else', async page => {
+  await test('Home: a new singer sees one card, Unit 1 · Find your voice (First Notes only in Easy mode)', async page => {
     const s = await page.evaluate(() => {
       const vis = e => !!e && e.offsetParent !== null;
       return { cards: [...document.querySelectorAll('#homeCards .hc h3')].map(h => h.textContent), next: $('#homeCards .hc.is-next h3')?.textContent, btn: $('#homeCards .hc.is-next .primary')?.textContent,
         tabs: vis($('.tabs')), meters: vis($('.live')), status: vis($('.status')), back: vis($('#backBar')) };
     });
-    expect(s.cards.join('|') === 'First Notes|Unit 1 · Your voice today', JSON.stringify(s.cards));
-    expect(s.next === 'First Notes' && /First Notes/.test(s.btn), JSON.stringify(s));
+    expect(s.cards.join('|') === 'Unit 1 · Your voice today', JSON.stringify(s.cards));
+    expect(s.next === 'Unit 1 · Your voice today' && /Find your voice/.test(s.btn), JSON.stringify(s));
     expect(!s.tabs && !s.meters && !s.status && !s.back, 'too much on the first screen: ' + JSON.stringify(s));
   });
 
@@ -394,7 +394,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const safe = await page.evaluate(() => $('#homeCards [data-card="checkin"]').textContent);
     await page.click('#homeCards [data-card="today"] >> text=Open Unit 2');
     const unit = await page.evaluate(() => ({ screen: document.body.dataset.screen, page: !!document.querySelector('.unit-page'), title: $('.unit-card h2').textContent }));
-    expect(first.cards === 'easy,today' && /Find your voice/.test(first.btn) && later.cards === 'easy,today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
+    expect(first.cards === 'today' && /Find your voice/.test(first.btn) && later.cards === 'today,checkin,path,progress,songs' && /Posture & breath/.test(later.title) && /ENT/.test(safe) && unit.screen === 'path' && unit.page && unit.title === 'Posture & breath', JSON.stringify({ first, later, safe: safe.slice(0, 60), unit }));
   });
 
   await test('Unit page: Experience, Name it, Practise; the skill check opens the right drill', async page => {
@@ -450,10 +450,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const off = await page.evaluate(() => ({ open: UNITS.filter(unitOpen).length, tools: !!document.querySelector('.tester') }));
     await page.evaluate(() => { users.names[users.active] = 'Tedy-137'; applyLevel(); $('#t-home').click(); });
     const home = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(home === 'tester,easy,today', 'home in tester mode: ' + home);
+    expect(home === 'tester,today', 'home in tester mode: ' + home);
     await page.click('#homeCards [data-card="tester"] >> text=Use a sample voice');
     const filled = await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card).join());
-    expect(filled === 'tester,easy,today,checkin,path,progress,songs', 'after sample voice: ' + filled);
+    expect(filled === 'tester,today,checkin,path,progress,songs', 'after sample voice: ' + filled);
     await page.evaluate(() => { store.devPass = []; store.passed = []; });
     await page.click('#homeCards [data-card="tester"] >> text=Unit 1');
     await page.click('.tester-row >> text=Mark passed');
@@ -627,7 +627,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const s = await page.evaluate(() => ({ screen: document.body.dataset.screen, secs: [...document.querySelectorAll('.tour-sec h3')].map(h => h.textContent).join('|'), labs: document.querySelectorAll('.tour-row[data-item^="lab-"]').length, total: LAB.length, lockedLab: $('.tour-row[data-item="lab-vowels"]').classList.contains('locked') && $('.tour-row[data-item="lab-vowels"] button').disabled, lockTxt: $('.tour-row[data-item="lab-vowels"]').textContent }));
     await page.click('.tour-row[data-item="lab-match"] button');
     const opened = await page.evaluate(() => D.id);
-    expect(s.screen === 'tour' && s.secs === "Your course|First Notes|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
+    expect(s.screen === 'tour' && s.secs === "Your course|Easy mode · First Notes|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
   await test('Style tools: timing against the beat; breaths at the ʼ marks; each line shaped; Stage 4 checks use them', async page => {
@@ -688,8 +688,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.idle === 0 && r.on && r.log === 'on,off' && r.after === null, JSON.stringify(r));
   });
 
-  await test('First Notes: one screen, buttons on top; the daily games flow on their own; seven games to choose from', async page => {
+  await test('First Notes (Easy mode): one screen, buttons on top; the daily games flow on their own; seven games to choose from', async page => {
     await voice(page);
+    expect(await page.evaluate(() => !document.querySelector('#homeCards [data-card="easy"]')), 'First Notes shows without Easy mode');
+    await page.click('#btnEasy');
+    expect(await page.evaluate(() => [...document.querySelectorAll('#homeCards .hc')].map(c => c.dataset.card)[0] === 'easy'), 'Easy mode puts First Notes first');
     await page.click('#homeCards [data-card="easy"] button');
     const open = await page.evaluate(() => ({ screen: document.body.dataset.screen, bar: [...document.querySelectorAll('#easyBtns .easy-btn')].map(b => b.getAttribute('aria-label')).join(), steps: document.querySelectorAll('#easySteps .es').length, fits: document.documentElement.scrollHeight <= innerHeight + 2, first: ezKey(), card: !$('#easyCard').hidden && /eggs/.test($('#easyCard').textContent) && !!$('#easyCard .ec-go') }));
     // start the first game with the big Start button; the rest start by themselves
@@ -715,6 +718,17 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 60000 });
     const grow = await page.evaluate(() => EZ.stars);
     expect(tiles === 'hello,match,updown,echo,grow,piano,song' && piano.singAlong && piano.stars >= 1 && grow >= 3, JSON.stringify({ tiles, piano, grow }));
+  });
+
+  await test('First Notes: a silent, paused mic shows a big tap-to-wake card; the keep-awake video plays while singing', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.settings = { easyMode: true }; save(); $('#t-easy').click(); });
+    await page.evaluate(async () => { await ac.suspend(); });
+    await page.waitForFunction(() => !$('#easyCard').hidden && !!$('#easyCard .ec-wake'), null, { timeout: 8000 });
+    await page.click('#easyCard .ec-wake');
+    await page.waitForFunction(() => ac.state === 'running' && !$('#easyCard .ec-wake'), null, { timeout: 5000 });
+    const vid = await page.evaluate(async () => { await keepAwake(); const v = $('#keepAwake'); return { src: v.src.startsWith('data:video/mp4'), playing: !v.paused }; });
+    expect(vid.src && vid.playing, JSON.stringify(vid));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
