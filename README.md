@@ -74,6 +74,10 @@ The microphone path runs through a narrow notch filter at the guide's frequency,
 without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
 on GitHub Actions after every push.
 
+## Your starting point
+
+On the first day, Unit 1 starts a 4-minute voice check-up before any training: Find your voice, Pitch match (5 rounds), one long note held as long as is comfortable (up to 15 s), a first song recorded and kept, and a short "how do you feel" question with goals. It scores 11 parts of the voice (range, pitch matching, flat or sharp, steadiness, breath, clear tone, singing a song, clean starts, resonance, timing, confidence). Progress shows them, plays the first song back, and after a retake (same song, key and tempo, no guide tone) shows then vs now for each part.
+
 ## Voice Tutor
 
 Opens at Level 2 (after the Stage 1 basics). Pick a popular song in **Lab → Voice Tutor: sing with the band** and sing it through. Then:

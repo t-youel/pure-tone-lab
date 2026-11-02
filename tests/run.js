@@ -965,6 +965,68 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     return page.evaluate(() => ({ p: store.profile, text: $('#dResult').hidden ? $('#dSub').textContent : $('#dResult').textContent, fits: document.querySelectorAll('#dResult .fit-row').length }));
   };
 
+  await test('Your starting point: a new singer takes the full check-up (range, pitch match, long note, recorded song, feelings) and sees 11 scored parts', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.settings = { speak: false }; });
+    await page.evaluate(() => startUnitCheck(UNITS[0]));
+    const intro = await page.evaluate(() => ({ modal: !!$('#asModal'), steps: document.querySelectorAll('#asModal .as-steps li').length }));
+    await page.click('#asModal [data-act="start"]');
+    await page.click("#dBtns >> text=Let's go");
+    await page.evaluate(() => {
+      const plan = { speak: 1, natural: 50, low: [50, 43], high: 62, stretch: [41, 64] }, t0 = {};
+      setInterval(() => {
+        const lab = !$('#labStage').hidden;
+        V.follow = assessing('song') && G.run !== 'done';
+        if (V.follow) return;
+        if (lab && D.id === 'range') { const ph = D.phase, f = plan[ph]; if (!f) { V.on = false; return; } t0[ph] = t0[ph] || performance.now(); const e = (performance.now() - t0[ph]) / 1000; V.on = true;
+          V.m = ph === 'speak' ? 46 + Math.sin(e * 3) * 2 : ph === 'stretch' ? (e < 1.5 ? f[0] : e < 5 ? f[0] + (e - 1.5) / 3.5 * (f[1] - f[0]) : f[1]) : Array.isArray(f) ? Math.max(f[1], f[0] - e * 4) : f; return; }
+        if (lab && D.id === 'match') { V.on = D.phase === 'sing'; if (D.target != null) V.m = D.target + 0.12; return; }
+        if (lab && D.id === 'hold') { V.on = D.phase === 'wait' || (D.phase === 'hold' && now() - D.t0 < 9); V.m = (D.target || 50) - 0.05; return; }
+        V.on = false;
+      }, 30);
+    });
+    await page.waitForFunction(() => D.id === 'range' && D.phase === 'done', null, { timeout: 120000 });
+    const afterRange = await page.evaluate(() => ({ step: ASSESS.step, bar: $('#assessBar').textContent, btn: $('#dBtns').textContent }));
+    await page.click('#dBtns >> text=Next: step 2');
+    await page.click('#dBtns >> text=▶ Start');
+    await page.waitForFunction(() => D.id === 'match' && D.phase === 'done', null, { timeout: 90000 });
+    const match = await page.evaluate(() => ({ n: D.rounds.length, data: ASSESS.data.match }));
+    await page.click('#dBtns >> text=Next: step 3');
+    const holdIntro = await page.evaluate(() => ({ step: $('#dStep').textContent, target: D.target, nat: store.profile.natural }));
+    await page.click('#dBtns >> text=▶ Start');
+    await page.waitForFunction(() => D.id === 'hold' && D.phase === 'done', null, { timeout: 40000 });
+    const hold = await page.evaluate(() => ASSESS.data.hold);
+    await page.click('#dBtns >> text=Next: step 4');
+    const songStep = await page.evaluate(() => ({ screen: document.body.dataset.screen, song: G.song.id, tempo: G.tempo }));
+    await page.click('#btnSing');
+    await page.waitForFunction(() => !!document.querySelector('#asModal [data-step="rate"]'), null, { timeout: 90000 });
+    await page.click('#asModal .as-face[data-v="4"]'); await page.click('#asModal [data-goal="tune"]'); await page.click('#asModal [data-act="done"]');
+    await page.waitForTimeout(1500);
+    const end = await page.evaluate(() => { const c = document.querySelector('[data-card="start"]'); const clip = (store.clips || []).find(x => x.id === store.start.raw.song.clip);
+      return { screen: document.body.dataset.screen, attrs: store.start.attrs, overall: store.start.overall, rows: c.querySelectorAll('.attr-row').length, hear: !!c.querySelector('[data-act="hear-start"]'),
+        clip: clip ? { star: clip.star, tag: clip.checkup } : null, baseline: !!store.baseline, u1: unitPassed(UNITS[0]), goals: store.goals, bar: !!$('#assessBar'), on: ASSESS.on, text: c.textContent.slice(0, 400) }; });
+    expect(intro.modal && intro.steps === 5 && afterRange.step === 1 && /Step 2 of 5/.test(afterRange.bar) && match.n === 5 && match.data.score >= 70
+      && /15 seconds/.test(holdIntro.step) && holdIntro.target === holdIntro.nat && hold.held >= 8 && hold.held <= 10.5
+      && songStep.song === 'saints' && songStep.tempo === 'medium' && end.screen === 'progress' && end.rows === 11 && Object.values(end.attrs).every(v => v != null)
+      && end.attrs.confidence === 80 && end.attrs.breath >= 50 && end.attrs.breath <= 70 && end.hear && end.clip && end.clip.star && end.clip.tag === 'start'
+      && end.baseline && end.u1 && end.goals.join() === 'tune' && !end.bar && !end.on, JSON.stringify({ intro, afterRange, match, holdIntro, hold, songStep, end }));
+  });
+
+  await test('Check-up again: the same song in the same key, and Progress shows then vs now for each part', async page => {
+    const out = await page.evaluate(() => {
+      const raw = (ear, held, feel) => ({ range: { low: 43, high: 60 }, match: { score: ear, bias: -20, err: 30, found: 4, n: 5 }, hold: { score: 60, held, wob: 14, pur: 70, cl: 80 },
+        song: { id: 'saints', shift: 50, tempo: 'medium', score: 61, ok: 14, n: 20, skills: { onset: 70, resonance: 72, timing: 90 }, clip: null }, rate: { feel, goals: [] } });
+      store.profile = { low: 43, high: 60, natural: 50, type: 'Baritone', zlo: 45, zhi: 58 };
+      store.start = { at: Date.now() - 864e6, raw: raw(60, 6, 2), attrs: {} }; store.checkups = [{ at: Date.now(), raw: raw(85, 12, 4), attrs: {} }]; save();
+      $('#t-progress').click();
+      const c = document.querySelector('[data-card="start"]'), row = k => c.querySelector('[data-attr="' + k + '"] .attr-num').textContent;
+      assessBegin(true); const a = { songId: ASSESS.songId, shift: ASSESS.shift, tempo: ASSESS.tempo, retake: ASSESS.retake }; assessStop();
+      return { title: c.querySelector('h3').textContent, ear: row('ear'), breath: row('breath'), conf: row('confidence'), up: c.querySelectorAll('.attr-num.up').length, a };
+    });
+    expect(/Then vs now/.test(out.title) && out.ear === '60 → 85 ↑25' && out.breath === '40 → 80 ↑40' && out.conf === '40 → 80 ↑40' && out.up === 3
+      && out.a.songId === 'saints' && out.a.shift === 50 && out.a.tempo === 'medium' && out.a.retake, JSON.stringify(out));
+  });
+
   await test('Find your voice: 5 timed steps, voice type, famous voices, songs that fit', async page => {
     const s = await voiceTest(page, { speak: 1, natural: 48, low: [48, 41], high: 63, stretch: [38, 68] });
     expect(s.p && s.p.type === 'Bass' && Math.abs(s.p.low - 41) <= 1 && Math.abs(s.p.high - 63) <= 1 && s.p.natural === 48, JSON.stringify(s.p));

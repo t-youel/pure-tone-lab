@@ -450,6 +450,37 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .lr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 600px) { .mix-row { grid-template-columns: 7em 1fr 3em; } }
 .tour-box { display: grid; gap: 14px; }
+.as-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 60; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100vw - 24px); padding: 8px 10px 8px 14px; border-radius: 999px; background: var(--ink); color: var(--bg); box-shadow: 0 6px 20px rgba(0,0,0,.25); font-weight: 600; font-size: .92rem; }
+.as-bar button { background: var(--surface); color: var(--ink); }
+.as-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(10,12,30,.45); overflow-y: auto; }
+.as-card { width: min(560px, 100%); background: var(--surface); color: var(--ink); border-radius: 20px; padding: 20px; display: grid; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+.as-card h2 { margin: 0; } .as-card p { margin: 0; }
+.as-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.as-steps li { display: grid; grid-template-columns: 2.2em 1fr; column-gap: 8px; align-items: center; }
+.as-steps li .muted { grid-column: 2; font-size: .9rem; }
+.as-ic { grid-row: span 2; font-size: 1.5rem; text-align: center; }
+.as-faces { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.as-face { display: grid; gap: 2px; justify-items: center; padding: 8px 2px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); font: inherit; font-size: .78rem; }
+.as-face.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.as-emo { font-size: 2rem; line-height: 1.1; }
+.as-goals { display: flex; flex-wrap: wrap; gap: 6px; }
+.as-goals .chip { border-radius: 999px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); font: inherit; }
+.as-goals .chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); font-weight: 700; }
+.start-card { display: grid; gap: 10px; border: 2px solid var(--accent); }
+.start-card h3, .start-card p { margin: 0; }
+.attr-list { display: grid; gap: 8px; }
+.attr-row { display: grid; grid-template-columns: 9em 1fr 6.5em; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.attr-name { font-size: .95rem; }
+.attr-bar { position: relative; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--line) 60%, var(--surface)); overflow: hidden; }
+.attr-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+.attr-bar i.then { background: color-mix(in srgb, var(--muted) 55%, var(--surface)); }
+.attr-bar i.now { background: var(--accent); opacity: .85; height: 50%; top: 25%; }
+.attr-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: .92rem; }
+.attr-num.up { color: var(--pure); }
+.attr-txt { grid-column: 1 / -1; font-size: .85rem; margin-top: -2px; }
+.attr-overall { font-weight: 700; font-size: 1.05rem; }
+@media (max-width: 600px) { .attr-row { grid-template-columns: 7.2em 1fr 5.6em; } .as-face .muted { display: none; } }
 .tour-intro h2 { margin: 0; } .tour-intro p { margin: 4px 0 0; }
 .tour-road { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 600px) { .tour-road { grid-template-columns: 1fr; } }
@@ -820,7 +851,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · simpler What's inside</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · your starting point's inside</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1780,6 +1811,17 @@ const SONGS = [
   { id: 'ode', name: 'Ode to Joy', kind: 'Song', words: "Joy- ful, joy- ful, we a- dore thee, / God of glo- ry, Lord of love; / Hearts un- fold like flowers be- fore thee, / op'- ning to the sun a- bove.", notes: [[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[4,1.5],[2,.5],[2,2],[4,1],[4,1],[5,1],[7,1],[7,1],[5,1],[4,1],[2,1],[0,1],[0,1],[2,1],[4,1],[2,1.5],[0,.5],[0,2]] },
   { id: 'grace', name: 'Amazing Grace', kind: 'Song', words: 'A- ma- zing _ grace how sweet the sound, / that saved a _ wretch like me. / I once _ was _ lost but now _ am _ found, / was blind but _ now I see.', notes: [[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,2],[-3,1],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[7,3],[4,1],[7,1.5],[4,.5],[7,.5],[4,.5],[0,2],[-5,1],[-3,1.5],[0,.5],[0,.5],[-3,.5],[-5,2],[-5,1],[0,2],[4,.5],[0,.5],[4,2],[2,1],[0,3]] },
 ];
+// the starting-point check-up (see 'Your starting point' below)
+const ASSESS = { on: false, step: 0, retake: false, data: {} };
+const AS_STEPS = [
+  { k: 'range', ic: '🎙', title: 'Find your voice', time: '40 s', what: 'Your range and voice type' },
+  { k: 'match', ic: '🎯', title: 'Pitch match', time: '1 min', what: 'How closely you sing back a note you hear' },
+  { k: 'hold', ic: '〰', title: 'One long note', time: '30 s', what: 'Steadiness, breath and tone' },
+  { k: 'song', ic: '♪', title: 'Your first song', time: '1 min', what: 'A real song, recorded and kept so you can hear your progress' },
+  { k: 'rate', ic: '💬', title: 'How you feel', time: '10 s', what: 'Your confidence, in your own words' },
+];
+const FEEL = ['😟', '🙁', '😐', '🙂', '😄'], FEEL_T = ['Very unsure', 'A bit nervous', 'Okay', 'Fairly confident', 'Very confident'];
+const GOALS = [['tune', 'Sing in tune'], ['range', 'Reach higher or lower'], ['tone', 'A nicer tone'], ['breath', 'Longer breath'], ['songs', 'Sing real songs'], ['nerves', 'Feel less nervous']];
 const G = { song: SONGS[0], shift: 0, idx: 0, hold: 0, hits: [], res: [], acc: null, seq: [], lines: [], play: -1, disp: 0, run: 'ready', t0: 0, starts: [], streak: 0, attempt: 0, tempo: 'normal', ticks: [], metro: true };
 const TEMPOS = { vslow: 40, slow: 54, medium: 72, normal: 90 };
 const beatSec = () => 60 / TEMPOS[G.tempo];
@@ -2087,7 +2129,8 @@ function finishRun() {
   const firstSong = !store.baseline;
   G.recorded = !!REC.mr && REC.lead != null; G.runEnd = Date.now();
   saveRun();
-  recFinish(runStats(), firstSong && !!store.baseline);
+  const recP = recFinish(runStats(), firstSong && !!store.baseline);
+  if (assessing('song') && G.song.id === ASSESS.songId && !CO.on) assessSong(runStats(), recP);
   if (CO.on) coachAfter(runStats());
   renderSing();
 }
@@ -3278,7 +3321,7 @@ function openLab(id, fromPath) {
   if (L.kind === 'drill') { $('#dResult').hidden = true; $('#lane').hidden = false; DRILLS[id].start(); }
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
-function guidePref() { return !!(store.settings && store.settings.guide); }
+function guidePref() { return !!(store.settings && store.settings.guide) && !ASSESS.on; }
 function guideToggle(text) {
   const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'guideTog'; cb.checked = guidePref();
   cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.guide = cb.checked; dirty = true; };
@@ -3748,15 +3791,16 @@ const DRILLS = {
       const nodes = voiceResult(store.profile, ranked);
       if (high - low < 5) nodes.splice(2, 0, fixCards([{ good: true, title: 'A cozy range today: ' + nameOf(low) + ' to ' + nameOf(high), why: 'That\'s completely normal for a first try. Voices open up as they warm up and get used to being used.', tryThis: 'Do a gentle siren on "ng" a few times a day, and try this test again in a week. Most people find several more notes.' }]));
       dShow(nodes, () => this.start());
+      assessAfter('range', { low, high, xlo, xhi, type: t.n, speak: speak == null ? null : Math.round(m2f(speak)), natural });
     },
   },
 
   match: {
     lane: () => ({ target: D.phase === 'intro' || D.phase === 'done' ? null : D.target, tol: TOL }),
     start() {
-      Object.assign(D, { phase: 'intro', rounds: [], n: 8, target: null });
+      Object.assign(D, { phase: 'intro', rounds: [], n: assessing('match') ? 5 : 8, target: null });
       const ex = $('#dExtra'); ex.textContent = ''; ex.appendChild(guideToggle('Keep the note playing while I sing'));
-      dSet({ step: 'Pitch match · 8 rounds', prompt: 'Hear it, sing it', sub: 'A note plays, then you sing it back on "oo". Take your time: if you can\'t find it, the note plays again and you get longer. Hold it inside the green band to lock it in. ' + POSTURE, live: '', prog: -1 });
+      dSet({ step: 'Pitch match · ' + D.n + ' rounds', prompt: 'Hear it, sing it', sub: 'A note plays, then you sing it back on "oo". Take your time: if you can\'t find it, the note plays again and you get longer. Hold it inside the green band to lock it in. ' + POSTURE, live: '', prog: -1 });
       dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.next(); } }]);
     },
     next() {
@@ -3832,6 +3876,7 @@ const DRILLS = {
         box.appendChild(row); nodes.splice(3, 0, box);
       }
       dShow(nodes, () => this.start());
+      assessAfter('match', { score, bias, err, found, n: D.n });
     },
   },
 
@@ -3846,7 +3891,7 @@ const DRILLS = {
     start() {
       const [lo, hi] = this.notes(), p = store.profile;
       const def = Math.round(clamp((store.settings && store.settings.holdNote) ?? (p && p.natural != null ? p.natural : (lo + hi) / 2), lo, hi));
-      Object.assign(D, { phase: 'ready', target: def, samples: [] });
+      Object.assign(D, { phase: 'ready', target: assessing('hold') && p && p.natural != null ? Math.round(p.natural) : def, samples: [], holdSecs: assessing('hold') ? 15 : 6 });
       const pure = pureSet(), hs = store.holdNotes || {};
       const ex = $('#dExtra'); ex.textContent = '';
       const pick = el('label', 'hold-pick'); pick.append(document.createTextNode('Your note'));
@@ -3854,7 +3899,7 @@ const DRILLS = {
       for (let m = lo; m <= hi; m++) { const o = el('option', '', nameOf(m) + (pure.has(m) ? ' ★' : '') + (hs[m] != null ? ' · best ' + hs[m] : '')); o.value = m; if (m === def) o.selected = true; sel.appendChild(o); }
       sel.onchange = () => { D.target = +sel.value; if (!store.settings) store.settings = {}; store.settings.holdNote = D.target; dirty = true; dSet({ prompt: 'Your note: ' + nameOf(D.target) }); ex.querySelector('.nmap').replaceWith(this.noteMap(D.target)); ensureAudio().then(() => playTone(D.target, 2, PURE)); };
       pick.appendChild(sel); ex.append(pick, guideToggle('Guide on: keep the note playing under me'), el('span', 'label', 'Your notes · ★ already pure · number = best hold score'), this.noteMap(def));
-      dSet({ step: 'Steady hold · 6 seconds', prompt: 'Your note: ' + nameOf(def), sub: 'You\'ll hear the note first. Then sing it on "oo" and keep your voice inside the green band for 6 seconds. ' + POSTURE, live: '', prog: -1 });
+      dSet({ step: 'Steady hold · ' + D.holdSecs + ' seconds', prompt: 'Your note: ' + nameOf(D.target), sub: (D.holdSecs > 6 ? 'You\'ll hear your home note first. Take a low, easy breath, then sing it on "oo" and hold it as long as is comfortable, up to ' + D.holdSecs + ' seconds. Stop when you run out of air: that\'s what we measure. ' : 'You\'ll hear the note first. Then sing it on "oo" and keep your voice inside the green band for 6 seconds. ') + POSTURE, live: '', prog: -1 });
       $('#dLive').className = 'live-tip';
       dBtns([{ label: '▶ Start', primary: true, fn: async () => { if (await ensureListening()) this.go(); } }, { label: 'Hear the note', fn: async () => { await ensureAudio(); playTone(D.target, 2, PURE); } }]);
     },
@@ -3878,8 +3923,8 @@ const DRILLS = {
       const inb = Math.abs(c) <= TOL;
       guideLevel(inb ? 0.35 : 1);
       $('#dLive').className = 'live-tip ' + (inb ? 'in' : 'out');
-      dSet({ step: 'Steady hold · ' + Math.max(0, 6 - e).toFixed(1) + ' s left', prog: e / 6, live: inb ? (S.purity >= 72 ? '● In range and pure ✦' : '● In range') : c < 0 ? `● Too low ↑ ${Math.round(-c)}¢` : `● Too high ↓ ${Math.round(c)}¢` });
-      if (e >= 6) this.finish(6);
+      dSet({ step: 'Steady hold · ' + Math.max(0, D.holdSecs - e).toFixed(1) + ' s left', prog: e / D.holdSecs, live: inb ? (S.purity >= 72 ? '● In range and pure ✦' : '● In range') : c < 0 ? `● Too low ↑ ${Math.round(-c)}¢` : `● Too high ↓ ${Math.round(c)}¢` });
+      if (e >= D.holdSecs) this.finish(D.holdSecs);
     },
     finish(held) {
       if (D.phase === 'done') return;
@@ -3902,7 +3947,7 @@ const DRILLS = {
       if (wob > 12 || dbsd > 4) items.push({ title: `Steadiness: the note ${wob > 12 ? 'wobbled ±' + wob + '¢' : 'pulsed in volume'}`, why: 'A pulsing, wavy note comes from uneven air pressure, not from the throat.',
         tryThis: 'Steadiness exercises: (1) Hiss "sss" as evenly as you can for 15 seconds, three times. (2) Hum "oo" through a drinking straw for 30 seconds; the straw steadies the air. (3) Hand on your belly, keep a gentle, even outward push from start to finish. (4) Sing medium-soft: loud notes wobble more.' });
       if (Math.abs(first) > 25 && inR < 0.7) items.push({ title: `You started ${Math.abs(Math.round(first))}¢ ${first < 0 ? 'low' : 'high'}`, why: 'The first moment sets the note. Starting off target means chasing it.', tryThis: 'Hear the note, hum it silently in your head, then start softly right on it with a gentle "m" before opening to "oo".' });
-      if (held < 5.5) items.push({ title: `Breath ran out at ${held.toFixed(1)} s`, why: 'Shallow breaths into the chest run out fast.', tryThis: 'Breathe low: hand on your belly, feel it and your lower ribs expand while the shoulders stay down. Then let the air out slowly, like a slow leak.' });
+      if (held < 5.5 && D.holdSecs <= 6) items.push({ title: `Breath ran out at ${held.toFixed(1)} s`, why: 'Shallow breaths into the chest run out fast.', tryThis: 'Breathe low: hand on your belly, feel it and your lower ribs expand while the shoulders stay down. Then let the air out slowly, like a slow leak.' });
       if (drift < -15) items.push({ title: `The pitch sagged ${-drift}¢ by the end`, why: 'Breath support fading as the note goes on.', tryThis: 'Keep a gentle outward push from your belly all the way to the end. Sit tall and lift your eyebrows slightly.' });
       if (drift > 15) items.push({ title: `The pitch crept up ${drift}¢`, why: 'Usually pushing harder as you go.', tryThis: 'Keep the volume even from start to finish; think "same", not "more".' });
       if (cl < 0.78) items.push({ title: 'Breathy: air is escaping', why: 'Extra air past the vocal folds makes the tone fuzzy.', tryThis: 'Start with a hum "mm", then open to "oo" keeping the same buzz. Use less air, not more.' });
@@ -3910,6 +3955,7 @@ const DRILLS = {
       if (!items.length) items.push({ good: true, title: 'Clean, straight and pure', why: 'In the band, no wobble, no breathiness.', tryThis: 'Pick another note from the list, especially one without a score yet.' });
       const map = el('div', 'vi-block'); map.append(el('span', 'label', 'Your notes so far · green 75+, gold 50+, red needs work'), this.noteMap(D.target));
       dShow([head, stats, fixCards(items.slice(0, 3)), map], () => { $('#dResult').hidden = true; $('#lane').hidden = false; this.start(); });
+      assessAfter('hold', { score, held: Math.round(held * 10) / 10, wob, pur, cl: Math.round(cl * 100), inR: Math.round(inR * 100), drift, m: D.target });
     },
   },
 
@@ -4489,7 +4535,7 @@ let findOpen = false;
 // Practise a unit: its skill check, or its song.
 function startUnitCheck(u) {
   const c = unitCheckNow(u);
-  if (c.kind === 'u1') { if (!store.profile) { openLab('range', true); $('#t-lab').click(); ensureListening(); } else singSongId(u.song); return; }
+  if (c.kind === 'u1') { if (!store.profile && !store.start) { assessIntro(false); return; } if (!store.profile) { openLab('range', true); $('#t-lab').click(); ensureListening(); } else singSongId(u.song); return; }
   if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); ensureListening(); return; }
   singSongId(c.id === '*' ? null : c.id);
 }
@@ -5205,6 +5251,145 @@ function ezDone() {
   c.appendChild(row);
 }
 
+
+// ---------- Your starting point: a thorough voice check-up on the first day, repeatable later ----------
+// Five short steps measure the voice before any training: range, ear, steadiness and breath, a real song (recorded and
+// kept), and how the singer feels. Retaking it later gives a fair, like-for-like "then vs now".
+const assessing = k => ASSESS.on && AS_STEPS[ASSESS.step] && AS_STEPS[ASSESS.step].k === k;
+function assessBar() {
+  let bar = $('#assessBar');
+  if (!ASSESS.on) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = el('div', 'as-bar'); bar.id = 'assessBar'; document.body.appendChild(bar); }
+  bar.textContent = ''; const st = AS_STEPS[ASSESS.step];
+  bar.append(el('span', 'as-bar-t', '📋 ' + (ASSESS.retake ? 'Check-up' : 'Your starting point') + ' · Step ' + (ASSESS.step + 1) + ' of ' + AS_STEPS.length + ': ' + st.title));
+  const go = el('button', 'small', 'Go to step'); go.onclick = () => assessGo(); const stop = el('button', 'small', 'Stop'); stop.onclick = () => assessStop();
+  bar.append(go, stop);
+}
+function asModal(build) {
+  const old = $('#asModal'); if (old) old.remove();
+  const wrap = el('div', 'as-modal'); wrap.id = 'asModal'; const card = el('div', 'as-card'); wrap.appendChild(card); build(card, () => wrap.remove());
+  document.body.appendChild(wrap); return wrap;
+}
+function assessIntro(retake) {
+  asModal((c, close) => {
+    c.append(el('h2', '', retake ? 'Voice check-up' : 'Let’s capture your starting point'),
+      el('p', '', retake ? 'The same five steps as your first day, so you can see exactly how you’ve grown.' : 'Before any training, five short steps measure your voice as it is today. Later you’ll take the same check-up again and see exactly how you’ve improved.'));
+    const ol = el('ol', 'as-steps');
+    for (const st of AS_STEPS) { const li = el('li'); li.append(el('span', 'as-ic', st.ic), el('b', '', st.title), el('span', 'muted', st.what + ' · ' + st.time)); ol.appendChild(li); }
+    c.append(ol, el('p', 'muted', 'About 4 minutes. Find a quiet spot. There are no wrong answers: this is simply where you start.'));
+    const row = el('div', 'row'); const go = el('button', 'primary', '▶ Start the check-up'); go.dataset.act = 'start';
+    go.onclick = () => { close(); assessBegin(!!retake); };
+    const later = el('button', '', 'Later'); later.onclick = close; row.append(go, later); c.appendChild(row);
+  });
+}
+function assessBegin(retake) {
+  const prev = store.start && store.start.raw && store.start.raw.song;
+  Object.assign(ASSESS, { on: true, step: 0, retake: !!retake || !!store.start, data: {}, songId: prev ? prev.id : 'saints', shift: prev ? prev.shift : null, tempo: prev ? prev.tempo : 'medium' });
+  assessGo();
+}
+async function assessGo() {
+  if (!ASSESS.on) return;
+  assessBar(); const st = AS_STEPS[ASSESS.step]; if (!st) return assessFinish();
+  if (st.k === 'range' || st.k === 'match' || st.k === 'hold') { openLab(st.k, true); $('#t-lab').click(); await ensureListening(); return; }
+  if (st.k === 'song') {
+    if ($('#labStage') && !$('#labStage').hidden) closeLab();
+    if (CO.on) setCoach(false);
+    G.bandMode = false; G.tempo = ASSESS.tempo; G.metro = true; $('#btnMetro').setAttribute('aria-pressed', true);
+    if (ASSESS.shift != null) { $('#t-sing').click(); G.shift = ASSESS.shift; loadSong(SONGS.find(x => x.id === ASSESS.songId), true); } else singSongId(ASSESS.songId);
+    toast('Step 4: listen once if you like, then tap ▶ Sing. This one is recorded and kept.'); return;
+  }
+  if (st.k === 'rate') assessRate();
+}
+function assessStop() { ASSESS.on = false; assessBar(); toast('Check-up stopped. You can start it again from Progress.'); }
+// a drill finished: keep its numbers and offer the next step
+function assessAfter(k, data) {
+  if (!assessing(k)) return;
+  ASSESS.data[k] = data; ASSESS.step++; assessBar();
+  const nx = AS_STEPS[ASSESS.step], again = () => { ASSESS.step--; delete ASSESS.data[k]; assessBar(); $('#dResult').hidden = true; $('#lane').hidden = false; DRILLS[k].start(); };
+  dBtns([{ label: 'Next: step ' + (ASSESS.step + 1) + ' of ' + AS_STEPS.length + ' · ' + nx.title + ' →', primary: true, fn: () => assessGo() }, { label: 'Redo this step', fn: again }, { label: 'Stop the check-up', fn: () => { assessStop(); closeLab(); } }]);
+}
+function assessSong(st, recP) {
+  ASSESS.data.song = { id: G.song.id, shift: G.shift, tempo: G.tempo, score: st.monotone ? 0 : st.score, ok: st.ok, n: st.n, skills: st.skills || null, clip: null };
+  ASSESS.step++; assessBar();
+  const d = ASSESS.data.song;
+  Promise.resolve(recP).then(meta => { if (meta) { meta.star = true; meta.checkup = ASSESS.retake ? 'check-up' : 'start'; d.clip = meta.id; dirty = true; save(); } });
+  setTimeout(() => { if (assessing('rate')) assessRate(); }, 1800);
+}
+function assessRate() {
+  asModal((c, close) => {
+    c.dataset.step = 'rate';
+    c.append(el('h2', '', 'Last step: how do you feel?'), el('p', '', 'How confident do you feel about your singing right now?'));
+    const faces = el('div', 'as-faces'); let pick = null, goals = new Set();
+    FEEL.forEach((f, i) => { const b = el('button', 'as-face'); b.dataset.v = i + 1; b.append(el('span', 'as-emo', f), el('span', 'muted', FEEL_T[i])); b.onclick = () => { pick = i + 1; faces.querySelectorAll('.as-face').forEach(x => x.classList.toggle('on', x === b)); done.disabled = false; }; faces.appendChild(b); });
+    c.append(faces, el('p', '', 'What would you most like to improve? Pick any.'));
+    const gl = el('div', 'as-goals');
+    for (const [k, t] of GOALS) { const b = el('button', 'chip', t); b.dataset.goal = k; b.onclick = () => { goals.has(k) ? goals.delete(k) : goals.add(k); b.classList.toggle('on', goals.has(k)); }; gl.appendChild(b); }
+    const done = el('button', 'primary', 'See my results →'); done.dataset.act = 'done'; done.disabled = true;
+    done.onclick = () => { ASSESS.data.rate = { feel: pick, goals: [...goals] }; close(); assessFinish(); };
+    c.append(gl, done);
+  });
+}
+// the scored attributes, each 0-100 with a plain-language reading
+function assessAttrs(d) {
+  const r = d.range, m = d.match, h = d.hold, sg = d.song, sk = sg && sg.skills, f = d.rate;
+  const pc = v => v == null ? null : Math.round(clamp(v) * 100);
+  return [
+    ['range', 'Range', r ? pc((r.high - r.low) / 24) : null, r ? nameOf(r.low) + ' – ' + nameOf(r.high) + ' · ' + (r.high - r.low) + ' semitones' : null],
+    ['ear', 'Pitch matching', m ? m.score : null, m ? 'Missed by ' + m.err + '¢ on average' : null],
+    ['center', 'Flat or sharp', m ? pc(1 - (Math.abs(m.bias) - 5) / 45) : null, m ? (Math.abs(m.bias) <= 10 ? 'Centered' : Math.abs(m.bias) + '¢ ' + (m.bias < 0 ? 'flat' : 'sharp')) : null],
+    ['steady', 'Steadiness', h ? pc(1 - (h.wob - 4) / 30) : null, h ? '±' + h.wob + '¢ wobble on a long note' : null],
+    ['breath', 'Breath', h ? pc(h.held / 15) : null, h ? h.held.toFixed(1) + ' s on one breath' : null],
+    ['tone', 'Clear tone', h ? h.pur : null, h ? (h.cl < 78 ? 'Some breathiness' : 'Clear') + ' · purity ' + h.pur : null],
+    ['song', 'Singing a song', sg ? sg.score : null, sg ? sg.ok + ' of ' + sg.n + ' notes in tune' : null],
+    ['onset', 'Clean starts', sk ? sk.onset : null, sk ? (sk.onset >= 80 ? 'Notes start on pitch' : 'Some notes scoop up into pitch') : null],
+    ['resonance', 'Resonance', sk ? sk.resonance : null, sk ? (sk.resonance >= 80 ? 'Rings well' : 'Room to ring more') : null],
+    ['timing', 'Timing', sk ? sk.timing : null, sk ? 'Notes sung on the beat' : null],
+    ['confidence', 'Confidence', f && f.feel ? f.feel * 20 : null, f && f.feel ? FEEL[f.feel - 1] + ' ' + FEEL_T[f.feel - 1] : null],
+  ];
+}
+function assessFinish() {
+  const d = ASSESS.data, rec = { at: Date.now(), raw: d, attrs: Object.fromEntries(assessAttrs(d).map(a => [a[0], a[2]])) };
+  const vals = Object.values(rec.attrs).filter(v => v != null); rec.overall = vals.length ? Math.round(mean(vals)) : null;
+  if (!store.start) store.start = rec; else (store.checkups ||= []).push(rec);
+  if (d.rate && d.rate.goals) store.goals = d.rate.goals;
+  ASSESS.on = false; assessBar(); dirty = true; save();
+  if ($('#labStage') && !$('#labStage').hidden) closeLab();
+  $('#t-progress').click();
+  setTimeout(() => { const c = document.querySelector('[data-card="start"]'); if (c) c.scrollIntoView({ block: 'start' }); }, 80);
+  toast(store.checkups && store.checkups.length ? 'Check-up saved. Here’s how far you’ve come.' : 'Your starting point is saved. Now the training begins!');
+}
+// Progress: the starting point, and then vs now after a later check-up
+function startCard() {
+  const c = el('div', 'card start-card'); c.dataset.card = 'start';
+  if (!store.start) {
+    c.append(el('h3', '', '📋 Your starting point'), el('p', '', 'A 4-minute voice check-up: range, pitch matching, a long note, a recorded song and how you feel. It scores 11 parts of your voice so you can watch each one improve.'));
+    const b = el('button', 'primary', '▶ Take the check-up'); b.dataset.act = 'checkup'; b.onclick = () => assessIntro(false); c.appendChild(b); return c;
+  }
+  const S0 = store.start, ups = store.checkups || [], L = ups[ups.length - 1], atS = new Date(S0.at).toLocaleDateString();
+  c.append(el('h3', '', L ? '📋 Then vs now' : '📋 Your starting point'),
+    el('p', 'muted', L ? 'Your first check-up (' + atS + ') against your latest (' + new Date(L.at).toLocaleDateString() + ').' : 'Measured on ' + atS + ', before any training. Take the check-up again after a few weeks to see what changed.'));
+  const t = el('div', 'attr-list'), now_ = L ? assessAttrs(L.raw) : null;
+  assessAttrs(S0.raw).forEach((a, i) => {
+    const [k, name, v0, txt0] = a, n = now_ ? now_[i] : null, v1 = n ? n[2] : null;
+    const row = el('div', 'attr-row'); row.dataset.attr = k;
+    const bar = el('span', 'attr-bar'); const f0 = el('i', 'then'); f0.style.width = (v0 ?? 0) + '%'; bar.appendChild(f0);
+    if (v1 != null) { const f1 = el('i', 'now'); f1.style.width = v1 + '%'; bar.appendChild(f1); }
+    const delta = v0 != null && v1 != null ? v1 - v0 : null;
+    const num = el('span', 'attr-num' + (delta > 0 ? ' up' : delta < 0 ? ' down' : ''), v0 == null ? '–' : delta == null ? String(v0) : v0 + ' → ' + v1 + (delta ? (delta > 0 ? ' ↑' : ' ↓') + Math.abs(delta) : ''));
+    row.append(el('b', 'attr-name', name), bar, num, el('span', 'attr-txt muted', (n && n[3]) || txt0 || 'Not measured'));
+    t.appendChild(row);
+  });
+  c.appendChild(t);
+  if (S0.overall != null) c.appendChild(el('p', 'attr-overall', 'Overall: ' + S0.overall + (L && L.overall != null ? ' → ' + L.overall + (L.overall > S0.overall ? '  ↑' + (L.overall - S0.overall) : '') : '')));
+  const row = el('div', 'row'), clipOf = r => r && r.raw.song && r.raw.song.clip && (store.clips || []).find(x => x.id === r.raw.song.clip);
+  const c0 = clipOf(S0), c1 = clipOf(L);
+  if (c0) { const b = el('button', 'small', '▶ Hear your first song'); b.dataset.act = 'hear-start'; b.onclick = () => playClip(c0); row.appendChild(b); }
+  if (c1) { const b = el('button', 'small', '▶ Hear it now'); b.dataset.act = 'hear-now'; b.onclick = () => playClip(c1); row.appendChild(b); }
+  const again = el('button', L ? 'small' : 'primary', '↻ Take the check-up again'); again.dataset.act = 'checkup'; again.onclick = () => assessIntro(true); row.appendChild(again);
+  c.appendChild(row);
+  if (!L) c.appendChild(el('p', 'muted', 'Best time to retake it: when you finish a stage, or every few weeks.'));
+  return c;
+}
 // ---------- What's inside: the whole app at a glance ----------
 // A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.
 const STAGE_PLAIN = {
@@ -5295,6 +5480,7 @@ function renderProgress() {
   const b = store.baseline, p = store.profile;
   const head = el('div', 'card prog-head'); head.append(el('h2', '', 'Your progress'), el('p', 'muted', 'Always compared with your own starting point, never with other singers.'));
   box.appendChild(head);
+  box.appendChild(startCard());
   if (!b) {
     const c = el('div', 'card'); c.append(el('p', 'unit-lead', 'Sing your first song to set your starting point.'), btn(p ? 'Sing your first song →' : 'Find your voice →', 'primary', () => startUnitCheck(UNITS[0])));
     box.appendChild(c);
