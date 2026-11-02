@@ -872,6 +872,20 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp), JSON.stringify({ intro, an, info, play, before, cal, cmp }));
   });
 
+  await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 });
+    await page.waitForFunction(() => TAKE.play && !TAKE.play.disabled, null, { timeout: 10000 });
+    const r = await page.evaluate(() => { const an = TAKE.an, near = an.notes.filter((n, i) => { const k = Math.floor((n.t0 + (n.t1 - n.t0) / 2) / an.hop); const v = an.trace[k]; return v != null && Math.abs(v - n.midi - (i >= 12 && i <= 18 ? -0.5 : 0)) < 0.3; }).length;
+      return { card: !!document.querySelector('#report [data-card="take"] canvas'), n: an.notes.length, seq: G.seq.length, flat: an.notes.slice(12, 19).filter(n => n.c != null && n.c < -25).length, ok: an.notes.slice(0, 12).filter(n => n.c != null && Math.abs(n.c) < 25).length, near, words: an.notes[0].word, lead: TAKE.audioOff }; });
+    await page.click('#takePlay'); await page.waitForTimeout(800);
+    const play = await page.evaluate(() => ({ playing: TAKE.playing, off: TAKE.off }));
+    await page.click('#takePlay');
+    expect(r.card && r.n === r.seq && r.flat >= 6 && r.ok >= 11 && r.near >= 22 && r.words === 'Hap-' && r.lead > 1 && play.playing && play.off > 0.3, JSON.stringify({ r, play }));
+  });
+
   await test('Voice Tutor: comments on a band take, builds a lesson for the flat line, then compares the retry with the band', async page => {
     await voice(page); await setLevel(page, 10);
     await page.evaluate(() => { openLab('band'); }); await page.click('.band-song[data-song="bday"]');
