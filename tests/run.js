@@ -890,27 +890,54 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, rep3, band, bass }));
   });
 
-  await test('Learn to sing it like this: line by line, hear his line, sing it back, see your voice against his with a score and one thing to change', async page => {
+  await test('Learn to sing it like this: a coached lesson; a flat note gets "lock it in", then put back in its piece, learned ✓, then his vibrato for a ★', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; save(); openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Test singer', 'file'); });
     await page.waitForTimeout(100);
-    const setup = await page.evaluate(() => ({ lines: LS.lines.length, oct: LS.oct, chips: document.querySelectorAll('#lsLines .ls-chip').length, first: LS.lines[0].idx.length }));
-    // the simulated singer follows the line; note 3 is sung half a semitone flat on the first try
-    await page.evaluate(() => { window.flat3 = true; setInterval(() => { if (LS.phase !== 'turn') { V.on = false; return; } const t = ac.currentTime - LS.start, l = LS.lines[LS.k], tl = t + l.t0;
-      const i = l.idx.find(j => { const n = LS.an.notes[j]; return tl >= (n.b0 ?? n.t0) && tl <= (n.b1 ?? n.t1) - 0.03; }); V.on = i != null; if (i != null) V.m = LS.an.notes[i].midi + LS.oct + (flat3 && i === l.idx[2] ? -0.5 : 0); }, 15); });
-    await page.click('#lsPanel [data-act="turn"]');
-    await page.waitForFunction(() => LS.phase === 'idle' && document.querySelector('#lsRes .ls-big'), null, { timeout: 30000 });
-    const r1 = await page.evaluate(() => ({ live: $('#lsLive').textContent, score: +$('#lsRes .ls-big').textContent, tip: $('#lsRes .ls-tip').textContent, ref: LSR.an.ref.filter(v => v != null).length, mine: LSR.an.trace.filter(v => v != null).length, legend: $('#lsRes .pro-legend').textContent }));
+    // the simulated singer: follows whatever exercise is running; note 3 flat until it has been locked in; vibrato on when asked
+    await page.evaluate(() => { window.flat3 = true; window.vib = false; setInterval(() => {
+      if (LS.phase !== 'turn') { V.on = false; return; } const t = ac.currentTime - LS.start, c = LS.cap, w = vib ? 0.25 * Math.sin(2 * Math.PI * 5.5 * t) : 0;
+      if (c.hold != null) { V.on = t >= 0; V.m = (c.from != null && t < 1.2 ? c.from : c.hold) + w; return; }
+      const tt = t * c.speed, n = c.notes.find(x => tt >= x.a && tt <= x.b - 0.03); V.on = !!n; if (n) V.m = n.midi + (flat3 && n.pos === 2 ? -0.5 : 0) + w; }, 15); });
+    const step = () => page.evaluate(() => ({ kind: LS.ex && LS.ex.kind, say: $('#lsPanel .ls-coach-t').textContent }));
+    const run = async () => { await page.click('#lsPanel [data-act="go"]'); await page.waitForFunction(() => LS.busy, null, { timeout: 5000 }).catch(() => {}); await page.waitForFunction(() => !LS.busy && document.querySelector('#lsPanel .ls-coach'), null, { timeout: 40000 }); await page.waitForTimeout(150); return step(); };
+    const s0 = await step();
+    await page.click('#lsPanel [data-act="skip"]');                      // skip Listen
+    const s1 = await step();                                              // hum
+    const s2 = await run();                                               // hum along → sing it back
+    const s3 = await run();                                               // sing it back with note 3 flat → lock it in
     await page.evaluate(() => { flat3 = false; });
-    await page.click('#lsRes [data-act="again"]');
-    await page.waitForFunction(() => LS.phase === 'idle' && document.querySelector('#lsRes .ls-big'), null, { timeout: 30000 });
-    const r2 = await page.evaluate(() => ({ score: +$('#lsRes .ls-big').textContent, tip: $('#lsRes .ls-tip').textContent, best: store.proLearn['pro:Test singer'][0].best, ok: store.proLearn['pro:Test singer'][0].ok, chip: $('#lsLines .ls-chip[data-line="0"]').textContent }));
-    await page.click('#lsRes [data-act="next"]');
-    const nx = await page.evaluate(() => LS.k);
-    expect(setup.lines >= 3 && setup.oct === 0 && setup.chips === setup.lines && setup.first >= 3
-      && /note 3/.test(r1.tip) && /flat/.test(r1.tip) && r1.score < r2.score && r1.ref > 20 && r1.mine > 20 && /his voice/.test(r1.legend)
-      && !/✓/.test(r1.live) && r2.score >= 85 && r2.ok && /vibrato|very close|next line|slide/i.test(r2.tip) && r2.best === r2.score && /✓/.test(r2.chip) && nx === 1, JSON.stringify({ setup, r1, r2, nx }));
+    const s4 = await run();                                               // hold → put it back (chunk)
+    const s5 = await run();                                               // chunk → whole line
+    const s6 = await run();                                               // whole line → learned, then vibrato
+    const mine = await page.evaluate(() => !!document.querySelector('#lsPanel [data-act="mine"]'));
+    await page.evaluate(() => { vib = true; });
+    const s7 = await run();                                               // vibrato → line again in his style
+    const s8 = await run();                                               // ★
+    const rec = await page.evaluate(() => ({ r: store.proLearn['pro:Test singer'][0], chip: $('#lsLines .ls-chip[data-line="0"]').textContent, next: !!document.querySelector('#lsPanel [data-act="nextline"]') }));
+    const kinds = [s0, s1, s2, s3, s4, s5, s6, s7].map(x => x.kind).join();
+    expect(kinds === 'listen,hum,back,hold,chunk,back,vibrato,back' && /Note 3 \(E4\) was \d+¢ flat/.test(s3.say) && /Why:/.test(s3.say) && /learned/.test(s6.say) && mine
+      && /sounds like him/.test(s8.say) && rec.r.ok && rec.r.star && /✓ ★ Line 1/.test(rec.chip) && rec.next, JSON.stringify({ kinds, s3: s3.say.slice(0, 200), s6: s6.say.slice(0, 120), s8: s8.say.slice(0, 120), mine, rec }));
+  });
+
+  await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => {
+      store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Test singer', 'file');
+      await new Promise(r => setTimeout(r, 50));
+      const notes = lsNotes(0), jump = notes.find(n => Math.abs(n.leap) >= 4), mk = (fn, lag = 0) => { const per = notes.map((n, i) => Object.assign({ n, c: 0, on: 0, vib: 0, score: 1 }, fn(n, i))); return { per, score: Math.round(100 * mean(per.map(p => p.score))), lagMs: lag, sh: 0, bias: 0, ok: false }; };
+      const plan = () => LS.plan.map(x => x.kind).join(), out = {};
+      const fresh = () => { LS.fails = {}; LS.plan = [{ kind: 'back' }]; LS.ex = LS.plan[0]; };
+      fresh(); lsDecide(LS.ex, mk(n => n === jump ? { c: -60, score: 0.4 } : {}), notes); out.jump = plan(); out.jumpSay = $('#lsPanel .ls-coach-t').textContent;
+      fresh(); lsDecide(LS.ex, mk((n, i) => i % 3 === 0 ? { miss: true, score: 0 } : {}), notes); out.many = plan();
+      LS.ex = LS.plan[LS.plan.length - 1]; lsDecide(LS.ex, mk((n, i) => i % 3 === 0 ? { miss: true, score: 0 } : {}), notes); out.many2 = plan();
+      fresh(); lsDecide(LS.ex, mk(() => ({}), 300), notes); out.late = plan(); out.lateSay = $('#lsPanel .ls-coach-t').textContent;
+      fresh(); const flat = notes[1]; for (let k = 0; k < 3; k++) { LS.ex = { kind: 'back' }; lsDecide(LS.ex, mk(n => n === flat ? { c: -45, score: 0.6 } : {}), notes); } out.stuck = plan();
+      return Object.assign(out, { jumpLeap: jump && jump.leap });
+    });
+    expect(r.jumpLeap && r.jump === 'glide,back' && /jump of \d+ half steps/.test(r.jumpSay) && r.many.startsWith('chunk') && r.many.endsWith('back') && r.many2 === 'hum,back'
+      && r.late === 'clicks,back' && /came in 300 ms late/.test(r.lateSay) && r.stuck === 'hum,back', JSON.stringify(r));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

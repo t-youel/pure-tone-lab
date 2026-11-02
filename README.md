@@ -83,9 +83,15 @@ Three passes:
 2. **Check every note** against the learned tune: cents off, early or late, misses (an off-centre note the other times disagree with, shown red) and deliberate variations (a centred note that differs, dashed purple, not counted wrong).
 3. **Fine-tune**: tuning measured from the band's bass line (so flat and sharp are against the band), each note's pitch re-measured with a longer window near the note, tempo re-fitted to the note starts; then re-scored.
 
-### Learn to sing it like this
+### Learn to sing it like this (a coached lesson)
 
-Under the analysis, the song is split into its lines (at the pauses between phrases, at most 12 notes each). For each line: ▶ Hear his line (just that stretch of the recording), then 🎤 Your turn (four clicks at the song's tempo and the starting note, then you sing it back alone, so the mic hears only you; any octave counts, and the octave is chosen to suit your voice). The result shows your voice and his on the same notes (his in purple, yours green/gold/red), a score, and one thing to change, picked the way a teacher would: the worst note (with how he sings it), then timing, then how he starts notes, then his vibrato. A line is learned (✓) at 80+ with every note within 35¢; when every line has a ✓ you've learned the song.
+Under the analysis, the song is split into its lines. Each line climbs a ladder: Listen and learn (his line, then the notes alone, slowly) → Hum along, slowly (guide tones at 70% speed; the mic ignores them) → Sing it back on your own (count-in and starting note; any octave; your try is recorded for ▶ Hear yours). When a try isn't right, the coach diagnoses the main problem and picks a tool, escalating if it repeats:
+- one note flat or sharp → **Lock in one note** (hear it, hold it 1.5 s inside ±25¢ on a live meter), then put it back in its piece of the line;
+- a missed jump of 4+ half steps → **Siren to the jump** (start on the note before, slide up on "ng", hold);
+- several notes wrong → **Build it from the end** (backchaining: the last third, then the last two thirds, then the line); again → back to the slow guide;
+- late or early → **Sing on the clicks**;
+- the same note failing three times → the slow guide; any exercise failing three times → move on kindly.
+Coaching cues rotate (several ways of saying each thing), each exercise says why it works, and the graph shows your voice against his. A line is learned (✓) at 80+ with every note within 35¢; then one style polish (his vibrato, or his slide into a note) earns a ★. Next visit starts with a quick review of a line learned on an earlier day.
 
 ## Your take, note by note
 
