@@ -732,7 +732,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · hungry chicks</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · note road</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4339,7 +4339,7 @@ const EASY_GAMES = {
   echo: { icon: '🐸', name: 'Frog hops', sprite: '🐸', goal: '🪷', how: 'Listen as each lily pad plays its note. Then sing the same notes, one by one, to hop the frog across.', tip: 'Listen, then sing the same notes' },
   grow: { icon: '🌻', name: 'Grow a flower', how: 'Sing one long, steady "ooo" on the note. The longer you hold it in the gold band, the taller the flower grows.', tip: 'Hold one long, steady "ooo"' },
   piano: { icon: '🎹', name: 'Piano play-along', how: 'Tap the glowing key to play the song, one note at a time. Then sing it along with the music.', tip: 'Tap the glowing key' },
-  song: { icon: '🎵', name: 'Sing a song', how: 'Pick a song by its picture. Sing each word as it lights up, matching its colour.', tip: 'Sing each word as it lights up' },
+  song: { icon: '🎵', name: 'Sing a song', how: 'Pick a song by its picture. The words slide toward the bird on their own coloured lines. Sing each word when it reaches the bird, on its line.', tip: 'Sing each word when it reaches the bird' },
 };
 const EASY_ROUTINE = ['match', 'updown', 'echo', 'grow', 'song'];
 // words for the teacher or helper: on for the first few days, and whenever a helper turns them on
@@ -4588,7 +4588,7 @@ function ezDraw(v, inb) {
   x.fillStyle = C.surface; x.fillRect(0, 0, w, h);
   if (EZ.phase === 'menu' || EZ.phase === 'done' || !st0) return;
   const pianoH = k0 === 'piano' && EZ.piano && !EZ.song ? 0 : 0, h2 = h;
-  const mid = EZ.tgt != null ? EZ.tgt : ezHome(), span = 5;
+  const mid = EZ.song ? EZ.song.mid : EZ.tgt != null ? EZ.tgt : ezHome(), span = 5;
   const Y = m => h2 / 2 - (m - mid) / span * (h2 / 2 - 24 * d), X = tt => EZ.lw + 10 * d + (w * 0.86 - EZ.lw - 40 * d) * (1 - (t - tt) / 4);
   const big = Math.round(Math.min(w, h) / 9);
   const emoji = (ch, px, py, size, alpha) => { x.save(); x.globalAlpha = alpha == null ? 1 : alpha; x.font = `${size || big}px system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ch, px, py); x.restore(); };
@@ -4661,11 +4661,12 @@ function ezDraw(v, inb) {
     ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.6, EZ.tgt, d, '🎯 ');
     return;
   }
-  // free flight (Wake the bird) and the songs: the voice draws a line and the bird rides on it
+  // free flight (Wake the bird): the voice draws a line and the bird rides on it
+  if (EZ.song) { ezSongRoad(x, w, h, d, Y, t, v, big, emoji); return; }
   const pts = EZ.trail;
   if (pts.length > 1) { x.strokeStyle = C.accent; x.lineWidth = 7 * d; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath(); let pen = false, last = null; for (const p of pts) { const brk = last && p.t - last.t > 0.15; if (!pen || brk) x.moveTo(X(p.t), Y(p.m)); else x.lineTo(X(p.t), Y(p.m)); pen = true; last = p; } x.stroke(); }
   if (v != null) { const by2 = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('🐦', X(t), by2); ezChip(x, X(t), by2 + big * 0.75, v, d); }
-  if (EZ.song && EZ.tgt != null) ezChip(x, w * 0.9, Y(EZ.tgt), EZ.tgt, d, '🎯 ');
+  if (EZ.song) ezSongRoad(x, w, h, d, Y, t, v, big, emoji);
 }
 // ---- songs: shared by Sing a song and the piano game's sing-along
 function ezSongPick() {
@@ -4677,10 +4678,34 @@ async function ezSongStart(sg, fromPiano) {
   if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
   $('#easyMenu').hidden = true;
   const h = ezHome(), toks = sg.words.split(/\s+/).filter(x => x && x !== '/');
-  EZ.song = { sg, notes: sg.notes.map(([o, b], i) => ({ m: h - 2 + o, b, w: toks[i] || '' })), beat: 1.0, t0: now() + 1.6, res: [] };
+  const notes = sg.notes.map(([o, b], i) => ({ m: h + o, b, w: toks[i] || '' })); // the song's Do is the singer's Do, so the colours match the lines
+  let acc = 0; notes.forEach(n => { n.at = acc; acc += n.b; });
+  EZ.song = { sg, notes, beat: 1.3, t0: now() + 2.4, res: [], mid: Math.round((Math.min(...notes.map(n => n.m)) + Math.max(...notes.map(n => n.m))) / 2) };
   EZ.phase = 'run'; EZ.trail = []; EZ.got = 0; EZ.piano = fromPiano ? EZ.piano : null;
-  playTone(EZ.song.notes[0].m, 1.3, PIPE);
-  ezRender(); ezSongWords(-1);
+  ezMute(1.6); playTone(EZ.song.notes[0].m, 1.3, PIPE);
+  ezRender(); $('#easyWords').textContent = '';
+}
+// The song as a road: each word is a bar in its note's colour, on its note's line, sliding left to the bird.
+// When a bar reaches the bird, that's the word to sing, and its height is the note.
+function ezSongRoad(x, w, h, d, Y, t, v, big, emoji) {
+  const S2 = EZ.song, beat = S2.beat, e = (t - S2.t0) / beat, singX = EZ.lw + w * 0.2, pps = (w - singX) / 5; // 5 beats ahead on screen
+  x.save();
+  x.strokeStyle = C.accent; x.lineWidth = 3 * d; x.setLineDash([8 * d, 8 * d]); x.beginPath(); x.moveTo(singX, 8 * d); x.lineTo(singX, h - 8 * d); x.stroke(); x.setLineDash([]);
+  S2.notes.forEach((n, i) => {
+    const x1 = singX + (n.at - e) * pps, x2 = x1 + n.b * pps - 6 * d; if (x2 < EZ.lw || x1 > w) return;
+    const y = Y(n.m), now0 = i === S2.cur, past = S2.res[i] != null, hh = (now0 ? 40 : 32) * d;
+    const col = past ? (S2.res[i] ? C.good : C.muted) : DEG_COLOR[ezDeg(n.m)] || C.muted;
+    x.globalAlpha = past && !S2.res[i] ? 0.35 : 1; x.fillStyle = col;
+    x.beginPath(); x.roundRect ? x.roundRect(Math.max(EZ.lw, x1), y - hh / 2, Math.max(10 * d, x2 - Math.max(EZ.lw, x1)), hh, hh / 2) : x.rect(x1, y - hh / 2, x2 - x1, hh); x.fill();
+    if (now0) { x.strokeStyle = C.ink; x.lineWidth = 3 * d; x.stroke(); }
+    x.globalAlpha = 1; x.fillStyle = '#fff'; x.font = `800 ${(now0 ? 20 : 17) * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.textBaseline = 'middle';
+    x.fillText(n.w.replace(/[-,.;!?]+$/, ''), Math.max(EZ.lw + 6 * d, x1 + 10 * d), y + 1 * d);
+    if (past && S2.res[i]) emoji('⭐', x2, y - hh * 0.6, 18 * d);
+  });
+  x.restore();
+  if (v != null) { const by = Y(Math.max(S2.mid - 5, Math.min(S2.mid + 5, v))); emoji('🐦', singX, by, big); if (EZ.tgt != null && e >= 0) ezFeedback(x, singX, by + big * 0.7, (v - EZ.tgt) * 100, d); }
+  else emoji('🐦', singX, EZ.tgt != null ? Y(EZ.tgt) : Y(S2.mid), big, 0.4);
+  if (e < 0) emoji(String(Math.ceil(-e)), w * 0.5, h * 0.2, big * 1.3); // count in
 }
 function ezSongWords(cur) {
   const w = $('#easyWords'); w.textContent = '';
@@ -4694,8 +4719,9 @@ function ezSongTick(t, inb) {
   if (i !== S2.cur) {
     if (S2.cur != null && S2.cur < S2.notes.length) { const ok = (S2.hits || 0) >= 6; S2.res[S2.cur] = ok; if (ok) ezStar(); }
     S2.cur = i; S2.hits = 0;
-    if (i >= S2.notes.length) { $('#easyWords').textContent = ''; ezWon(2200); return; }
-    EZ.tgt = S2.notes[i].m; guideOn(EZ.tgt, 0.3); ezSongWords(i);
+    if (i >= S2.notes.length) { ezWon(2200); return; }
+    // a short cue of each note as it arrives; the mic ignores the cue, so only the singer counts
+    EZ.tgt = S2.notes[i].m; ezMute(0.42); playTone(EZ.tgt, 0.38, PURE);
   }
   if (inb) S2.hits = (S2.hits || 0) + 1;
 }
@@ -4703,7 +4729,7 @@ function ezSongTick(t, inb) {
 const PIANO_DEG = [0, 2, 4, 5, 7, 9, 11, 12];
 function ezPianoStart() {
   const n = Object.keys((store.easy || {}).days || {}).length, sg = EASY_SONGS[(n + 1) % EASY_SONGS.length], h = ezHome();
-  EZ.piano = { sg, doM: h - 2, notes: sg.notes.map(([o]) => o), i: 0 };
+  EZ.piano = { sg, doM: h, notes: sg.notes.map(([o]) => o), i: 0 };
   ezPianoDraw();
 }
 function ezPianoDraw() {

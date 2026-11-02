@@ -758,6 +758,15 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(silent.stars === 0 && silent.round === 0 && silent.phase === 'run' && cel.stars === 1 && cel.round === 0 && cel.k === 'updown' && still.cel && still.round === 0, JSON.stringify({ silent, cel, still }));
   });
 
+  await test('First Notes songs: words ride on their notes toward the bird; the cues never earn stars on their own', async page => {
+    await voice(page);
+    await page.evaluate(() => { store.settings = { easyMode: true }; save(); toneVol.connect(analyser); $('#t-easy').click(); easyOpen(['song']); });
+    await page.click('.easy-tile >> nth=1');
+    await page.waitForFunction(() => EZ.phase === 'won' || EZ.phase === 'done', null, { timeout: 60000 });
+    const r = await page.evaluate(() => ({ stars: EZ.stars, colors: EZ.song ? EZ.song.notes.every(n => !!DEG_COLOR[ezDeg(n.m)]) : null }));
+    expect(r.stars === 0, 'stars without singing: ' + JSON.stringify(r));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });
