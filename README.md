@@ -78,6 +78,11 @@ on GitHub Actions after every push.
 
 Lab → Learn from the pros (open from day one). Load a song file you own, or one of your own takes. Everything is analysed on the device: the voice's pitch every 20 ms (from the mid channel, filtered to the voice band), adjusted for the recording's own tuning, split into notes. The graph shows each note as a bar the length it lasts and the voice as a line, with notes more than 25¢ off outlined; tap a bar for that note, drag to move, play along with a moving playhead. Measures: True Tone (% within 20¢, average cents off), flat or sharp lean, vibrato (share of long notes, rate, width), steadiness, note starts (slides), beat (bpm, distance from the beat, feel), key and range, recording tuning. "Save as a pro benchmark" keeps the numbers; "Score my singing like the pros" gives full marks within the pros' typical distance from the note (15–35¢, never stricter than the usual ±15¢). Your own takes are compared with your saved pros.
 
+Three passes:
+1. **Learn the song**: notes, key, tempo and beat; short or half-hidden notes found from fainter readings; off-key bars the voice sits well away from are moved back into the key; repeated lines (6 notes matching in at least 5) vote on the tune, so bars are the learned melody; bars take their intended start and length from a sixteenth-note grid when the beat is clear.
+2. **Check every note** against the learned tune: cents off, early or late, misses (an off-centre note the other times disagree with, shown red) and deliberate variations (a centred note that differs, dashed purple, not counted wrong).
+3. **Fine-tune**: tuning measured from the band's bass line (so flat and sharp are against the band), each note's pitch re-measured with a longer window near the note, tempo re-fitted to the note starts; then re-scored.
+
 ## Your take, note by note
 
 After every song, the results show the same graph as Learn from the pros for your own singing: each note of the song as a bar (its length is how long it lasts, its word underneath), your voice as a line, notes more than 25¢ off outlined with their cents, and ▶ Play to hear your recorded take with the playhead moving along.

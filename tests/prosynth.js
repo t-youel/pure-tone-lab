@@ -4,13 +4,15 @@ window.makeProSong = async function (opts = {}) {
   // [midi, beats, cents off, vibrato, slide-in]
   let mel = [[60,1,0],[62,1,0],[64,1,0],[65,1,0],[67,2,0,1],[69,1,0],[67,1,-40],[65,1,0],[64,1,0],[62,2,0,1],[60,1,0,0,1],[64,1,0],[67,3,0,1]];
   // the hard case: an in-key note sung 60 cents flat, and a quick 80 ms grace note
+  // the tune three times; the third time one note is missed (G sung 70 cents flat) and one is changed on purpose (B instead of D, dead centre)
+  if (opts.repeat) { const one = mel.map(n => n.slice()), three = one.map(n => n.slice()); three[4] = [67, 2, -70, 1]; three[1] = [59, 1, 0]; mel = one.concat(one.map(n => n.slice()), three); }
   if (opts.hard) { mel[8] = [64, 1, -60]; mel.splice(3, 0, [67, 0.15, 0]); }
   const lead = opts.bass ? 3.6 : 1.2, total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
   const off = new OfflineAudioContext(2, Math.ceil(SR * total), SR);
   const vox = off.createGain(); vox.gain.value = 0.5; vox.connect(off.destination);
   let t = lead;
   for (const [m, b, c, vib, slide] of mel) {
-    const f = 440 * Math.pow(2, (m + tune + c / 100 - 69) / 12), d = b * beat * 0.9;
+    const f = 440 * Math.pow(2, (m + tune + (c + (opts.voiceBias || 0)) / 100 - 69) / 12), d = b * beat * 0.9;
     const o = off.createOscillator(); o.setPeriodicWave(off.createPeriodicWave(new Float32Array([0, 1, .5, .35, .2, .12, .08]), new Float32Array(7)));
     if (slide) { o.frequency.setValueAtTime(f * Math.pow(2, -1.5 / 12), t); o.frequency.linearRampToValueAtTime(f, t + 0.18); } else o.frequency.setValueAtTime(f, t);
     if (vib) { const l = off.createOscillator(), lg = off.createGain(); l.frequency.value = 5.5; lg.gain.value = f * 0.02; l.connect(lg); lg.connect(o.frequency); l.start(t + 0.35); l.stop(t + d); }

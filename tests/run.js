@@ -868,7 +868,13 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     // the hard case: a quick grace note the first pass skips, and an in-key note sung 60 cents flat
     const hard = await page.evaluate(async () => { await proLoad(await makeProSong({ hard: true }), 'Hard', 'file'); const a = PRO.an;
       const g = a.notes.find(n => n.fill), e = a.notes.find(n => n.snap);
-      return { pass2: a.pass2, grace: g && { midi: g.midi, len: +(g.t1 - g.t0).toFixed(2) }, flatE: e && { midi: e.midi, c: e.c }, how: $('.pro-how').textContent, centredF: a.notes.filter(n => n.midi === 65 && !n.snap).length }; });
+      return { pass2: a.pass2, grace: g && { midi: g.midi, len: +(g.t1 - g.t0).toFixed(2) }, flatE: e && { midi: e.midi, c: e.c }, how: $('.pro-passes').textContent, centredF: a.notes.filter(n => n.midi === 65 && !n.snap).length }; });
+    // the tune three times: pass 1 learns it from the repeats; pass 2 catches the miss (G sung 70 cents flat) and marks the
+    // deliberate change (B where the other times had D) without counting it wrong
+    const rep3 = await page.evaluate(async () => { await proLoad(await makeProSong({ repeat: true }), 'Repeat', 'file'); const a = PRO.an;
+      return { phrases: a.passes.learn.phrases, grid: a.passes.learn.grid, voted: a.notes.filter(n => n.voted).map(n => [n.midi, n.c]), differs: a.notes.filter(n => n.differs != null).map(n => [n.midi, n.differs]), steps: [...document.querySelectorAll('.pp-step')].map(d => d.dataset.pass).join() }; });
+    // a singer 15 cents flat of the band: pass 3 tunes to the bass and shows it
+    const band = await page.evaluate(async () => { await proLoad(await makeProSong({ bass: true, voiceBias: -15 }), 'Flat of the band', 'file'); const a = PRO.an; return { src: a.passes.fine.tuneSrc, bandTune: a.passes.fine.bandTune, bias: a.sum.bias, card: $('.pro-stat[data-stat="tune"]').textContent }; });
     // with a bass guitar under the voice (and a bass-only intro): bass notes are set aside, the voice is still measured
     const bass = await page.evaluate(async () => { await proLoad(await makeProSong({ bass: true }), 'With bass', 'file'); const a = PRO.an, voice = [60, 62, 64, 65, 67, 69];
       PRO.view = 3; rollDraw(PRO); const g = rollGeom(PRO);
@@ -878,8 +884,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
       && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
       && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp)
-      && hard.pass2.filled >= 1 && hard.grace && hard.grace.midi === 67 && hard.grace.len < 0.12 && hard.flatE && hard.flatE.midi === 64 && hard.flatE.c <= -50 && hard.flatE.c >= -70 && hard.centredF >= 2 && /Second pass: added 1 short/.test(hard.how) && /moved 1 bar/.test(hard.how)
-      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, bass }));
+      && hard.pass2.filled >= 1 && hard.grace && hard.grace.midi === 67 && hard.grace.len < 0.12 && hard.flatE && hard.flatE.midi === 64 && hard.flatE.c <= -50 && hard.flatE.c >= -70 && hard.centredF >= 2 && /Found 1 short or half-hidden note\./.test(hard.how) && /1 note missed the learned tune/.test(hard.how)
+      && rep3.phrases >= 10 && rep3.grid && rep3.voted.length === 1 && rep3.voted[0][0] === 67 && rep3.voted[0][1] <= -55 && rep3.differs.length === 1 && rep3.differs[0].join() === '59,62' && rep3.steps === '1,2,3'
+      && band.src === 'band' && Math.abs(band.bandTune - 10) <= 4 && band.bias <= -10 && band.bias >= -20 && /against the band/.test(band.card)
+      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, rep3, band, bass }));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

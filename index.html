@@ -463,7 +463,12 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
 .pro-pos { width: 100%; accent-color: #3b3fb5; }
-.pro-how { margin: 0; font-size: .88rem; line-height: 1.4; }
+.pro-passes { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border: 1px solid var(--line); }
+.pp-step { display: grid; grid-template-columns: 1.8em 1fr; column-gap: 8px; }
+.pp-step .muted { grid-column: 2; font-size: .88rem; line-height: 1.4; }
+.pp-n { grid-row: span 2; width: 1.6em; height: 1.6em; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 700; font-size: .85rem; }
+.pp-note { margin: 0; font-size: .82rem; }
+.lg-dash { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.5); outline: 2px dashed #7a4fd0; }
 .pro-info { margin: 0; min-height: 1.3em; font-weight: 600; }
 .pro-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
 .pro-legend i { display: inline-block; vertical-align: middle; margin-right: 4px; }
@@ -881,7 +886,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · second pass</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · three passes</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5462,7 +5467,7 @@ async function proLoad(blob, name, kind) {
   const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
   let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
   PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1;
-  const an = await proAnalyze(buf, f => { msg.textContent = 'Listening to every note… ' + Math.round(f * 100) + '%'; });
+  const an = await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; });
   an.name = name; an.kind = kind; PRO.an = an;
   if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
   proRender();
@@ -5471,6 +5476,7 @@ function medArr(a) { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x
 async function proAnalyze(buf, onProg) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
+    if (filt === 'bass') { const off = new OfflineAudioContext(1, Math.ceil(4000 * dur), 4000), src = off.createBufferSource(); src.buffer = buf; let n2 = src; for (const [t, f] of [['highpass', 45], ['lowpass', 200], ['lowpass', 200]]) { const b = off.createBiquadFilter(); b.type = t; b.frequency.value = f; n2.connect(b); n2 = b; } n2.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0); }
     const off = new OfflineAudioContext(1, len, SR), src = off.createBufferSource(); src.buffer = buf; let node = src;
     if (filt) { let n2 = src; for (const f of [250, 250, 250]) { const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = f; n2.connect(hp); n2 = hp; } const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; n2.connect(lp); node = lp; }
     node.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0);
@@ -5599,26 +5605,135 @@ async function proAnalyze(buf, onProg) {
     const devs = notes.map(n => { let d = ((n.t0 - phase) % grid + grid) % grid; if (d > grid / 2) d -= grid; return d * 1000; });
     beat = { bpm: Math.round(60 / period), conf: Math.round(conf * 100) / 100, phase, period, off: Math.round(medArr(devs.map(Math.abs))), feel: Math.round(mean(devs)) };
   }
-  // summary
-  const dsum = notes.reduce((a, n) => a + (n.t1 - n.t0), 0) || 1, wmean = f => notes.reduce((a, n) => a + f(n) * (n.t1 - n.t0), 0) / dsum;
-  const longs = notes.filter(n => n.t1 - n.t0 >= 0.6), vibs = longs.filter(n => n.vib);
-  const sum = {
-    acc20: Math.round(wmean(n => Math.abs(n.c) <= 20 ? 1 : 0) * 100), acc35: Math.round(wmean(n => Math.abs(n.c) <= 35 ? 1 : 0) * 100),
-    avg: Math.round(wmean(n => Math.abs(n.c))), bias: Math.round(wmean(n => n.c)),
-    clean: Math.round(100 * notes.filter(n => Math.abs(n.on - n.c) <= 40).length / notes.length), scoop: Math.round(100 * notes.filter(n => n.on - n.c < -40).length / notes.length),
-    vibShare: longs.length ? Math.round(100 * vibs.length / longs.length) : null, vibRate: vibs.length ? medArr(vibs.map(n => n.vib.rate)) : null, vibWidth: vibs.length ? medArr(vibs.map(n => n.vib.width)) : null,
-    drift: longs.length ? medArr(longs.map(n => n.drift)) : null, lo: Math.min(...notes.map(n => n.midi)), hi: Math.max(...notes.map(n => n.midi)),
+  // ======== Pass 1 (continued): learn the song's melody from its repeats, and its rhythm from the beat ========
+  onProg(0.9, 'Pass 1 of 3: learning the melody from the repeats'); await new Promise(r => setTimeout(r, 0));
+  const learn = { phrases: 0, grid: false };
+  {
+    // Lines come round again (verses, choruses). Where 6 notes in a row match another place in at least 5 of 6, each
+    // place votes for the notes it heard. A note sung off-centre that the other times disagree with is a miss; a note
+    // sung dead-centre but different is a variation, shown but not counted as wrong.
+    const K = 6, sq2 = notes.map(n => n.midi), votes = notes.map(() => new Map()), seen = new Set();
+    for (let i = 0; i + K <= sq2.length; i++) for (let j = 0; j + K <= sq2.length; j++) {
+      if (Math.abs(i - j) < K) continue; let same = 0; for (let k = 0; k < K; k++) if (sq2[i + k] === sq2[j + k]) same++;
+      if (same < K - 1) continue; seen.add(Math.min(i, j) + ':' + Math.max(i, j));
+      for (let k = 0; k < K; k++) votes[i + k].set(sq2[j + k], (votes[i + k].get(sq2[j + k]) || 0) + 1);
+    }
+    learn.phrases = seen.size;
+    notes.forEach((n, i) => {
+      const v = votes[i]; if (!v.size) return; let tot = 0, top = null; for (const [m2, c2] of v) { tot += c2; if (!top || c2 > top[1]) top = [m2, c2]; }
+      n.heard = tot; const own = v.get(n.midi) || 0; // the other times must clearly outvote this note's own pitch
+      if (top[0] === n.midi || top[1] < 2 || top[1] < 0.6 * tot || top[1] < 2 * own || Math.abs(top[0] - n.midi) > 4) return;
+      const md = n.midi + n.c / 100;
+      if (Math.abs(n.c) >= 20 && Math.abs(top[0] - n.midi) <= 2) { n.voted = { from: n.midi }; n.midi = top[0]; n.c = Math.round((md - top[0]) * 100); }
+      else n.differs = top[0];
+    });
+  }
+  // the rhythm: each bar's intended start and length, on a sixteenth-note grid, when the beat is clear
+  const gridify = () => {
+    if (!beat || beat.conf < 0.12) { notes.forEach(n => { n.b0 = n.t0; n.b1 = n.t1; n.dt = null; }); learn.grid = false; return; }
+    const st = beat.period / 4; learn.grid = true;
+    for (const n of notes) {
+      const q0 = beat.phase + Math.round((n.t0 - beat.phase) / st) * st, d = n.t0 - q0;
+      if (Math.abs(d) > st * 0.45) { n.b0 = n.t0; n.b1 = n.t1; n.dt = null; continue; }
+      const q1 = beat.phase + Math.round((n.t1 - beat.phase) / st) * st;
+      n.b0 = q0; n.b1 = Math.max(q0 + st * 0.8, q1); n.dt = Math.round(d * 1000);
+    }
   };
+  gridify();
+  // ======== Pass 2: how they're doing, note by note against what was learned ========
+  onProg(0.93, 'Pass 2 of 3: checking every note'); await new Promise(r => setTimeout(r, 0));
+  const score = () => {
+    const ns = notes, dsum = ns.reduce((a, n) => a + (n.t1 - n.t0), 0) || 1, wmean = f => ns.reduce((a, n) => a + f(n) * (n.t1 - n.t0), 0) / dsum;
+    const longs = ns.filter(n => n.t1 - n.t0 >= 0.6), vibs = longs.filter(n => n.vib), timed = ns.filter(n => n.dt != null);
+    return {
+      acc20: Math.round(wmean(n => Math.abs(n.c) <= 20 ? 1 : 0) * 100), acc35: Math.round(wmean(n => Math.abs(n.c) <= 35 ? 1 : 0) * 100),
+      avg: Math.round(wmean(n => Math.abs(n.c))), bias: Math.round(wmean(n => n.c)),
+      clean: Math.round(100 * ns.filter(n => Math.abs(n.on - n.c) <= 40).length / ns.length), scoop: Math.round(100 * ns.filter(n => n.on - n.c < -40).length / ns.length),
+      vibShare: longs.length ? Math.round(100 * vibs.length / longs.length) : null, vibRate: vibs.length ? medArr(vibs.map(n => n.vib.rate)) : null, vibWidth: vibs.length ? medArr(vibs.map(n => n.vib.width)) : null,
+      drift: longs.length ? medArr(longs.map(n => n.drift)) : null, lo: Math.min(...ns.map(n => n.midi)), hi: Math.max(...ns.map(n => n.midi)),
+      tOff: timed.length >= 4 ? Math.round(medArr(timed.map(n => Math.abs(n.dt)))) : null, tFeel: timed.length >= 4 ? Math.round(mean(timed.map(n => n.dt))) : null,
+      misses: ns.filter(n => n.voted || n.snap).length, differs: ns.filter(n => n.differs != null).length,
+    };
+  };
+  const sum2 = score();
+  // ======== Pass 3: fine-tune ========
+  onProg(0.95, 'Pass 3 of 3: fine-tuning'); await new Promise(r => setTimeout(r, 0));
+  const fine = { tuneSrc: 'voice', remeasured: 0, bpm: beat ? beat.bpm : null };
+  // (a) the band's tuning from the bass line, so "flat" means flat against the band, not just against the singer's average
+  {
+    const B = await render('bass'), BS = 4000, BN = 256, BH = 80, nb = Math.floor((B.length - BN) / BH), bn = new Float64Array(BN + 1), bq = new Float64Array(BN + 1);
+    let pk2 = 0; for (let i = 0; i < B.length; i += 8) pk2 = Math.max(pk2, Math.abs(B[i]));
+    let c2 = 0, s2 = 0, cnt = 0, prev = null;
+    for (let i = 0; i < nb; i++) {
+      const o = i * BH; let e = 0; for (let k = 0; k < BN; k += 2) e = Math.max(e, Math.abs(B[o + k])); if (e < pk2 * 0.15) { prev = null; continue; }
+      bq[0] = 0; for (let k = 0; k < BN; k++) bq[k + 1] = bq[k] + B[o + k] * B[o + k];
+      const lo = Math.floor(BS / 200), hi = Math.floor(BS / 40); let best = -1, bi = -1;
+      for (let t = lo; t <= hi; t++) { let acf = 0; for (let k = 0, e2 = BN - t; k < e2; k++) acf += B[o + k] * B[o + k + t]; const mm = bq[BN - t] + (bq[BN] - bq[t]); bn[t] = mm > 0 ? 2 * acf / mm : 0; if (bn[t] > best) { best = bn[t]; bi = t; } }
+      if (best < 0.85 || bi <= lo || bi >= hi) { prev = null; continue; }
+      const a = bn[bi - 1], b2 = bn[bi], c3 = bn[bi + 1], den = a - 2 * b2 + c3, sh = den ? (a - c3) / (2 * den) : 0, mb = f2m(BS / (bi + sh));
+      if (prev != null && Math.abs(mb - prev) < 0.1) { const ang = 2 * Math.PI * mb; c2 += Math.cos(ang); s2 += Math.sin(ang); cnt++; }
+      prev = mb;
+    }
+    if (cnt >= 60 && Math.hypot(c2, s2) / cnt > 0.6) {
+      const bt = Math.atan2(s2, c2) / (2 * Math.PI); let d = bt - tune; d -= Math.round(d);
+      fine.tuneSrc = 'band'; fine.bandTune = Math.round(bt * 100);
+      if (Math.abs(d) >= 0.02) {
+        for (const n of notes) { const md = n.midi + n.c / 100 - d; n.c = Math.round((md - n.midi) * 100); if (Math.abs(n.c) > 50 && !n.voted) { n.midi = Math.round(md); n.c = Math.round((md - n.midi) * 100); } }
+        for (let i = 0; i < frames; i++) if (am[i] != null) am[i] -= d;
+      }
+      fine.shift = Math.round(d * 100);
+    }
+  }
+  // (b) re-measure each note's pitch with a longer window over its steady middle, searching only near the note
+  {
+    const LN = 1280, lsq = new Float64Array(LN + 1), ln = new Float64Array(LN + 1), tuneNow = fine.tuneSrc === 'band' ? fine.bandTune / 100 : tune;
+    for (const n of notes) {
+      const len = n.t1 - n.t0; if (len < 0.18) continue;
+      const a0 = n.t0 + len * 0.25, a1 = n.t1 - len * 0.25, want = n.midi + n.c / 100 + tuneNow, lagC = SR / (440 * Math.pow(2, (want - 69) / 12));
+      const lo = Math.max(2, Math.floor(lagC * 0.94)), hi = Math.min(LN - 2, Math.ceil(lagC * 1.06)), got = [];
+      for (let t0s = a0; t0s + LN / SR <= a1 + LN / SR / 2 && t0s * SR + LN < x.length; t0s += 0.02) {
+        const o = Math.floor(t0s * SR); lsq[0] = 0; for (let k = 0; k < LN; k++) lsq[k + 1] = lsq[k] + x[o + k] * x[o + k];
+        let best = -1, bi = -1; for (let t = lo - 1; t <= hi + 1; t++) { let acf = 0; for (let k = 0, e = LN - t; k < e; k++) acf += x[o + k] * x[o + k + t]; const mm = lsq[LN - t] + (lsq[LN] - lsq[t]); ln[t] = mm > 0 ? 2 * acf / mm : 0; if (t >= lo && t <= hi && ln[t] > best) { best = ln[t]; bi = t; } }
+        if (best < 0.75) continue;
+        const a = ln[bi - 1], b2 = ln[bi], c3 = ln[bi + 1], den = a - 2 * b2 + c3, sh = den ? (a - c3) / (2 * den) : 0;
+        got.push(f2m(SR / (bi + sh)) - tuneNow);
+      }
+      if (got.length < 2) continue;
+      const nc = Math.round((medArr(got) - n.midi) * 100); if (Math.abs(nc) > 100) continue;
+      if (Math.abs(nc - n.c) >= 3) fine.remeasured++;
+      n.c = nc;
+    }
+  }
+  // (c) tempo and beat from the notes themselves: a straight-line fit of note starts to their grid positions
+  if (beat && learn.grid) {
+    const st = beat.period / 4, pts = notes.filter(n => n.dt != null && Math.abs(n.dt) < st * 300).map(n => [Math.round((n.b0 - beat.phase) / st), n.t0]);
+    if (pts.length >= 8) {
+      const mx = mean(pts.map(q => q[0])), my = mean(pts.map(q => q[1])); let sxy = 0, sxx = 0; for (const [q, t] of pts) { sxy += (q - mx) * (t - my); sxx += (q - mx) ** 2; }
+      const st2 = sxx ? sxy / sxx : st;
+      if (st2 > st * 0.95 && st2 < st * 1.05) {
+        // keep the singer's average feel: the phase follows the band's beat, so re-fit only the step and anchor the grid where it was
+        beat.period = st2 * 4; beat.bpm = Math.round(600 / beat.period) / 10; fine.bpm = beat.bpm;
+        const ph = my - mx * st2 - mean(notes.filter(n => n.dt != null).map(n => n.dt / 1000)); beat.phase = ((ph % beat.period) + beat.period) % beat.period; gridify();
+      }
+    }
+  }
+  const sum = score();
+  const passes = { learn: { notes: notes.length, key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), bpm: beat ? beat.bpm : null, phrases: learn.phrases, grid: learn.grid, filled: pass2.filled },
+    check: { acc20: sum2.acc20, misses: sum2.misses, differs: sum2.differs, snapped: pass2.snapped }, fine: Object.assign(fine, { acc20: sum.acc20, bias: sum.bias }) };
   const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
   const vlo = notes.length ? Math.min(...notes.map(n => n.midi)) : 48, vhi = notes.length ? Math.max(...notes.map(n => n.midi)) : 72;
   for (let i = 0; i < trace.length; i++) if (trace[i] != null && (trace[i] < vlo - 3 || trace[i] > vhi + 3)) trace[i] = null;
-  return { pass2, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
+  return { pass2, passes, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: fine.tuneSrc === 'band' ? fine.bandTune : Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
-  const how = el('p', 'pro-how muted'); how.dataset.card = 'how';
-  how.textContent = 'How the bars are chosen: there\u2019s no sheet music for this song, so each bar is the note the singer was most likely aiming for, the nearest note in the song\u2019s key (' + an.key + '). So small misses show clearly, but a note missed by more than half a step can look like a different note. Second pass: ' + (an.pass2.filled ? 'added ' + an.pass2.filled + ' short or half-hidden note' + (an.pass2.filled > 1 ? 's' : '') : 'no notes were missing') + (an.pass2.snapped ? ', and moved ' + an.pass2.snapped + ' bar' + (an.pass2.snapped > 1 ? 's' : '') + ' back into the key, where the singer was off' : '') + '.';
+  const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
+  const step = (n, title, txt) => { const d = el('div', 'pp-step'); d.dataset.pass = n; d.append(el('span', 'pp-n', String(n)), el('b', '', title), el('span', 'muted', txt)); how.appendChild(d); };
+  step(1, 'Learned the song', P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
+  step(2, 'Checked every note', P.check.acc20 + '% of the singing within 20¢. ' + (P.check.misses ? P.check.misses + ' note' + (P.check.misses > 1 ? 's' : '') + ' missed the learned tune (shown in red). ' : 'No notes missed the learned tune. ') + (P.check.differs ? P.check.differs + ' sung differently from the other times the line came round, on purpose it seems (dashed purple).' : ''));
+  step(3, 'Fine-tuned', (P.fine.tuneSrc === 'band' ? 'Tuned to the band’s bass' + (P.fine.shift ? ' (moved everything ' + (P.fine.shift > 0 ? '+' : '') + P.fine.shift + '¢)' : '') + '. ' : 'No clear bass, so tuned to the singer. ') + (P.fine.remeasured ? 'Re-measured ' + P.fine.remeasured + ' notes more precisely. ' : '') + 'True Tone now ' + P.fine.acc20 + '%.');
+  how.appendChild(el('p', 'muted pp-note', 'Without sheet music the tune is learned from the singing itself, so a note missed by a whole step the same way every time can’t be caught.'));
   out.appendChild(how);
   out.appendChild(proStats(an));
   out.appendChild(proCompare(an));
@@ -5640,7 +5755,7 @@ function rollMount(R, out, o) {
   sl.oninput = () => { const t = sl.value / 10, was = R.playing; if (was) rollStop(R); R.off = t; R.view = Math.max(0, t - rollSpan(R) * 0.25); rollDraw(R); if (was) rollPlay(R); };
   out.appendChild(sl);
   const info = el('p', 'pro-info muted', o.hint); info.id = o.idp + 'Info'; out.appendChild(info); R.info = info;
-  const legend = el('div', 'pro-legend'); legend.innerHTML = '<span><i class="lg-bar"></i> the note (bar length = how long it lasts)</span><span>the voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> within 35¢ · <b class="lg-r">red</b> further off</span><span><i class="lg-off"></i> note more than 25¢ off</span>' + (R.an.inst && R.an.inst.length ? '<span><i class="lg-inst"></i> probably an instrument (not scored)</span>' : '');
+  const legend = el('div', 'pro-legend'); legend.innerHTML = '<span><i class="lg-bar"></i> the note (bar length = how long it lasts)</span><span>the voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> within 35¢ · <b class="lg-r">red</b> further off</span><span><i class="lg-off"></i> note more than 25¢ off</span><span><i class="lg-dash"></i> sung differently from the other times</span>' + (R.an.inst && R.an.inst.length ? '<span><i class="lg-inst"></i> probably an instrument (not scored)</span>' : '');
   out.appendChild(legend);
   rollBind(R);
 }
@@ -5665,7 +5780,7 @@ function rollBind(R) {
     const d = R.drag; R.drag = null; if (!d || d.moved) return;
     const r = cv.getBoundingClientRect(), t = R.view + (e.clientX - r.left - ROLL_L) / ROLL_PX, g = rollGeom(R);
     const m = g.hi - (e.clientY - r.top - g.top) / g.row + 0.5;
-    let best = -1, bd = 1e9; R.an.notes.forEach((n, i) => { if (t >= n.t0 - 0.05 && t <= n.t1 + 0.05) { const dd = Math.abs(n.midi - m); if (dd < bd) { bd = dd; best = i; } } });
+    let best = -1, bd = 1e9; R.an.notes.forEach((n, i) => { const b0 = n.b0 ?? n.t0, b1 = n.b1 ?? n.t1; if (t >= b0 - 0.05 && t <= b1 + 0.05) { const dd = Math.abs(n.midi - m); if (dd < bd) { bd = dd; best = i; } } });
     if (best >= 0) rollSelect(R, best);
   };
 }
@@ -5673,7 +5788,7 @@ window.addEventListener('resize', () => { for (const R of [PRO, TAKE]) if (R.an 
 function rollSelect(R, i) {
   const n = R.an.notes[i]; R.sel = i; const was = R.playing; rollStop(R); R.off = n.t0; rollDraw(R);
   const off = n.c == null ? 'not heard' : Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
-  R.info.textContent = (n.word ? '“' + n.word + '” · ' : '') + nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on != null && n.c != null ? (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '') + (n.snap ? ' · checked against the key' : '') + (n.fill ? ' · found on the second pass' : '');
+  R.info.textContent = (n.word ? '“' + n.word + '” · ' : '') + nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on != null && n.c != null ? (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '') + (n.dt != null && Math.abs(n.dt) > 30 ? ' · ' + Math.abs(n.dt) + ' ms ' + (n.dt > 0 ? 'late' : 'early') : '') + (n.voted ? ' · the other times this line came round, it was ' + nameOf(n.midi) : '') + (n.differs != null ? ' · sung differently from the other times (usually ' + nameOf(n.differs) + '), on purpose it seems' : '') + (n.snap ? ' · checked against the key' : '') + (n.fill ? ' · a short or half-hidden note' : '');
   if (was) rollPlay(R);
 }
 function rollGeom(R) {
@@ -5707,11 +5822,12 @@ function rollDraw(R) {
   }
   if (an.beat && an.beat.conf >= 0.08) { g.strokeStyle = line; g.globalAlpha = 0.5; for (let t = an.beat.phase + Math.ceil((R.view - an.beat.phase) / an.beat.period) * an.beat.period; t < t1v; t += an.beat.period) { g.beginPath(); g.moveTo(X(t), G.top); g.lineTo(X(t), H - 8); g.stroke(); } g.globalAlpha = 1; }
   an.notes.forEach((n, i) => {
-    if (n.t1 < R.view || n.t0 > t1v) return;
-    const x0 = Math.max(L, X(n.t0)), x1 = X(n.t1), yy = y(n.midi), bh = Math.max(6, G.row * 0.72), off = n.c != null && Math.abs(n.c) > 25;
+    const b0 = n.b0 ?? n.t0, b1 = n.b1 ?? n.t1; if (b1 < R.view || b0 > t1v) return;
+    const x0 = Math.max(L, X(b0)), x1 = X(b1), yy = y(n.midi), bh = Math.max(6, G.row * 0.72), off = n.c != null && Math.abs(n.c) > 25;
     g.globalAlpha = n.c == null ? 0.35 : 1;
     g.fillStyle = 'rgba(240,151,58,.5)'; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
     if (off || i === R.sel) { g.strokeStyle = i === R.sel ? ink : '#d0533f'; g.lineWidth = 2; g.stroke(); }
+    else if (n.differs != null) { g.save(); g.setLineDash([4, 3]); g.strokeStyle = '#7a4fd0'; g.lineWidth = 2; g.stroke(); g.restore(); }
     g.globalAlpha = 1;
     if (off && x1 - x0 > 26) { g.fillStyle = '#d0533f'; g.font = '700 10px system-ui, sans-serif'; g.textBaseline = 'bottom'; g.fillText((n.c > 0 ? '+' : '') + n.c + '¢', x0 + 2, yy - bh / 2 - 1); g.textBaseline = 'middle'; }
     if (n.word && x1 - x0 > 18 && G.row >= 9) { g.fillStyle = muted; g.font = '600 10px system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText(n.word, x0 + 2, yy + bh / 2 + 1); g.textBaseline = 'middle'; }
@@ -5719,7 +5835,7 @@ function rollDraw(R) {
   for (const n of an.inst || []) { if (n.t1 < R.view || n.t0 > t1v || n.midi < G.lo || n.midi > G.hi) continue; const x0 = Math.max(L, X(n.t0)), bh = Math.max(5, G.row * 0.5); g.fillStyle = 'rgba(140,145,170,.35)'; g.fillRect(x0, y(n.midi) - bh / 2, Math.max(3, X(n.t1) - x0), bh); }
   const i0 = Math.max(0, Math.floor((R.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
   // which note each moment belongs to, for colouring the line by accuracy
-  let ni = 0; const noteAt = t => { while (ni < an.notes.length && an.notes[ni].t1 < t) ni++; const n = an.notes[ni]; return n && t >= n.t0 && t <= n.t1 ? n : null; };
+  let ni = 0; const noteAt = t => { while (ni < an.notes.length && Math.max(an.notes[ni].t1, an.notes[ni].b1 ?? 0) < t) ni++; for (let k = ni; k < Math.min(an.notes.length, ni + 2); k++) { const n = an.notes[k]; if (t >= Math.min(n.t0, n.b0 ?? n.t0) && t <= Math.max(n.t1, n.b1 ?? n.t1)) return n; } return null; };
   const colOf = (v, t) => { const n = noteAt(t); if (!n) return muted; const c = Math.abs((v - n.midi) * 100); return c <= 20 ? '#1f9d55' : c <= 35 ? '#d9a400' : '#d0533f'; };
   const pts = []; for (let i = i0; i <= i1; i++) { const v = an.trace[i]; const t = an.t0f + i * an.hop, px = X(t); pts.push(v == null || v < G.lo - 1 || v > G.hi + 1 || px < L ? null : { x: px, y: y(v), col: colOf(v, t) }); }
   g.lineJoin = 'round'; g.lineCap = 'round';
@@ -5766,9 +5882,10 @@ function proStats(an) {
   card('vib', 'Vibrato', s2.vibShare == null ? '–' : s2.vibShare + '%', s2.vibRate ? 'of long notes · ' + s2.vibRate + ' wobbles a second, ±' + s2.vibWidth + '¢' : 'No long notes with vibrato');
   card('steady', 'Steadiness', s2.drift == null ? '–' : '±' + s2.drift + '¢', 'How much long notes drift (vibrato not counted)');
   card('starts', 'Note starts', s2.clean + '%', 'start right on the note' + (s2.scoop ? ' · ' + s2.scoop + '% slide up into it' : ''));
-  card('beat', 'Beat', an.beat ? an.beat.bpm + ' bpm' : '–', an.beat ? (an.beat.conf < 0.08 ? 'The beat isn’t clear in this recording' : 'Notes land ' + an.beat.off + ' ms from the beat · ' + (Math.abs(an.beat.feel) <= 40 ? 'right on it' : an.beat.feel > 0 ? 'a laid-back feel, just behind' : 'pushing, just ahead')) : 'Too short to find a beat');
+  const tOff = s2.tOff ?? (an.beat && an.beat.off), tFeel = s2.tFeel ?? (an.beat && an.beat.feel);
+  card('beat', 'Beat', an.beat ? an.beat.bpm + ' bpm' : '–', an.beat ? (an.beat.conf < 0.08 || tOff == null ? 'The beat isn\u2019t clear in this recording' : 'Notes land ' + tOff + ' ms from the beat · ' + (Math.abs(tFeel) <= 40 ? 'right on it' : tFeel > 0 ? 'a laid-back feel, just behind' : 'pushing, just ahead')) : 'Too short to find a beat');
   card('key', 'Key and range', an.key, nameOf(an.lo) + ' – ' + nameOf(an.hi) + ' · ' + (an.hi - an.lo) + ' semitones');
-  card('tune', 'Recording tuning', (an.tune > 0 ? '+' : '') + an.tune + '¢', Math.abs(an.tune) <= 10 ? 'Standard pitch (A = 440)' : 'Off standard pitch; the notes are measured from the singer’s own tuning');
+  card('tune', 'Recording tuning', (an.tune > 0 ? '+' : '') + an.tune + '¢', (Math.abs(an.tune) <= 10 ? 'Standard pitch (A = 440). ' : 'Off standard pitch. ') + (an.passes.fine.tuneSrc === 'band' ? 'Measured from the band\u2019s bass, so flat and sharp are against the band.' : 'No clear bass line, so measured from the singer\u2019s own tuning.'));
   return grid;
 }
 // pro benchmarks: what real singers do, so scores can be fair rather than machine-perfect
