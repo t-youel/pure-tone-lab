@@ -74,6 +74,14 @@ The microphone path runs through a narrow notch filter at the guide's frequency,
 without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
 on GitHub Actions after every push.
 
+## Find your singing home
+
+Lab → Find your singing home (1 minute). Count to ten in your talking voice (its pitch is measured), then sing "ah" up a ladder of whole steps from just under it, and back down, each note on the moving graph with your talking voice marked. Each note is scored for pitch, steadiness and a clear tone; it stops after two misses (or "That's my top"). The comfortable zone is the longest run of good notes, the sweet spot its best-scored middle. Most voices sing best a few notes (often 3 to 7 semitones) above where they talk. The zone sets the key for songs (profile zlo/zhi) and the sweet spot is where the workout starts.
+
+## Singer's daily workout
+
+Lab → Singer's daily workout (about 10 minutes), four scored parts on the same moving graph: Breath and body (release cues, then one long hum on your home note: how long and how steady); Muscles (a five-note scale up and down on "ah", three rounds a step higher each: accuracy and your top comfortable note); Ear (hear three notes, imagine them in the silence, then sing them with no starting note); Your voice's home (a line of Twinkle in your key with your talking voice marked). The summary shows each score against last time and the area with most room to grow; the workout page shows each area over the last seven workouts.
+
 ## Learn from the pros
 
 Lab → Learn from the pros (open from day one). Load a song file you own, or one of your own takes. Everything is analysed on the device: the voice's pitch every 20 ms (from the mid channel, filtered to the voice band), adjusted for the recording's own tuning, split into notes. The graph shows each note as a bar the length it lasts and the voice as a line, with notes more than 25¢ off outlined; tap a bar for that note, drag to move, play along with a moving playhead. Measures: True Tone (% within 20¢, average cents off), flat or sharp lean, vibrato (share of long notes, rate, width), steadiness, note starts (slides), beat (bpm, distance from the beat, feel), key and range, recording tuning. "Save as a pro benchmark" keeps the numbers; "Score my singing like the pros" gives full marks within the pros' typical distance from the note (15–35¢, never stricter than the usual ±15¢). Your own takes are compared with your saved pros.

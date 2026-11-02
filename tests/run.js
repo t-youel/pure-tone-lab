@@ -633,7 +633,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('.tour-all summary'); await page.click('.tour-row[data-item="lab-match"] button');
     const opened = await page.evaluate(() => D.id);
     expect(s.screen === 'tour' && s.stages.length === 4 && /You are here/.test(s.stages[0].badge) && /After Stage 1/.test(s.stages[1].badge) && s.stages[1].dis && !s.stages[0].dis
-      && s.stages.every(x => x.learn.length > 20 && x.units >= 2) && s.tiles === 'session,songs,tutor,pro,lab,range,progress,easy' && s.tutorLocked && s.folded
+      && s.stages.every(x => x.learn.length > 20 && x.units >= 2) && s.tiles === 'session,songs,tutor,workout,home,pro,lab,range,progress,easy' && s.tutorLocked && s.folded
       && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
@@ -983,6 +983,38 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     });
     expect(Math.abs(r.lag + 0.37) < 0.002 && Math.abs(r.gain - 1.18) < 0.05 && r.removed >= 20 && r.inst === 0 && r.before.inst >= 3 && r.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && r.flat <= -35 && r.flat >= -45
       && /almost all of the band/.test(r.card) && /his voice alone/.test(r.pass1) && r.alone && r.band && r.oct === -12 && r.clef, JSON.stringify(r));
+  });
+
+  await test('Find your singing home: talk, then a ladder of notes up and down from the talking voice; the comfortable zone and sweet spot sit several notes above it and set the key for songs', async page => {
+    await voice(page); await setLevel(page, 1);
+    // a singer who talks around C3 (48) and sings comfortably from G#2 to D4 (44 to 62)
+    await page.evaluate(() => { setInterval(() => {
+      if (WO.phase === 'talk') { V.on = true; V.m = 48 + Math.sin(performance.now() / 200) * 1.5; return; }
+      if (WO.phase !== 'turn' || !WO.cap || !WO.cap.notes) { V.on = false; return; } const t = ac.currentTime - WO.start, n = WO.cap.notes.find(x => t >= x.a && t <= x.b - 0.03);
+      V.on = !!n && n.midi >= 44 && n.midi <= 62; if (n) V.m = n.midi; }, 15); });
+    await page.evaluate(() => openLab('home'));
+    await page.click('#woBox [data-act="home-go"]');
+    await page.waitForFunction(() => store.home && $('#woRes .home-ladder'), null, { timeout: 120000 });
+    const r = await page.evaluate(() => ({ home: store.home, p: { zlo: store.profile.zlo, zhi: store.profile.zhi, natural: store.profile.natural }, head: $('#woRes .cheer-big').textContent, rows: document.querySelectorAll('#woRes .hl-row').length, sweetRow: $('#woRes .hl-row.sweet .hl-note').textContent, speakRow: !!$('#woRes .hl-row.speak'), mark: WO.R.an.marks.length }));
+    expect(Math.abs(r.home.speak - 48) <= 1 && r.home.zlo <= 45 && r.home.zhi >= 61 && r.home.zhi <= 62 && r.home.sweet - r.home.speak >= 3 && r.home.sweet - r.home.speak <= 8
+      && r.p.zlo === r.home.zlo && r.p.zhi === r.home.zhi && r.p.natural === r.home.sweet && /notes above your talking voice/.test(r.head) && r.rows >= 10 && r.speakRow && r.mark === 1, JSON.stringify(r));
+  });
+
+  await test('Singer’s daily workout: breath and body, muscles, ear, your voice’s home, each scored; summary against last time and the area with most room to grow; progress per area', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.home = { speak: 48, zlo: 45, zhi: 61, sweet: 53, at: 1 }; store.profile = { low: 43, high: 63, natural: 53, type: 'Baritone', zlo: 45, zhi: 61, speak: 48 }; store.workouts = [{ at: 1, areas: { breath: 40, muscle: 60, ear: 50, home: 70 } }]; save(); WO.fast = true;
+      // follows each exercise; holds the hum for about 8 seconds; the ear patterns are sung a little flat on the last note
+      setInterval(() => { if (WO.phase !== 'turn' || !WO.cap || !WO.cap.notes) { V.on = false; return; } const t = ac.currentTime - WO.start, ns = WO.cap.notes, n = ns.find(x => t >= x.a && t <= x.b - 0.03);
+        V.on = !!n && !(ns.length === 1 && t > 8); if (n) V.m = n.midi; }, 15); });
+    await page.evaluate(() => openLab('workout'));
+    const intro = await page.evaluate(() => ({ prog: document.querySelectorAll('#woBox .wo-area').length, tip: !!$('#woBox .wo-tip') }));
+    await page.click('#woBox [data-act="wo-go"]');
+    const seen = new Set(); const t0 = Date.now();
+    while (Date.now() - t0 < 150000) { const st = await page.evaluate(() => ({ now: ($('#woBox .wo-step.now') || {}).dataset?.area, done: !!$('#woBox .wo-sum') })); if (st.now) seen.add(st.now); if (st.done) break; await page.waitForTimeout(400); }
+    const r = await page.evaluate(() => ({ w: store.workouts[store.workouts.length - 1], n: store.workouts.length, sum: [...document.querySelectorAll('#woBox .wo-sc')].map(c => c.textContent), focus: ($('#woBox .wo-focus') || {}).textContent, prog: document.querySelectorAll('#woBox .wo-area').length }));
+    const a = r.w.areas;
+    expect(intro.prog === 4 && !intro.tip && [...seen].join() === 'breath,muscle,ear,home' && r.n === 2 && a.breath >= 50 && a.muscle >= 80 && a.ear >= 80 && a.home >= 80
+      && r.sum.length === 4 && /since last time/.test(r.sum.join(' ')) && /Most room to grow/.test(r.focus) && r.prog === 4, JSON.stringify({ seen: [...seen], r }));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {

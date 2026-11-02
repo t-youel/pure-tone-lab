@@ -475,6 +475,28 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .ls-why summary { cursor: pointer; font-size: .85rem; color: var(--accent); } .ls-why p { margin: 4px 0 0; font-size: .86rem; }
 .ls-go { width: 100%; min-height: 52px; font-size: 1.08rem; }
 .ls-small { justify-content: center; }
+.wo-box { display: grid; gap: 14px; }
+.wo-card { display: grid; gap: 10px; } .wo-card h3, .wo-card p { margin: 0; }
+.wo-tip { padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.wo-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.wo-step { font-size: .82rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.wo-step.now { border-color: var(--accent); color: var(--ink); font-weight: 700; }
+.wo-title { font: 700 1.2rem var(--display); } .wo-say { font-size: 1.05rem; line-height: 1.45; }
+.wo-roll { display: grid; gap: 6px; } .wo-roll .pro-roll { height: min(300px, 42vh); }
+.lg-mark { width: 22px; height: 0; border-top: 2px dashed #7a4fd0; }
+.wo-prog { display: grid; gap: 6px; } .wo-area { display: grid; grid-template-columns: 11em 1fr 3.5em; gap: 8px; align-items: end; }
+.wo-bars { display: flex; gap: 3px; align-items: flex-end; height: 34px; } .wo-bars i { flex: 1; max-width: 22px; background: var(--accent); border-radius: 3px 3px 0 0; opacity: .8; } .wo-bars i.skip { background: var(--line); }
+.wo-v { text-align: right; font-variant-numeric: tabular-nums; }
+.wo-sum { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.wo-sc { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); } .wo-sc b { font: 700 1.6rem var(--display); }
+.wo-focus { font-weight: 600; }
+.home-ladder { display: grid; gap: 2px; max-width: 420px; }
+.hl-row { display: grid; grid-template-columns: 3.5em 6em 1fr; gap: 8px; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: .92rem; }
+.hl-row.zone { background: color-mix(in srgb, var(--pure) 22%, var(--surface)); }
+.hl-row.sweet { background: color-mix(in srgb, var(--pure) 45%, var(--surface)); font-weight: 700; }
+.hl-row.speak { outline: 2px dashed #7a4fd0; }
+.hl-note { font-variant-numeric: tabular-nums; } .hl-tag { color: var(--muted); font-size: .85rem; }
+@media (max-width: 600px) { .wo-area { grid-template-columns: 8.5em 1fr 3em; } }
 .ls-opts { display: grid; gap: 6px; }
 .ls-opts .guide-tog { display: flex; gap: 8px; align-items: center; }
 .ls-livebox { display: grid; gap: 6px; }
@@ -938,7 +960,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · his voice alone, live view</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · daily workout, singing home</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1019,6 +1041,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
     </div>
     <div id="labSlot"></div>
     <div id="proBox" class="pro-box" hidden></div>
+    <div id="woBox" class="wo-box" hidden></div>
   </div>
 </section>
 
@@ -3351,6 +3374,8 @@ const LAB = [
   { id: 'band', kind: 'drill', title: 'Voice Tutor: sing with the band', tags: ['Voice Tutor', 'Songs'], time: '5–15 min', blurb: 'Pick a popular song and sing it with a band. Your tutor tells you what went well, builds a lesson for the tricky parts, then sends you back to the band to try again.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
+  { id: 'workout', kind: 'workout', title: 'Singer’s daily workout', tags: ['Daily', 'Breath', 'Ear'], time: '10 min', blurb: 'Breath and body, the muscles that move your pitch, your ear, and your voice’s home: four parts that grow together, each scored so you can watch them improve.' },
+  { id: 'home', kind: 'home', title: 'Find your singing home', tags: ['Range'], time: '1 min', blurb: 'Talk, then sing up a ladder from your talking voice. Find the comfortable zone a few notes above it, and your sweet spot.' },
   { id: 'pro', kind: 'pro', title: 'Learn from the pros', tags: ['Listening', 'True Tone'], time: 'any', blurb: 'Load a song by a singer you love and see how they carry the True Tone: every note as a bar, their voice as a line, plus vibrato, beat and how flat or sharp they lean. Look at your own takes the same way.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
 ];
@@ -3403,7 +3428,7 @@ function openLab(id, fromPath) {
   if ($('#tab-lab').hidden) { $('#t-lab').click(); }
   $('#labHome').hidden = true; $('#labStage').hidden = false;
   $('#lsTitle').textContent = L.title; $('#lsTags').textContent = L.tags.join(' · ') + ' · ' + L.time;
-  $('#drillBox').hidden = L.kind !== 'drill'; $('#labSlot').hidden = L.kind === 'drill' || L.kind === 'pro'; $('#proBox').hidden = L.kind !== 'pro'; proStop();
+  $('#drillBox').hidden = L.kind !== 'drill'; $('#labSlot').hidden = L.kind === 'drill' || L.kind === 'pro' || L.kind === 'workout' || L.kind === 'home'; $('#proBox').hidden = L.kind !== 'pro'; proStop(); $('#woBox').hidden = L.kind !== 'workout' && L.kind !== 'home'; woStop();
   $('#tab-listen').hidden = L.kind !== 'explore';
   if (L.kind === 'song') { placeSingCard('lab'); loadSong(SONGS.find(x => x.id === L.song)); }
   else placeSingCard('sing');
@@ -3411,6 +3436,8 @@ function openLab(id, fromPath) {
   $('#dExtra').textContent = '';
   if (L.kind === 'drill') { $('#dResult').hidden = true; $('#lane').hidden = false; DRILLS[id].start(); }
   if (L.kind === 'pro') proStart();
+  if (L.kind === 'workout') workoutStart();
+  if (L.kind === 'home') homeStart();
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
 function guidePref() { return !!(store.settings && store.settings.guide) && !ASSESS.on; }
@@ -3421,7 +3448,7 @@ function guideToggle(text) {
   return lab;
 }
 function closeLab() {
-  D.run = null; guideOff(); proStop(); $('#proBox').hidden = true;
+  D.run = null; guideOff(); proStop(); $('#proBox').hidden = true; woStop(); $('#woBox').hidden = true;
   const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
   if (back) $('#t-home').click();
 }
@@ -4590,7 +4617,7 @@ function seedTries() {
   store.triesSeeded = true; dirty = true;
 }
 // When each Lab exercise opens (by stage). Songs are all open.
-const LAB_LEVEL = { pro: 1, band: 2, exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const LAB_LEVEL = { workout: 1, home: 1, pro: 1, band: 2, exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
 const SONG_LEVEL = {};
 // The stage of the furthest open unit. Panels and Lab exercises open by stage.
 const level = () => store.unlockAll || isTester() ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
@@ -5852,7 +5879,7 @@ function rollBind(R) {
     if (best >= 0) rollSelect(R, best);
   };
 }
-window.addEventListener('resize', () => { for (const R of [PRO, TAKE, LSR]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
+window.addEventListener('resize', () => { for (const R of [PRO, TAKE, LSR, WO.R]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
 function rollSelect(R, i) {
   const n = R.an.notes[i]; R.sel = i; const was = R.playing; rollStop(R); R.off = n.t0; rollDraw(R);
   const off = n.c == null ? 'not heard' : Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
@@ -5902,6 +5929,7 @@ function rollDraw(R) {
   });
   for (const n of an.inst || []) { if (n.t1 < R.view || n.t0 > t1v || n.midi < G.lo || n.midi > G.hi) continue; const x0 = Math.max(L, X(n.t0)), bh = Math.max(5, G.row * 0.5); g.fillStyle = 'rgba(140,145,170,.35)'; g.fillRect(x0, y(n.midi) - bh / 2, Math.max(3, X(n.t1) - x0), bh); }
   const i0 = Math.max(0, Math.floor((R.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
+  for (const mk of an.marks || []) { if (mk.m < G.lo - 0.5 || mk.m > G.hi + 0.5) continue; g.save(); g.setLineDash([6, 4]); g.strokeStyle = '#7a4fd0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(L, y(mk.m)); g.lineTo(W, y(mk.m)); g.stroke(); g.restore(); g.fillStyle = '#7a4fd0'; g.font = '600 10px system-ui, sans-serif'; g.textBaseline = 'bottom'; g.fillText('💬 ' + mk.label, L + 4, y(mk.m) - 2); g.textBaseline = 'middle'; }
   if (an.ref) {
     g.strokeStyle = 'rgba(122,79,208,.6)'; g.lineWidth = 3; g.lineJoin = 'round'; g.beginPath(); let on2 = false;
     for (let i = 0; i < an.ref.length; i++) { const v = an.ref[i], px = X(an.t0f + i * an.hop); if (v == null || px < L || px > W || v < G.lo - 1 || v > G.hi + 1) { on2 = false; continue; } if (!on2) { g.moveTo(px, y(v)); on2 = true; } else g.lineTo(px, y(v)); }
@@ -6427,6 +6455,226 @@ function lsShowResult(notes, sm, R, ex) {
   res.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note</span><span><i class="lg-his"></i> his voice</span><span>your voice: <b class="lg-g">green</b> within 20¢ · <b class="lg-y">gold</b> 35¢ · <b class="lg-r">red</b> further</span>';
   const box = $('#lsRes'); if (box) { box.textContent = ''; box.appendChild(res); } setTimeout(() => rollDraw(LSR), 0);
 }
+// ---------- Singing with the moving graph: shared by Find your singing home and the daily workout ----------
+// One way of singing everywhere: the notes are bars moving past the playhead, your voice is drawn live (green on the
+// note, gold close, red off). Any button stops what's running cleanly.
+const WO = { gen: 0, pending: [], R: { an: null }, busy: false, phase: 'idle', start: 0, cap: null };
+const woWait = setup => new Promise(res => { let done = false; const fin = v => { if (done) return; done = true; WO.pending = WO.pending.filter(f => f !== fin); res(v); }; WO.pending.push(fin); setup(fin); });
+function woStop() { WO.gen++; WO.busy = false; const p = WO.pending; WO.pending = []; p.forEach(f => f(null)); WO.phase = 'idle'; stopTicks(); guideOff(true); rollStop(WO.R); }
+const woSleep = ms => woWait(fin => setTimeout(() => fin(true), ms));
+// mount the graph for a set of notes [{midi, a, b, word?}] (seconds from the start); marks: [{m, label}] dashed reference lines
+function woRoll(box, notes, title, marks) {
+  const lead = 0.4, hop = 0.02, dur = notes[notes.length - 1].b + lead + 0.6, n = Math.ceil(dur / hop), ms = notes.map(x => x.midi).concat((marks || []).map(k => Math.round(k.m)));
+  const ns = notes.map(x => ({ t0: x.a + lead, t1: x.b + lead, b0: x.a + lead, b1: x.b + lead, midi: x.midi, c: 0, word: x.word || '' }));
+  rollStop(WO.R); Object.assign(WO.R, { an: { dur, notes: ns, trace: new Array(n).fill(null), hop, t0f: hop / 2, lo: Math.min(...ms), hi: Math.max(...ms), marks: marks || [] }, buf: null, lead });
+  box.textContent = ''; rollMount(WO.R, box, { title, idp: 'wo', hint: 'Your voice is drawn as you sing: green on the note, gold close, red off.', noAudio: '' });
+  box.querySelector('.pro-head button.primary').hidden = true; box.querySelector('.pro-head button.small').hidden = true; box.querySelector('.pro-pos').hidden = true;
+  box.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note to sing</span><span>you: <b class="lg-g">green</b> on it · <b class="lg-y">gold</b> close · <b class="lg-r">red</b> off</span>' + (marks && marks.length ? '<span><i class="lg-mark"></i> ' + marks[0].label + '</span>' : '');
+  setTimeout(() => rollDraw(WO.R), 0);
+}
+function woDraw(t, m, fold) {
+  const R = WO.R, an = R.an; if (!an) return; const tt = t + R.lead, k = Math.floor(tt / an.hop);
+  if (m != null && k >= 0 && k < an.trace.length) { const nn = an.notes.find(x => tt >= x.t0 - 0.15 && tt <= x.t1 + 0.15); an.trace[k] = nn && fold ? nn.midi + ((((m - nn.midi) % 12) + 18) % 12) - 6 : m; }
+  R.off = Math.max(0, tt); R.view = Math.max(0, tt - rollSpan(R) * 0.3); rollDraw(R);
+}
+// play the notes as clean tones, the playhead moving along the bars
+function woPreview(notes) {
+  return woWait(fin => { let t = 0.15; const oscs = notes.map(n => playedNote(n.midi, (n.b - n.a) * 0.92, t + n.a)); const t0 = ac.currentTime + t, end = notes[notes.length - 1].b;
+    WO.pending.push(() => oscs.forEach(o => { try { o.stop(); } catch (e) {} }));
+    const iv = setInterval(() => { const tt = ac.currentTime - t0; woDraw(tt, null); if (tt > end + 0.2) { clearInterval(iv); fin(true); } }, 30); WO.pending.push(() => clearInterval(iv)); });
+}
+// sing the notes: count-in (and the first note, unless o.noStart), then capture; returns samples [{t, m}]
+function woSing(notes, o = {}) {
+  const beat = o.beat || 0.6, live = $('#woLive');
+  const clicks = o.clicks ?? 4; for (let k = 0; k < clicks; k++) click(0.1 + k * beat, k === 0);
+  if (!o.noStart) playTone(notes[0].midi, Math.max(0.6, clicks * beat - 0.35), PIPE, 0.1);
+  WO.start = ac.currentTime + 0.1 + clicks * beat; WO.phase = 'turn'; WO.cap = { notes }; const sm = [], end = notes[notes.length - 1].b;
+  return woWait(fin => {
+    const iv = setInterval(() => {
+      const t = ac.currentTime - WO.start;
+      if (t < 0) { if (live) live.textContent = (o.noStart ? 'Hear it in your head… ' : 'Get ready… ') + Math.ceil(-t / beat); return; }
+      const m = S.voiced && S.midi != null ? S.midi : null; if (m != null) { sm.push({ t, m }); WO.lastV = t; } woDraw(t, m, o.fold !== false);
+      if (o.endOnSilence && sm.length > 25 && t - WO.lastV > 1.2) { clearInterval(iv); WO.phase = 'idle'; return fin(sm); }
+      const cur = notes.find(n => t >= n.a && t < n.b); if (live) live.textContent = '🎤 ' + (o.say || 'Sing') + (cur ? ' · ' + (cur.word ? cur.word + ' · ' : '') + nameOf(cur.midi) : '');
+      if (t > end + (o.tail ?? 0.6)) { clearInterval(iv); WO.phase = 'idle'; fin(sm); }
+    }, 20);
+    WO.pending.push(() => { clearInterval(iv); WO.phase = 'idle'; });
+  });
+}
+const woHome = () => { const h = store.home; if (h) return h.sweet; const p = store.profile; return p ? Math.round(p.natural ?? (p.low + p.high) / 2 + 2) : 55; };
+const woSpeak = () => (store.home && store.home.speak) ?? (store.profile && store.profile.speak != null ? Math.round(store.profile.speak) : null);
+
+// ---------- Find your singing home: from your talking voice up the ladder ----------
+// Most people's comfortable singing notes sit a few notes (often 3 to 7 semitones) above their talking voice. Talk,
+// then climb a ladder of notes from there, up and then down: each note is scored for pitch, steadiness and a free tone,
+// and the comfortable zone and its sweet spot set the key for your songs.
+function homeStart() {
+  woStop(); const box = $('#woBox'); box.textContent = '';
+  const c = el('div', 'wo-card'); box.appendChild(c);
+  c.append(el('h3', '', '🔎 Find your singing home'), el('p', '', 'Your singing voice usually sits a few notes above your talking voice. First talk for a few seconds, then sing up a ladder of notes from there, and back down. About a minute.'),
+    el('p', 'muted', 'Sing every note on an easy, open "ah". Stop wherever it starts to feel tight: comfort is what we’re measuring, not how high you can squeeze.'));
+  const live = el('p', 'ls-live', ''); live.id = 'woLive'; const go = el('button', 'primary ls-go', '💬 Start: talk for a few seconds'); go.dataset.act = 'home-go';
+  const top = el('button', 'small', '✋ That’s my top'); top.dataset.act = 'home-top'; top.hidden = true; top.onclick = () => { WO.stopUp = true; };
+  const roll = el('div', 'wo-roll'); roll.id = 'woRoll'; const res = el('div', 'wo-res'); res.id = 'woRes';
+  c.append(go, top, live, roll, res);
+  go.onclick = async () => { if (!(await ensureListening())) return; await ensureAudio(); go.hidden = true; top.hidden = false; const r = await homeRun(); top.hidden = true; go.hidden = false; go.textContent = '↻ Do it again'; if (r) homeShow(r); };
+}
+async function homeRun() {
+  woStop(); const g = WO.gen, gone = () => WO.gen !== g, live = $('#woLive'); WO.busy = true; WO.stopUp = false;
+  // 1. talk
+  live.textContent = '💬 Count from one to ten out loud, in your normal talking voice.'; WO.phase = 'talk'; WO.cap = { talk: true };
+  const talk = await woWait(fin => { const v = [], t0 = performance.now(); const iv = setInterval(() => { if (S.voiced && S.midi != null) v.push(S.midi); const s2 = (performance.now() - t0) / 1000; live.textContent = '💬 Count from one to ten out loud… ' + Math.max(0, Math.ceil(7 - s2)); if (s2 > 7) { clearInterval(iv); fin(v); } }, 30); WO.pending.push(() => clearInterval(iv)); });
+  WO.phase = 'idle'; if (!talk || gone()) return null;
+  const speak = talk.length >= 40 ? Math.round(medArr(talk)) : woSpeak() ?? 50;
+  // 2. the ladder: whole steps up from just under the talking note, then down
+  const steps = [], tryNote = async (m) => {
+    const notes = [{ midi: m, a: 0, b: 2.2 }]; woRoll($('#woRoll'), notes, 'Sing ' + nameOf(m) + ' on "ah"', [{ m: speak, label: 'your talking voice' }]);
+    const sm = await woSing(notes, { clicks: 2, beat: 0.5, fold: false, tail: 0.2, say: 'Ah' }); if (!sm) return null;
+    const v = sm.filter(q => q.t > 0.5 && q.t < 2.2).map(q => q.m);
+    if (v.length < 25) return { m, ok: false, why: 'not heard' };
+    const c = (medArr(v) - m) * 100, mu = mean(v), sd = Math.sqrt(mean(v.map(x => (x - mu) ** 2))) * 100, oct = Math.abs(Math.abs(c) - 1200) < 80;
+    const ok = Math.abs(c) <= 45 && sd <= 35 && S.clar >= 0.55;
+    return { m, ok, c: Math.round(c), sd: Math.round(sd), oct, score: Math.round(100 * clamp(1 - Math.max(0, Math.abs(c) - 15) / 60) * clamp(1 - Math.max(0, sd - 12) / 40)) };
+  };
+  let fails = 0;
+  for (let m = speak - 1; m <= speak + 17 && !WO.stopUp; m += 2) { const r = await tryNote(m); if (!r || gone()) return null; steps.push(r); fails = r.ok ? 0 : fails + 1; if (fails >= 2) break; }
+  fails = 0;
+  for (let m = speak - 3; m >= speak - 11; m -= 2) { const r = await tryNote(m); if (!r || gone()) return null; steps.push(r); fails = r.ok ? 0 : fails + 1; if (fails >= 2) break; }
+  WO.busy = false;
+  const good = steps.filter(s2 => s2.ok).sort((a, b) => a.m - b.m);
+  if (good.length < 2) return { speak, steps, good, fail: true };
+  // the comfortable zone: the longest run of good notes (gaps of one missed step allowed); the sweet spot: its best-scored middle
+  let runs = [], cur = [good[0]]; for (let i = 1; i < good.length; i++) { if (good[i].m - good[i - 1].m <= 4) cur.push(good[i]); else { runs.push(cur); cur = [good[i]]; } } runs.push(cur);
+  const zone = runs.sort((a, b) => b.length - a.length)[0], zlo = zone[0].m, zhi = zone[zone.length - 1].m;
+  const midz = (zlo + zhi) / 2, sweet = [...zone].sort((a, b) => (b.score - Math.abs(b.m - midz) * 4) - (a.score - Math.abs(a.m - midz) * 4))[0].m;
+  return { speak, steps, good, zlo, zhi, sweet, above: sweet - speak };
+}
+function homeShow(r) {
+  const res = $('#woRes'); res.textContent = '';
+  if (r.fail) { res.append(el('p', 'cheer-big', 'Let’s try that again'), el('p', '', 'I couldn’t hear enough clear singing on the ladder. Check the green bar at the top moves when you sing, sing a little louder on "ah", and try again.')); return; }
+  const prevHome = store.home; store.home = { speak: r.speak, zlo: r.zlo, zhi: r.zhi, sweet: r.sweet, at: Date.now() };
+  // songs are pitched to your comfortable zone from now on
+  const p = store.profile || (store.profile = { low: r.zlo - 2, high: r.zhi + 2, type: voiceTypes(r.zlo - 2, r.zhi + 2, r.speak)[0].n, at: Date.now() });
+  Object.assign(p, { zlo: r.zlo, zhi: r.zhi, natural: r.sweet, speak: p.speak ?? r.speak, low: Math.min(p.low ?? r.zlo, r.zlo), high: Math.max(p.high ?? r.zhi, r.zhi) }); dirty = true; save();
+  const n = r.above, head = el('p', 'cheer-big', n >= 2 ? 'Your singing home is ' + n + ' notes above your talking voice.' : n <= -1 ? 'Your singing home sits right around your talking voice, a little lower.' : 'Your singing home sits right around your talking voice.');
+  res.appendChild(head);
+  // the ladder picture: a column of notes, your talking note marked, the comfortable zone shaded, the sweet spot starred
+  const lo = Math.min(r.speak, ...r.steps.map(s2 => s2.m)) - 1, hi = Math.max(r.speak, ...r.steps.map(s2 => s2.m)) + 1, lad = el('div', 'home-ladder');
+  for (let m = hi; m >= lo; m--) {
+    const st = r.steps.find(s2 => s2.m === m), inZ = m >= r.zlo && m <= r.zhi, row = el('div', 'hl-row' + (inZ ? ' zone' : '') + (m === r.sweet ? ' sweet' : '') + (m === r.speak ? ' speak' : ''));
+    row.append(el('span', 'hl-note', nameOf(m)), el('span', 'hl-bar', st ? (st.ok ? '✓' : st.oct ? 'octave off' : '–') : ''), el('span', 'hl-tag', m === r.sweet ? '★ sweet spot' : m === r.speak ? '💬 talking' : m === r.zhi && inZ ? 'top of your zone' : m === r.zlo && inZ ? 'bottom of your zone' : ''));
+    lad.appendChild(row);
+  }
+  res.appendChild(lad);
+  res.append(el('p', '', 'Your comfortable singing zone is ' + nameOf(r.zlo) + ' to ' + nameOf(r.zhi) + ', with your sweet spot at ' + nameOf(r.sweet) + '. ' + (n >= 3 && n <= 8 ? 'That’s typical: most voices sing best a few notes above where they talk.' : n > 8 ? 'You have a lot of room above your talking voice. Keep it light and free up there.' : 'Many beginners sing close to their talking pitch at first; the workout will gently open up the notes above it.')),
+    el('p', 'muted', 'Songs in the app are now pitched to this zone. Your daily workout starts from your sweet spot.' + (prevHome ? ' Last time your sweet spot was ' + nameOf(prevHome.sweet) + '.' : '')));
+  const row = el('div', 'row'); const w = el('button', 'primary', '🏋️ Start your daily workout'); w.onclick = () => openLab('workout'); row.appendChild(w); res.appendChild(row);
+}
+
+// ---------- The singer's daily workout: breath and body, muscles, ear, your voice's home ----------
+const WO_AREAS = [['breath', '🌬', 'Breath and body'], ['muscle', '💪', 'Muscles'], ['ear', '👂', 'Ear'], ['home', '🏠', 'Your voice’s home']];
+function workoutStart() {
+  woStop(); const box = $('#woBox'); box.textContent = ''; const c = el('div', 'wo-card'); box.appendChild(c);
+  c.append(el('h3', '', '🏋️ Singer’s daily workout'), el('p', '', 'About 10 minutes, four parts that grow together: breath and body, the muscles that move your pitch, your ear, and your voice’s home. Each part is scored, so you can see which one is growing and which needs more work.'));
+  if (!store.home) { const h = el('p', 'wo-tip'); h.append(document.createTextNode('Tip: '), el('b', '', 'Find your singing home'), document.createTextNode(' first (1 minute), so the workout starts on your best notes. ')); const b = el('button', 'small', '🔎 Find it now'); b.onclick = () => openLab('home'); h.appendChild(b); c.appendChild(h); }
+  c.appendChild(woProgress());
+  const go = el('button', 'primary ls-go', '▶ Start today’s workout'); go.dataset.act = 'wo-go'; go.onclick = () => woRun(); c.appendChild(go);
+}
+// the four areas over the last workouts
+function woProgress() {
+  const ws = (store.workouts || []).slice(-7), box = el('div', 'wo-prog'); box.dataset.card = 'woprog';
+  if (!ws.length) { box.appendChild(el('p', 'muted', 'Your progress in each area will show here after your first workout.')); return box; }
+  box.appendChild(el('span', 'label', 'Your last ' + ws.length + ' workout' + (ws.length > 1 ? 's' : '')));
+  for (const [k, ic, name] of WO_AREAS) {
+    const row = el('div', 'wo-area'); row.dataset.area = k; row.append(el('span', 'wo-an', ic + ' ' + name));
+    const bars = el('span', 'wo-bars'); for (const w of ws) { const v = w.areas[k]; const b = el('i'); b.style.height = Math.max(4, v ?? 0) + '%'; b.title = v == null ? 'skipped' : v; if (v == null) b.className = 'skip'; bars.appendChild(b); }
+    const last = ws[ws.length - 1].areas[k], first = ws[0].areas[k]; row.append(bars, el('b', 'wo-v', last == null ? '–' : String(last) + (ws.length > 1 && first != null && last > first ? ' ↑' : '')));
+    box.appendChild(row);
+  }
+  return box;
+}
+async function woRun() {
+  woStop(); if (!(await ensureListening())) return; await ensureAudio();
+  const g = WO.gen, gone = () => WO.gen !== g, box = $('#woBox'); box.textContent = ''; WO.busy = true;
+  const c = el('div', 'wo-card'); box.appendChild(c);
+  const steps = el('div', 'wo-steps'); WO_AREAS.forEach(([k, ic, n]) => { const s2 = el('span', 'wo-step', ic + ' ' + n); s2.dataset.area = k; steps.appendChild(s2); });
+  const title = el('h3', 'wo-title', ''), say = el('p', 'wo-say', ''), live = el('p', 'ls-live', ''); live.id = 'woLive';
+  const bar = el('div', 'row ls-small'); const skip = el('button', 'small', 'Skip this part'); skip.dataset.act = 'wo-skip'; const stop = el('button', 'small', '■ End the workout'); stop.dataset.act = 'wo-stop';
+  bar.append(skip, stop); const roll = el('div', 'wo-roll'); roll.id = 'woRoll';
+  c.append(steps, title, say, bar, live, roll);
+  const areas = {}; let skipNow = false; skip.onclick = () => { skipNow = true; const pend = WO.pending; WO.pending = []; pend.forEach(f => f(null)); }; stop.onclick = () => { woStop(); workoutStart(); };
+  const home = woHome(), speak = woSpeak(), beat = 0.6;
+  const part = (k, t, s3) => { steps.querySelectorAll('.wo-step').forEach(x => x.classList.toggle('now', x.dataset.area === k)); title.textContent = t; say.textContent = s3; roll.textContent = ''; live.textContent = ''; skipNow = false; };
+  const cue2 = async (txt, secs) => { say.textContent = txt; for (let s3 = secs; s3 > 0; s3--) { live.textContent = '⏱ ' + s3; if (!(await woSleep(WO.fast ? 60 : 1000))) return false; } return true; };
+  // 1. breath and body
+  part('breath', '🌬 Breath and body', 'Release first, then one long, easy hum.');
+  for (const [txt, secs] of [['Roll your shoulders back a few times, then let them drop.', 8], ['Let your jaw hang loose. Massage the hinge just in front of your ears.', 8], ['Breathe in low, into your belly and lower ribs, shoulders still. Out on a slow "sss".', 10]]) { if (!(await cue2(txt, secs)) && (gone() || skipNow)) break; }
+  if (gone()) return;
+  if (!skipNow) {
+    say.textContent = 'Breathe in low, then hum "mm" on your home note and hold it as long as is comfortable (up to 15 seconds). Steady and relaxed.';
+    const notes = [{ midi: home, a: 0, b: 15 }]; woRoll(roll, notes, 'Hum and hold');
+    const sm = await woSing(notes, { clicks: 3, beat, tail: 0, say: 'Hum', endOnSilence: true }); if (gone()) return;
+    if (sm) { let held = 0; for (let t = 0; t < 15; t += 0.1) { if (sm.some(q => q.t >= t && q.t < t + 0.15)) held = t; else if (t > held + 0.6) break; } const v = sm.filter(q => q.t > 0.5 && q.t < held).map(q => q.m + ((((home - q.m) % 12) + 18) % 12) - 6); const mu = v.length ? mean(v) : home, sd = v.length ? Math.sqrt(mean(v.map(x => (x - mu) ** 2))) * 100 : 99;
+      areas.breath = Math.round(100 * clamp(held / 12) * clamp(1 - Math.max(0, sd - 10) / 40)); live.textContent = 'You held it ' + held.toFixed(1) + ' s' + (sd <= 15 ? ', nice and steady.' : ', with a little wobble. Keep the air flowing evenly.'); await woSleep(1600); }
+  }
+  if (gone()) return;
+  // 2. muscles: five-note scale up and down, three rounds, each a step higher
+  part('muscle', '💪 Muscles', 'A five-note scale up and down on "ah", three times, each a step higher. It gently stretches the muscles that move your pitch. Stay light as you go up.');
+  const scores = []; let reach = null;
+  for (let r = 0; r < 3 && !skipNow; r++) {
+    const base = home - 4 + r * 2, pat = [0, 2, 4, 5, 7, 5, 4, 2, 0], notes = pat.map((d, i) => ({ midi: base + d, a: i * 0.45, b: i * 0.45 + (i === pat.length - 1 ? 0.9 : 0.42) }));
+    woRoll(roll, notes, 'Round ' + (r + 1) + ' of 3: hear it, then sing it');
+    if (!(await woPreview(notes))) { if (gone()) return; break; }
+    woRoll(roll, notes, 'Round ' + (r + 1) + ' of 3: your turn');
+    const sm = await woSing(notes, { clicks: 2, beat: 0.45 }); if (gone()) return; if (!sm) break;
+    const R = lsEval(notes, sm); scores.push(R.score); if (R.score >= 70) reach = base + 7;
+    live.textContent = R.score >= 85 ? cue('good') : R.score >= 70 ? 'Good. Keep it light as it climbs.' : 'Keep the throat relaxed; let the top note float rather than reach.'; await woSleep(1300);
+  }
+  if (gone()) return;
+  if (scores.length) areas.muscle = Math.round(mean(scores));
+  // 3. ear: hear three notes, imagine them, then sing them with no starting note
+  part('ear', '👂 Ear', 'Hear three notes, hear them again in your head during the silence, then sing them. No starting note this time: your ear holds it.');
+  const es = [];
+  for (let r = 0; r < 4 && !skipNow; r++) {
+    let m = home - 2 + Math.floor(Math.random() * 5); const ms = [m]; for (let k = 0; k < 2; k++) { m += [-4, -3, -2, -1, 1, 2, 3, 4, 5][Math.floor(Math.random() * 9)]; ms.push(m); }
+    const notes = ms.map((x, i) => ({ midi: x, a: i * 0.7, b: i * 0.7 + 0.62 }));
+    woRoll(roll, notes, 'Pattern ' + (r + 1) + ' of 4: listen');
+    if (!(await woPreview(notes))) { if (gone()) return; break; }
+    woRoll(roll, notes, 'Pattern ' + (r + 1) + ' of 4: now sing it');
+    const sm = await woSing(notes, { clicks: 3, beat: 0.6, noStart: true }); if (gone()) return; if (!sm) break;
+    const R = lsEval(notes, sm); es.push(R.score); live.textContent = R.score >= 80 ? cue('good') : 'Hear it in your head first, then sing what you heard.'; await woSleep(1100);
+  }
+  if (gone()) return;
+  if (es.length) areas.ear = Math.round(mean(es));
+  // 4. your voice's home: a short line in your best key, your talking voice marked
+  part('home', '🏠 Your voice’s home', 'Sing this line in your best key. The dashed line is your talking voice: see how far above it your singing sits.');
+  if (!skipNow) {
+    const tw = [[0, 'Twin-'], [0, 'kle'], [7, 'twin-'], [7, 'kle'], [9, 'lit-'], [9, 'tle'], [7, 'star']], base = home - 4;
+    const notes = tw.map(([d, w], i) => ({ midi: base + d, a: i * 0.55, b: i * 0.55 + (i === tw.length - 1 ? 1.0 : 0.5), word: w }));
+    woRoll(roll, notes, 'Twinkle, twinkle, little star', speak != null ? [{ m: speak, label: 'your talking voice' }] : []);
+    if (await woPreview(notes)) {
+      if (gone()) return; woRoll(roll, notes, 'Your turn', speak != null ? [{ m: speak, label: 'your talking voice' }] : []);
+      const sm = await woSing(notes, { clicks: 3, beat: 0.55 }); if (gone()) return;
+      if (sm) { const R = lsEval(notes, sm); areas.home = R.score; const sung = sm.length ? Math.round(medArr(sm.map(q => q.m))) : null;
+        if (speak != null && sung != null) live.textContent = 'You sang around ' + nameOf(sung) + ', ' + (sung - speak > 0 ? (sung - speak) + ' notes above' : 'right at') + ' your talking voice.'; await woSleep(1600); }
+    }
+  }
+  if (gone()) return;
+  WO.busy = false;
+  // the summary: four scores, against last time, and where to focus
+  const prev = (store.workouts || []).slice(-1)[0];
+  (store.workouts ||= []).push({ at: Date.now(), areas: Object.fromEntries(WO_AREAS.map(([k]) => [k, areas[k] ?? null])), reach });
+  if (store.workouts.length > 60) store.workouts.shift(); dirty = true; save();
+  c.textContent = ''; c.append(el('h3', '', '✓ Workout done'));
+  const grid = el('div', 'wo-sum');
+  for (const [k, ic, name] of WO_AREAS) { const v = areas[k], pv = prev && prev.areas[k], d = v != null && pv != null ? v - pv : null; const card = el('div', 'wo-sc'); card.dataset.area = k; card.append(el('span', 'label', ic + ' ' + name), el('b', '', v == null ? '–' : String(v)), el('span', 'muted', v == null ? 'skipped' : d == null ? 'first time' : d > 0 ? '↑ ' + d + ' since last time' : d < 0 ? d + ' since last time' : 'same as last time')); grid.appendChild(card); }
+  c.appendChild(grid);
+  const done = WO_AREAS.filter(([k]) => areas[k] != null), weakest = done.sort((a, b) => areas[a[0]] - areas[b[0]])[0];
+  if (weakest) { const tips = { breath: 'Breath: try the long hum again tomorrow and aim for a second longer, with the air flowing evenly.', muscle: 'Muscles: sirens on "ng" (like the end of "sing") from low to high and back, gently, a few times a day.', ear: 'Ear: before you sing anything, hear it in your head first. Pitch match in the Lab trains exactly this.', home: 'Home: sing your songs in the key the app picks for you; it’s set to your singing zone.' }; c.appendChild(el('p', 'wo-focus', 'Most room to grow: ' + weakest[1] + ' ' + weakest[2] + '. ' + tips[weakest[0]])); }
+  if (reach) c.appendChild(el('p', 'muted', 'Your top comfortable note today: ' + nameOf(reach) + '.'));
+  c.appendChild(woProgress());
+  const again = el('button', 'small', 'Back to the workout page'); again.onclick = () => workoutStart(); c.appendChild(again);
+}
 // ---------- What's inside: the whole app at a glance ----------
 // A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.
 const STAGE_PLAIN = {
@@ -6467,6 +6715,8 @@ function renderTour() {
   tile('session', '▶', 'Today’s session', 'About 11 minutes that run by themselves.', () => { $('#t-home').click(); sesOffer(); }, needVoice);
   tile('songs', '♪', 'Songs', SONGS.filter(x => !x.lab && x.id !== 'gen').length + ' songs: rock, folk, hymns and more.', () => $('#t-sing').click());
   tile('tutor', '🎓', 'Voice Tutor', 'Sing with a band. Your tutor helps with the hard parts.', () => { openLab('band', true); $('#t-lab').click(); }, lv < (LAB_LEVEL.band || 1) ? '🔒 After Stage 1' : null);
+  tile('workout', '🏋️', 'Daily workout', 'Ten minutes: breath, muscles, ear and your voice’s home.', () => { openLab('workout', true); $('#t-lab').click(); });
+  tile('home', '🔎', 'Find your singing home', 'Where your singing voice sits above your talking voice.', () => { openLab('home', true); $('#t-lab').click(); });
   tile('pro', '🎧', 'Learn from the pros', 'See how a singer you love carries the True Tone, note by note.', () => { openLab('pro', true); $('#t-lab').click(); });
   tile('lab', '🧪', 'Exercises', LAB.filter(L => lv >= (LAB_LEVEL[L.id] || 1)).length + ' of ' + LAB.length + ' open. Short drills for breath, pitch and tone.', () => $('#t-lab').click());
   tile('range', '🎙', 'Find your voice', 'Your range, voice type and songs that fit you.', () => { openLab('range', true); $('#t-lab').click(); ensureListening(); });
