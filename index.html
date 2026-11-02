@@ -5775,6 +5775,7 @@ function renderTour() {
   tile('session', '▶', 'Today’s session', 'About 11 minutes that run by themselves.', () => { $('#t-home').click(); sesOffer(); }, needVoice);
   tile('songs', '♪', 'Songs', SONGS.filter(x => !x.lab && x.id !== 'gen').length + ' songs: rock, folk, hymns and more.', () => $('#t-sing').click());
   tile('tutor', '🎓', 'Voice Tutor', 'Sing with a band. Your tutor helps with the hard parts.', () => { openLab('band', true); $('#t-lab').click(); }, lv < (LAB_LEVEL.band || 1) ? '🔒 After Stage 1' : null);
+  tile('pro', '🎧', 'Learn from the pros', 'See how a singer you love carries the True Tone, note by note.', () => { openLab('pro', true); $('#t-lab').click(); });
   tile('lab', '🧪', 'Exercises', LAB.filter(L => lv >= (LAB_LEVEL[L.id] || 1)).length + ' of ' + LAB.length + ' open. Short drills for breath, pitch and tone.', () => $('#t-lab').click());
   tile('range', '🎙', 'Find your voice', 'Your range, voice type and songs that fit you.', () => { openLab('range', true); $('#t-lab').click(); ensureListening(); });
   tile('progress', '📈', 'Your progress', 'You now vs your first song, and your recordings.', () => $('#t-progress').click());
