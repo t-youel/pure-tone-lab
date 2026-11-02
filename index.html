@@ -4479,7 +4479,7 @@ function recordTry(kind, id, score, extra) {
 function unitStatus(u) {
   if (unitPassed(u)) return u.check.kind === 'u1' ? 'Done ✓' : 'Passed ✓ · best ' + unitBest(u);
   if (!unitOpen(u)) return unitPaid(u) && !isPro() ? 'Pro' : 'Locked';
-  if (u.check.kind === 'u1') return !store.profile ? 'Start with Find your voice' : 'Now sing your first song';
+  if (u.check.kind === 'u1') return !store.start ? 'Take your 4-minute voice check-up' : 'Now sing your first song';
   const one = c => { const t = unitTries(u, c), n = t.filter(x => x.s >= PERSIST).length; return checkPassed(u, c) ? 'passed ✓' : t.length ? `best ${unitBest(u, c)} · ${n} of ${PERSIST_TRIES} at ${PERSIST}+` : `score ${PASS}+, or ${PERSIST}+ three times`; };
   if (u.check2) return 'Scale: ' + one(u.check) + ' · Echo: ' + one(u.check2);
   if (u.reflect && checkPassed(u, u.check) && !(store.reflection && store.reflection.text)) return 'Performed ✓ · now write what changed';
@@ -4536,7 +4536,7 @@ let findOpen = false;
 // Practise a unit: its skill check, or its song.
 function startUnitCheck(u) {
   const c = unitCheckNow(u);
-  if (c.kind === 'u1') { if (!store.profile && !store.start) { assessIntro(false); return; } if (!store.profile) { openLab('range', true); $('#t-lab').click(); ensureListening(); } else singSongId(u.song); return; }
+  if (c.kind === 'u1') { if (!store.start) assessIntro(false); else singSongId(u.song); return; }
   if (c.lab) { openLab(c.lab, true); $('#t-lab').click(); ensureListening(); return; }
   singSongId(c.id === '*' ? null : c.id);
 }
