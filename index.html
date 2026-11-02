@@ -449,7 +449,36 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .lr-tip { font-size: .95rem; }
 .lr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 600px) { .mix-row { grid-template-columns: 7em 1fr 3em; } }
-.tour-box { display: grid; gap: 12px; }
+.tour-box { display: grid; gap: 14px; }
+.tour-intro h2 { margin: 0; } .tour-intro p { margin: 4px 0 0; }
+.tour-road { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .tour-road { grid-template-columns: 1fr; } }
+.road-card { display: grid; gap: 6px; align-content: start; text-align: left; padding: 14px; border-radius: 18px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.road-card.is-here { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.road-card.is-done { border-color: var(--pure); }
+.road-card.is-locked { opacity: .6; cursor: default; background: color-mix(in srgb, var(--line) 30%, var(--surface)); }
+.sc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sc-ic { font-size: 2rem; line-height: 1; }
+.sc-badge { font-size: .85rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 50%, var(--surface)); }
+.is-here .sc-badge { background: var(--accent); color: #fff; }
+.is-done .sc-badge { background: color-mix(in srgb, var(--pure) 25%, var(--surface)); }
+.sc-num { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sc-title { font: 700 1.25rem var(--display); }
+.sc-learn { font-size: 1rem; line-height: 1.4; }
+.sc-units { margin: 2px 0 0; padding-left: 1.1em; color: var(--muted); font-size: .92rem; }
+.sc-units li.ok { color: var(--ink); list-style: none; margin-left: -1.1em; }
+.sc-new { font-size: .88rem; font-weight: 600; color: var(--accent); }
+.tour-sub { margin: 6px 0 0; }
+.tour-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.tour-tile { display: grid; gap: 4px; align-content: start; text-align: left; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.tour-tile.is-locked { opacity: .55; cursor: default; }
+.tt-ic { font-size: 1.6rem; line-height: 1.1; }
+.tour-tile b { font-size: 1.02rem; }
+.tt-desc { font-size: .88rem; color: var(--muted); line-height: 1.35; }
+.tour-all { border-top: 1px solid var(--line); padding-top: 8px; }
+.tour-all summary { cursor: pointer; font-weight: 700; padding: 6px 0; color: var(--accent); }
+.tour-all .tour-sec { margin-top: 10px; }
+@media (max-width: 600px) { .tour-tiles { grid-template-columns: 1fr 1fr; } .road-card { padding: 12px; } }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
 .tour-ic { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); font-size: 1rem; }
@@ -791,7 +820,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · Voice Tutor</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · simpler What's inside</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5177,66 +5206,81 @@ function ezDone() {
 }
 
 // ---------- What's inside: the whole app at a glance ----------
-// Everything Pure Tone Lab offers, in one place. Parts that open later are shown greyed, with when they open.
+// A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.
+const STAGE_PLAIN = {
+  1: { ic: '🌱', learn: 'Stand, breathe and make an easy, free sound. Find your range and voice type.' },
+  2: { ic: '👂', learn: 'Hear a note and sing it back in tune. Then sing real songs with a band and your Voice Tutor.' },
+  3: { ic: '🎨', learn: 'Make your sound richer: clear vowels, smooth from low to high, soft to loud.' },
+  4: { ic: '🎤', learn: 'Sing in time, shape every line, and make a song your own.' },
+};
 function renderTour() {
   const box = $('#tourBox'); if (!box) return; box.textContent = '';
-  const p = store.profile, lv = level(), u = currentUnit();
-  const go = (fn) => () => { fn(); };
-  const sec = (icon, title, sub, items) => {
-    const c = el('div', 'card tour-sec'); const h = el('div', 'tour-head'); h.append(el('span', 'tour-ic', icon), el('h3', '', title)); c.appendChild(h);
-    if (sub) c.appendChild(el('p', 'muted', sub));
+  const p = store.profile, lv = level(), u = currentUnit(), easy = !!(store.settings && store.settings.easyMode);
+  const head = el('div', 'tour-intro'); head.append(el('h2', '', 'What’s inside'), el('p', 'muted', 'Your singing journey in 4 stages. Each stage opens the next.'));
+  box.appendChild(head);
+  // the journey
+  const road = el('div', 'tour-road');
+  for (const st of STAGES) {
+    const us = UNITS.filter(x => x.stage === st.n), open = us.some(unitOpen), done = us.every(unitPassed), here = u && u.stage === st.n && !done;
+    const card = el('button', 'road-card' + (done ? ' is-done' : here ? ' is-here' : open ? '' : ' is-locked')); card.dataset.item = 'stage' + st.n;
+    const badge = done ? '✓ Done' : here ? '📍 You are here' : open ? 'Open' : '🔒 After Stage ' + (st.n - 1);
+    const top = el('div', 'sc-top'); top.append(el('span', 'sc-ic', STAGE_PLAIN[st.n].ic), el('span', 'sc-badge', badge)); card.appendChild(top);
+    card.append(el('span', 'sc-num', 'Stage ' + st.n), el('b', 'sc-title', st.title), el('span', 'sc-learn', STAGE_PLAIN[st.n].learn));
+    const ul = el('ul', 'sc-units'); for (const x of us) ul.appendChild(el('li', unitPassed(x) ? 'ok' : '', (unitPassed(x) ? '✓ ' : '') + x.title)); card.appendChild(ul);
+    const news = LAB.filter(L => (LAB_LEVEL[L.id] || 1) === st.n && st.n > 1).sort((x, y) => (y.id === 'band') - (x.id === 'band')).map(L => L.id === 'band' ? '🎓 Voice Tutor' : L.title.replace(/^Voice Tutor: /, ''));
+    if (news.length) card.appendChild(el('span', 'sc-new', 'Opens: ' + news.slice(0, 3).join(', ') + (news.length > 3 ? ' and more' : '')));
+    if (open) card.onclick = () => openUnit(us.find(x => unitOpen(x) && !unitPassed(x)) || us.find(unitOpen)); else { card.disabled = true; card.setAttribute('aria-label', 'Stage ' + st.n + ', ' + st.title + ', locked until you finish Stage ' + (st.n - 1)); }
+    road.appendChild(card);
+  }
+  box.appendChild(road);
+  // everything else, as picture tiles
+  box.appendChild(el('h3', 'tour-sub', 'Also in the app'));
+  const grid = el('div', 'tour-tiles');
+  const tile = (id, ic, title, desc, fn, lock) => {
+    const t = el('button', 'tour-tile' + (lock ? ' is-locked' : '')); t.dataset.item = id;
+    t.append(el('span', 'tt-ic', ic), el('b', '', title), el('span', 'tt-desc', lock || desc));
+    if (lock) t.disabled = true; else t.onclick = fn; grid.appendChild(t);
+  };
+  const needVoice = p ? null : '🔒 After Find your voice';
+  tile('session', '▶', 'Today’s session', 'About 11 minutes that run by themselves.', () => { $('#t-home').click(); sesOffer(); }, needVoice);
+  tile('songs', '♪', 'Songs', SONGS.filter(x => !x.lab && x.id !== 'gen').length + ' songs: rock, folk, hymns and more.', () => $('#t-sing').click());
+  tile('tutor', '🎓', 'Voice Tutor', 'Sing with a band. Your tutor helps with the hard parts.', () => { openLab('band', true); $('#t-lab').click(); }, lv < (LAB_LEVEL.band || 1) ? '🔒 After Stage 1' : null);
+  tile('lab', '🧪', 'Exercises', LAB.filter(L => lv >= (LAB_LEVEL[L.id] || 1)).length + ' of ' + LAB.length + ' open. Short drills for breath, pitch and tone.', () => $('#t-lab').click());
+  tile('range', '🎙', 'Find your voice', 'Your range, voice type and songs that fit you.', () => { openLab('range', true); $('#t-lab').click(); ensureListening(); });
+  tile('progress', '📈', 'Your progress', 'You now vs your first song, and your recordings.', () => $('#t-progress').click());
+  tile('easy', '🌟', 'First Notes', easy ? 'Easy mode: picture games, no reading needed.' : 'Easy mode for the gentlest start. Tap to turn on.', () => { if (!easy) setEasyMode(true); $('#t-easy').click(); });
+  box.appendChild(grid);
+  // the full list, folded away
+  const det = document.createElement('details'); det.className = 'tour-all';
+  det.appendChild(el('summary', '', 'Everything, as a list'));
+  const sec = (title, items) => {
+    const c = el('div', 'tour-sec'); c.appendChild(el('span', 'label', title));
     for (const it of items) {
       const row = el('div', 'tour-row' + (it.lock ? ' locked' : '')); if (it.id) row.dataset.item = it.id;
       const t = el('div', 'tour-txt'); t.append(el('b', '', it.title), el('span', 'muted', it.lock ? it.lock : it.desc)); row.appendChild(t);
-      const b = el('button', 'small', it.lock ? '🔒' : it.btn || 'Open'); b.disabled = !!it.lock; if (!it.lock && it.fn) b.onclick = it.fn;
+      const b = el('button', 'small', it.lock ? '🔒' : 'Open'); b.disabled = !!it.lock; if (!it.lock && it.fn) b.onclick = it.fn;
       if (it.lock) b.setAttribute('aria-label', 'Locked: ' + it.lock);
       row.appendChild(b); c.appendChild(row);
     }
-    box.appendChild(c);
+    det.appendChild(c);
   };
-  const needVoice = p ? null : 'Opens after Find your voice';
-  const head = el('div', 'card tour-intro'); head.append(el('h2', '', 'What\'s inside Pure Tone Lab'), el('p', 'muted', 'Everything the app offers. Greyed parts open as you move along your path, so each step builds on the last.'));
-  box.appendChild(head);
-  sec('🧭', 'Your course', '4 stages, 12 units and a checkpoint. Each unit: Experience it, Name it, Practise it.', [
-    { id: 'path', title: 'Your path', desc: UNITS.filter(unitPassed).length + ' of ' + UNITS.length + ' done · now: ' + unitLabel(u) + ' · ' + u.title, fn: () => { unitView = null; $('#t-path').click(); } },
-    ...STAGES.map(st => { const us = UNITS.filter(x => x.stage === st.n), open = us.some(unitOpen); return { id: 'stage' + st.n, title: 'Stage ' + st.n + ' · ' + st.title, desc: us.map(x => x.title).join(' · '), lock: open ? null : 'Opens when you finish Stage ' + (st.n - 1), fn: () => openUnit(us.find(unitOpen) || us[0]) }; }),
-  ]);
-  sec('🌟', 'Easy mode · First Notes', 'For anyone who wants the gentlest start: big pictures, no reading needed, one note at a time.', [
-    { id: 'easy', title: 'First Notes', desc: 'Seven games: wake the bird, mother bird home, balloon ride, frog hops, grow a flower, piano play-along, and sing a song.' + (store.settings && store.settings.easyMode ? '' : ' Part of Easy mode.'), btn: store.settings && store.settings.easyMode ? 'Open' : 'Turn on', fn: () => { if (!(store.settings && store.settings.easyMode)) setEasyMode(true); $('#t-easy').click(); } },
-  ]);
-  sec('▶', 'Today\'s session', 'About 11 minutes that run by themselves: warm-up, skill, song and a quick ear game.', [
-    { id: 'session', title: 'Start today\'s session', desc: 'With a voice check-in first. A scratchy voice gets a gentle day.', lock: needVoice, fn: () => { $('#t-home').click(); sesOffer(); } },
-  ]);
-  const groups = [['Rock & roll', x => x.rock], ['Folk & blues', x => x.folk], ['Hymns', x => x.hymn], ['Solfège', x => x.solfa && !x.lab], ['Classics', x => !x.lab && !x.rock && !x.folk && !x.hymn && !x.solfa && x.id !== 'gen']];
-  sec('♪', 'Songs', 'Words and notes on the staff, played for you, and scored as you sing. Your best songs use notes you already sing well.', [
-    ...groups.map(([g, f]) => { const list = SONGS.filter(f); return { id: 'songs-' + g, title: g, desc: list.map(x => x.name).join(' · '), fn: () => { $('#t-sing').click(); loadSong(list[0]); } }; }),
-    { id: 'gen', title: 'A new melody from your pure notes', desc: 'The app composes a tune from the notes you sing best.', fn: () => { $('#t-sing').click(); $('#btnGen').click(); } },
-  ]);
-  sec('🧪', 'Exercises', 'Short drills, each measured live and each telling you one thing to change.', LAB.map(L => {
-    const at = LAB_LEVEL[L.id] || 1;
-    return { id: 'lab-' + L.id, title: L.title, desc: L.blurb, lock: lv < at ? 'Opens in Stage ' + at : null, fn: () => { openLab(L.id, true); $('#t-lab').click(); } };
-  }));
-  sec('🎤', 'Your voice', null, [
-    { id: 'range', title: 'Find your voice', desc: 'Range, voice type, famous voices like yours, and songs that fit.', fn: () => { openLab('range', true); $('#t-lab').click(); ensureListening(); } },
-    { id: 'profile', title: 'Voice profile and voice map', desc: 'Your range, home note, and how each note you sing sounds.', lock: needVoice, fn: () => $('#t-voice').click() },
-  ]);
-  sec('📈', 'Progress', null, [
-    { id: 'progress', title: 'You vs your starting point', desc: 'Range, scores, comfort ratings, and your recordings with keep, delete and storage controls.', fn: () => $('#t-progress').click() },
-  ]);
+  sec('Exercises', LAB.map(L => { const at = LAB_LEVEL[L.id] || 1; return { id: 'lab-' + L.id, title: L.title, desc: L.blurb, lock: lv < at ? 'Opens in Stage ' + at : null, fn: () => { openLab(L.id, true); $('#t-lab').click(); } }; }));
   const toSing = () => $('#t-sing').click();
-  sec('🛠', 'Singing tools', 'On the Sing screen, for every song.', [
-    { id: 't-listen', title: '▶ Listen', desc: 'Hear the tune on a warm tone with soft chords, with the words lighting up.', fn: toSing },
+  sec('Singing tools (on the Sing screen)', [
+    { id: 't-listen', title: '▶ Listen', desc: 'Hear the tune with the words lighting up.', fn: toSing },
     { id: 't-pipe', title: 'Pitch pipe', desc: 'The first note, the way choir directors give it.', fn: toSing },
-    { id: 't-coach', title: '🛟 Coach', desc: 'A safety net: sing along, echo a few notes, then build up to full speed.', fn: toSing },
-    { id: 't-note', title: '🎵 Note on', desc: 'Keeps each note playing while you sing; the app still hears only you.', fn: toSing },
-    { id: 't-key', title: 'Key picker and Any octave', desc: 'Move a song to the key that suits your voice, with ⓘ help.', fn: toSing },
-    { id: 't-tempo', title: 'Tempo and metronome', desc: 'Very slow to Normal, with a click track and a count-in.', fn: toSing },
+    { id: 't-coach', title: '🛟 Coach', desc: 'Echo a few notes at a time, then build up to full speed.', fn: toSing },
+    { id: 't-note', title: '🎵 Note on', desc: 'Keeps each note playing while you sing.', fn: toSing },
+    { id: 't-key', title: 'Key picker', desc: 'Move a song to the key that suits your voice.', fn: toSing },
+    { id: 't-tempo', title: 'Tempo and metronome', desc: 'Very slow to Normal, with a count-in.', fn: toSing },
+    { id: 'gen', title: 'A new melody', desc: 'A tune made from the notes you sing best.', fn: () => { $('#t-sing').click(); $('#btnGen').click(); } },
   ]);
-  sec('⚙', 'Settings', null, [
-    { id: 'singers', title: 'Singers', desc: 'Up to three singers on this device, each with their own progress.', fn: () => { $('#t-home').click(); setTimeout(() => $('#btnUser').click(), 50); } },
-    { id: 'storage', title: 'Recordings and storage', desc: 'Record on or off, auto-delete, and space used.', fn: () => { $('#t-progress').click(); setTimeout(() => { const s2 = document.querySelector('[data-card="storage"]'); if (s2) s2.scrollIntoView(); }, 50); } },
-    { id: 'reset', title: 'Start over', desc: 'Reset this singer\'s progress, with undo.', fn: () => $('#t-home').click() },
+  sec('Settings', [
+    { id: 'profile', title: 'Voice profile', desc: 'Your range, home note and voice map.', lock: needVoice, fn: () => $('#t-voice').click() },
+    { id: 'singers', title: 'Singers', desc: 'Up to three singers on this device.', fn: () => { $('#t-home').click(); setTimeout(() => $('#btnUser').click(), 50); } },
+    { id: 'storage', title: 'Recordings and storage', desc: 'Record on or off, auto-delete, space used.', fn: () => { $('#t-progress').click(); setTimeout(() => { const s2 = document.querySelector('[data-card="storage"]'); if (s2) s2.scrollIntoView(); }, 50); } },
   ]);
+  box.appendChild(det);
 }
 $('#btnTour').onclick = () => $('#t-tour').click();
 // Easy mode: big pictures and simple singing games (First Notes), for anyone who wants the gentlest start

@@ -622,12 +622,17 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.topFit >= 0.6 && r.pickFit >= r.topFit - 0.1 && /already sing well/.test(r.card) && r.stars >= 1 && r.stars <= 5 && r.bg.m === 61 && !r.bg.measured && /Tenor/.test(r.tip) && /E4–G4/.test(r.tip) && /A♯2 to C♯4/.test(r.lip) && /E3/.test(r.hum), JSON.stringify(r));
   });
 
-  await test("What's inside: the whole app from Home, later parts greyed with when they open", async page => {
+  await test("What's inside: 4 stage cards say what you learn and where you are; tiles for the rest; the full list folded away", async page => {
     await page.click('#btnTour');
-    const s = await page.evaluate(() => ({ screen: document.body.dataset.screen, secs: [...document.querySelectorAll('.tour-sec h3')].map(h => h.textContent).join('|'), labs: document.querySelectorAll('.tour-row[data-item^="lab-"]').length, total: LAB.length, lockedLab: $('.tour-row[data-item="lab-vowels"]').classList.contains('locked') && $('.tour-row[data-item="lab-vowels"] button').disabled, lockTxt: $('.tour-row[data-item="lab-vowels"]').textContent }));
-    await page.click('.tour-row[data-item="lab-match"] button');
+    const s = await page.evaluate(() => ({ screen: document.body.dataset.screen,
+      stages: [...document.querySelectorAll('.road-card')].map(c => ({ badge: c.querySelector('.sc-badge').textContent, learn: c.querySelector('.sc-learn').textContent, units: c.querySelectorAll('.sc-units li').length, dis: c.disabled })),
+      tiles: [...document.querySelectorAll('.tour-tile')].map(t => t.dataset.item).join(), tutorLocked: $('.tour-tile[data-item="tutor"]').disabled,
+      folded: !$('.tour-all').open, labs: document.querySelectorAll('.tour-row[data-item^="lab-"]').length, total: LAB.length, lockedLab: $('.tour-row[data-item="lab-vowels"] button').disabled, lockTxt: $('.tour-row[data-item="lab-vowels"]').textContent }));
+    await page.click('.tour-all summary'); await page.click('.tour-row[data-item="lab-match"] button');
     const opened = await page.evaluate(() => D.id);
-    expect(s.screen === 'tour' && s.secs === "Your course|Easy mode · First Notes|Today's session|Songs|Exercises|Your voice|Progress|Singing tools|Settings" && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
+    expect(s.screen === 'tour' && s.stages.length === 4 && /You are here/.test(s.stages[0].badge) && /After Stage 1/.test(s.stages[1].badge) && s.stages[1].dis && !s.stages[0].dis
+      && s.stages.every(x => x.learn.length > 20 && x.units >= 2) && s.tiles === 'session,songs,tutor,lab,range,progress,easy' && s.tutorLocked && s.folded
+      && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
   await test('Style tools: timing against the beat; breaths at the ʼ marks; each line shaped; Stage 4 checks use them', async page => {
