@@ -482,6 +482,12 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .kr-now { font: 700 1.35rem/1.35 var(--display); } .kr-now span { all: unset; } .kr-now .kr-on { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; } .kr-now .kr-done { color: var(--muted); }
 .kr-next { color: var(--muted); font-size: .98rem; min-height: 1.2em; }
 .pro-lyrics { padding: 4px 0; }
+.st-card { display: grid; gap: 10px; border: 2px solid var(--accent); } .st-card h3, .st-card p { margin: 0; }
+.st-btns { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 8px; } .st-btns button { min-height: 50px; font-size: 1.02rem; }
+.st-opts { display: grid; gap: 4px; } .st-opts .guide-tog { display: flex; gap: 8px; align-items: center; } .st-hint { font-size: .85rem; }
+.st-words { font-size: .95rem; } .st-whole { margin-top: 2px; } .st-tools { justify-content: center; gap: 6px; } .st-wordin { width: 100%; box-sizing: border-box; }
+.st-res { display: grid; gap: 8px; }
+@media (max-width: 600px) { .st-btns { grid-template-columns: 1fr 1fr 1fr; } .st-btns [data-act="stop"] { grid-column: 1 / -1; } }
 .kr-roll { display: grid; gap: 6px; } .kr-roll .pro-roll { height: min(320px, 42vh); }
 .kr-sum { display: grid; gap: 8px; } .kr-sum p { margin: 0; }
 .kr-lines { display: grid; gap: 4px; } .kr-line { display: grid; grid-template-columns: 4.5em 1fr 2.5em auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; border-left: 4px solid var(--line); background: var(--surface); }
@@ -972,7 +978,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · words on the main graph</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · practise this song</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5530,7 +5536,7 @@ function startCard() {
 const PRO = { buf: null, an: null, src: null, gain: null, t0: 0, off: 0, view: 0, sel: -1, raf: 0, playing: false, drag: null };
 const KEY_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
-function proStop() { rollStop(PRO); lsStop(); if (KR.on) krStop(); }
+function proStop() { rollStop(PRO); lsStop(); if (KR.on) krStop(); if (ST.setBusy) ST.setBusy(false); }
 function proStart() {
   const box = $('#proBox'); box.textContent = ''; PRO.an = null; PRO.buf = null;
   const intro = el('div', 'pro-intro');
@@ -5872,9 +5878,9 @@ function proRender() {
   const lyr = el('div', 'kr-lyrics pro-lyrics'); lyr.id = 'proLyric'; lyr.innerHTML = '<div class="kr-now">&nbsp;</div><div class="kr-next">&nbsp;</div>';
   out.querySelector('.pro-roll-wrap').before(lyr); PRO.onTick = t => lyricShow(lyr, an, t); setTimeout(() => lyricShow(lyr, an, 0.01), 0);
   const sing = el('button', 'primary', '🎤 Sing along'); sing.dataset.act = 'singalong';
-  sing.onclick = () => { const k = Math.max(0, (an._lines || []).findIndex(l => l.t1 >= PRO.off)); rollStop(PRO); const kc = document.querySelector('[data-card="karaoke"]'); if (kc) kc.scrollIntoView({ block: 'start' }); const fs = $('#krFrom'); if (fs) fs.value = k; krStart(k); };
+  sing.onclick = () => { const k = Math.max(0, (an._lines || []).findIndex(l => l.t1 >= PRO.off)); rollStop(PRO); ST.whole = false; stGo(k); const sc = document.querySelector('[data-card="studio"]'); if (sc) sc.scrollIntoView({ block: 'nearest' }); stAlong(); };
   out.querySelector('.pro-head').appendChild(sing);
-  out.appendChild(karaokeCard(an));
+  ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
   if (an.kind === 'file') {
     const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst';
     if (an.isolated) { const d = PRO.iso.removedDb; ib.append(el('p', '', '🎻 His voice is separated from the band: ' + (d >= 20 ? 'almost all' : d >= 10 ? 'most' : 'some') + ' of the band was taken out. The notes are measured on his voice alone.' + (d < 10 ? ' If it still looks busy, check the instrumental is from the same recording.' : ''))); }
@@ -5885,7 +5891,6 @@ function proRender() {
     }
     out.appendChild(ib);
   }
-  out.appendChild(learnCard(an));
   out.appendChild(proInfoCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
   const step = (n, title, txt) => { const d = el('div', 'pp-step'); d.dataset.pass = n; d.append(el('span', 'pp-n', String(n)), el('b', '', title), el('span', 'muted', txt)); how.appendChild(d); };
@@ -5952,7 +5957,7 @@ function rollSelect(R, i) {
   if (was) rollPlay(R);
 }
 function rollGeom(R) {
-  const an = R.an, top = 8, h = R.cv.clientHeight - 16, lo0 = an.lo - 2, hi0 = an.hi + 2, rows = hi0 - lo0 + 1, fit = h / rows;
+  const an = R.show || R.an, top = 8, h = R.cv.clientHeight - 16, lo0 = an.lo - 2, hi0 = an.hi + 2, rows = hi0 - lo0 + 1, fit = h / rows;
   if (fit >= 14 || (R.fitAll && fit >= 7)) return { top, lo: lo0, hi: hi0, row: fit };
   // too many notes to show at a readable size: show ~h/24 rows around the singer, following them
   const row = 24, n = Math.floor(h / row), half = n / 2, c = Math.max(lo0 + half, Math.min(hi0 - half + 1, R.vc ?? (an.lo + an.hi) / 2));
@@ -5960,13 +5965,13 @@ function rollGeom(R) {
 }
 // the note the camera centres on: the notes on screen now
 function rollCentre(R, snap) {
-  const an = R.an, t1 = R.view + rollSpan(R), vis = an.notes.filter(n => n.t1 >= R.view && n.t0 <= t1);
+  const an = R.show || R.an, t1 = R.view + rollSpan(R), vis = an.notes.filter(n => n.t1 >= R.view && n.t0 <= t1);
   if (!vis.length) return; const tgt = (Math.min(...vis.map(n => n.midi)) + Math.max(...vis.map(n => n.midi))) / 2;
   R.vc = snap || R.vc == null ? tgt : R.vc + (tgt - R.vc) * 0.12;
 }
 const proGeom = () => rollGeom(PRO), proDraw = () => rollDraw(PRO);
 function rollDraw(R) {
-  const cv = R.cv; if (!cv || !R.an || !cv.isConnected) return; const an = R.an, dpr = window.devicePixelRatio || 1;
+  const cv = R.cv; if (!cv || !R.an || !cv.isConnected) return; const an = R.show || R.an, dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight; if (!W) return; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim() || '#1a1c2c', line = css.getPropertyValue('--line').trim() || '#d9dce8', muted = css.getPropertyValue('--muted').trim() || '#646a85', surf = css.getPropertyValue('--surface').trim() || '#fff';
@@ -6173,12 +6178,183 @@ function proWordsToNotes(an) {
 // the line being sung, big, with the current word lit; the next line under it
 function lyricShow(box, an, t) {
   if (!box) return; const lines = an._lines || proLines(an), w = (store.proWords || {})['pro:' + an.name] || {}, esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1)), li = lines.findIndex(l => t >= l.t0 - 0.8 && t <= l.t1 + 0.4), nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
+  // the line being sung now; in a gap, the one coming up (or the one just finished)
+  const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1)); let li = lines.findIndex(l => t >= l.t0 && t <= l.t1); if (li < 0) li = lines.findIndex(l => t >= l.t0 - 0.8 && t < l.t0); if (li < 0) li = lines.findIndex(l => t > l.t1 && t <= l.t1 + 0.4);
+  const nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
   const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next');
   if (li >= 0) { const toks = (w[li] || '').split(/\s+|(?<=-)/).filter(Boolean), at = lines[li].idx.indexOf(n);
     now.innerHTML = toks.length ? toks.map((x, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(x) + '</span>' + (/-$/.test(x) ? '' : ' ')).join('') : '<span class="muted">♪ line ' + (li + 1) + '</span>'; }
   else now.innerHTML = '<span class="muted">♪</span>';
   next.textContent = nli >= 0 && nli < lines.length ? (w[nli] || '') : '';
+}
+// ---------- 🎵 Practise this song: one place to listen, take your turn, or sing along, line by line ----------
+// Everything happens on the main graph, with the real recording and the words: ▶ Listen to a line (or the whole song);
+// 🎤 My turn: hear his line, then sing or hum it back while the music waits (the mic hears only you); 🎧 Sing along:
+// the music keeps playing (headphones on). Your voice is drawn over his bars, each word's bar turns green/gold/red, and
+// you get a score, a tip, and help when a line keeps going wrong. Learned lines get a ✓ that's kept between visits.
+const ST = { k: 0, whole: false, user: null, show: null, fails: {}, busy: false };
+function stLines() { return (PRO.an && (PRO.an._lines || (PRO.an._lines = proLines(PRO.an)))) || []; }
+const stRec = k => (((store.proLearn ||= {})['pro:' + PRO.an.name] ||= {})[k] ||= {});
+function stBeat() { const b = PRO.an.beat; return b && b.conf >= 0.08 ? b.period : 0.6; }
+// the display: his notes with their words, your voice over them, his voice in purple
+function stShowReset() {
+  const an = PRO.an; ST.user = new Array(an.trace.length).fill(null);
+  ST.show = { dur: an.dur, notes: an.notes.map(n => ({ t0: n.t0, t1: n.t1, b0: n.b0 ?? n.t0, b1: n.b1 ?? n.t1, midi: n.midi, c: 0, word: n.word || '' })), trace: ST.user, ref: an.trace, hop: an.hop, t0f: an.t0f, lo: an.lo, hi: an.hi, beat: an.beat };
+}
+function studioCard(an) {
+  const c = el('div', 'card st-card'); c.dataset.card = 'studio'; ST.fails = {};
+  const lines = stLines(); if (!lines.length) { c.append(el('h3', '', '🎵 Practise this song'), el('p', 'muted', 'I couldn’t find clear lines in this song yet.')); return c; }
+  c.appendChild(el('h3', '', '🎵 Practise this song'));
+  if (an.known) c.appendChild(el('p', 'muted st-credit', an.known.credit + '.'));
+  const nav = el('div', 'ls-nav'); nav.id = 'stNav'; c.appendChild(nav);
+  const btns = el('div', 'st-btns');
+  const mk = (act, txt, cls, fn) => { const b = el('button', cls, txt); b.dataset.act = act; b.onclick = fn; btns.appendChild(b); return b; };
+  mk('listen', '▶ Listen', '', () => stListen());
+  mk('turn', '🎤 My turn', 'primary', () => stTurn());
+  mk('along', '🎧 Sing along', '', () => stAlong());
+  const stop = mk('stop', '■ Stop', 'small', () => { stHalt(); $('#stLive').textContent = 'Stopped.'; }); stop.hidden = true;
+  c.appendChild(btns);
+  const opts = el('div', 'st-opts');
+  if (PRO.vox) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stAlone'; cb.checked = !!ST.alone; cb.onchange = () => { ST.alone = cb.checked; }; l.append(cb, document.createTextNode(' 🎤 Hear his voice alone (no band)')); opts.appendChild(l); }
+  if (PRO.inst) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stBand'; cb.checked = !!ST.band; cb.onchange = () => { ST.band = cb.checked; }; l.append(cb, document.createTextNode(' 🎸 Sing along with just the band')); opts.appendChild(l); }
+  opts.appendChild(el('span', 'muted st-hint', '🎤 My turn: he sings the line, then you sing or hum it back while the music waits. 🎧 Sing along: the music keeps playing, so wear headphones so the mic hears only you.'));
+  c.appendChild(opts);
+  const live = el('p', 'ls-live', ''); live.id = 'stLive'; c.appendChild(live);
+  const meter = el('div', 'ls-meter'); meter.id = 'lsMeter'; meter.hidden = true; meter.innerHTML = '<i class="ls-band"></i><i class="ls-dot"></i><span class="ls-note"></span>'; c.appendChild(meter);
+  const res = el('div', 'st-res'); res.id = 'stRes'; c.appendChild(res);
+  ST.setBusy = on => { ST.busy = on; c.querySelectorAll('.st-btns button').forEach(b => { if (b.dataset.act === 'stop') b.hidden = !on; else b.disabled = on; }); };
+  // where to start: the first line not learned yet
+  const recs = (store.proLearn || {})['pro:' + an.name] || {}, first = lines.findIndex((_, k) => !(recs[k] && recs[k].ok));
+  setTimeout(() => stGo(Math.max(0, first)), 0);
+  return c;
+}
+function stNav() {
+  const box = $('#stNav'); if (!box) return; box.textContent = ''; const lines = stLines(), n = lines.length, recs = (store.proLearn || {})['pro:' + PRO.an.name] || {}, learned = lines.filter((_, k) => recs[k] && recs[k].ok).length, r = recs[ST.k] || {};
+  const prev = el('button', 'ls-arrow', '‹'); prev.dataset.act = 'prev'; prev.disabled = ST.whole || ST.k === 0; prev.onclick = () => stGo(ST.k - 1);
+  const next = el('button', 'ls-arrow', '›'); next.dataset.act = 'next'; next.disabled = ST.whole || ST.k >= n - 1; next.onclick = () => stGo(ST.k + 1);
+  const mid = el('div', 'ls-navmid'), w = (((store.proWords || {})['pro:' + PRO.an.name] || {})[ST.k] || '');
+  mid.append(el('b', 'ls-chip', ST.whole ? 'The whole song' : (r.ok ? '✓ ' : '') + 'Line ' + (ST.k + 1) + ' of ' + n), el('span', 'st-words', ST.whole ? 'from the beginning' : w || ''));
+  const bar = el('div', 'ls-prog'); const fill = el('i'); fill.style.width = (100 * learned / n) + '%'; bar.appendChild(fill);
+  const wh = el('button', 'small st-whole', ST.whole ? '↩ Back to line by line' : 'Whole song'); wh.dataset.act = 'whole'; wh.onclick = () => { ST.whole = !ST.whole; stGo(ST.k); };
+  // the words for this line, if they need fixing: typed once, kept with the song
+  const ed = el('button', 'small st-whole', '✎ Words'); ed.dataset.act = 'words'; ed.hidden = ST.whole;
+  const inp = el('input'); inp.type = 'text'; inp.className = 'ls-wordin st-wordin'; inp.hidden = true; inp.value = w; inp.placeholder = 'The words of this line, e.g. "There’s no gra-vi-ty"';
+  const saveW = () => { ((store.proWords ||= {})['pro:' + PRO.an.name] ||= {})[ST.k] = inp.value.trim(); dirty = true; save(); proWordsToNotes(PRO.an); if (ST.show) PRO.an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), PRO.an, stLines()[ST.k].t0 + 0.01); stNav(); };
+  inp.onkeydown = e => { if (e.key === 'Enter') saveW(); }; inp.onblur = saveW; ed.onclick = () => { inp.hidden = false; ed.hidden = true; inp.focus(); };
+  const tools = el('div', 'row st-tools'); tools.append(wh, ed);
+  mid.append(bar, el('span', 'muted ls-progt', learned + ' of ' + n + ' lines learned' + (r.best != null && !ST.whole ? ' · best on this line ' + r.best : '')), tools, inp);
+  box.append(prev, mid, next);
+}
+// move to a line: the graph shows it, the words show it
+function stGo(k) {
+  stHalt(); const lines = stLines(); ST.k = Math.max(0, Math.min(lines.length - 1, k)); if (!ST.show) stShowReset();
+  const l = lines[ST.k], t = ST.whole ? 0 : Math.max(0, l.t0 - 0.4); PRO.show = ST.show; PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.1); rollDraw(PRO);
+  lyricShow($('#proLyric'), PRO.an, ST.whole ? 0.01 : l.t0 + 0.01); stNav(); const lv = $('#stLive'); if (lv) lv.textContent = '';
+}
+function stHalt() { lsStop(); rollStop(PRO); ST.setBusy && ST.setBusy(false); }
+const stRange = () => { const l = stLines()[ST.k]; return ST.whole ? [0, PRO.an.dur] : [l.t0, l.t1]; };
+// play the recording between a and b with the playhead and the words; your voice can be captured at the same time
+function stPlay(a, b, o = {}) {
+  const buf = o.band && PRO.inst ? PRO.inst : ST.alone && PRO.vox ? PRO.vox : PRO.mix || PRO.buf, lag = buf === PRO.inst ? (PRO.instLag || 0) : 0, gain = buf === PRO.vox ? 2 : 0.9;
+  return lsWait(fin => {
+    const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = buf; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
+    const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag), b - from + 0.4); LS.src = src;
+    const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0), lyr = $('#proLyric');
+    const iv = setInterval(() => {
+      const t = from + (ac.currentTime - t0) - lat; PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t);
+      if (o.capture) o.capture(t);
+      rollDraw(PRO); if (t > b + 0.3) { clearInterval(iv); fin(true); }
+    }, 20);
+    LS.pending.push(() => clearInterval(iv));
+  });
+}
+// your voice into the song's timeline (folded to his note's octave, so any octave counts)
+function stCapture(t) {
+  const an = PRO.an, k = Math.round((t - an.t0f) / an.hop); if (k < 0 || k >= ST.user.length || !S.voiced || S.midi == null) return;
+  const n = an.notes.find(x => t >= (x.b0 ?? x.t0) - 0.1 && t <= (x.b1 ?? x.t1) + 0.1), tg = n ? n.midi : null;
+  ST.user[k] = tg != null ? tg + ((((S.midi - tg) % 12) + 18) % 12) - 6 : S.midi;
+}
+async function stListen() {
+  stHalt(); await ensureAudio(); const g = LS.gen; ST.setBusy(true); const [a, b] = stRange(); $('#stLive').textContent = '🔊 Listen…';
+  await stPlay(a, b, { lead: ST.whole ? 0 : 0.4 }); if (LS.gen !== g) return; ST.setBusy(false); $('#stLive').textContent = ST.whole ? '' : 'Now tap 🎤 My turn and sing it back.';
+}
+// my turn: he sings the line, two soft clicks, then you sing it while the music waits
+async function stTurn() {
+  if (ST.whole) { ST.whole = false; stNav(); }
+  stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen, gone = () => LS.gen !== g; ST.setBusy(true);
+  const l = stLines()[ST.k], live = $('#stLive'), beat = stBeat();
+  stClearLine(l); live.textContent = '🔊 His line…';
+  if (!(await stPlay(l.t0, l.t1, { lead: 0.4 })) || gone()) return;
+  // two clicks on the beat, then your turn: the playhead runs over his bars again, silently, and draws you
+  for (let k = 0; k < 2; k++) click(0.15 + k * beat, k === 0);
+  const start = ac.currentTime + 0.15 + 2 * beat, dur = l.t1 - l.t0 + 0.6; LS.phase = 'turn'; LS.cap = { line: l, start }; LS.start = start;
+  const ok = await lsWait(fin => { const iv = setInterval(() => {
+    const tt = ac.currentTime - start; if (tt < 0) { live.textContent = 'Your turn in ' + Math.ceil(-tt / beat) + '…'; return; }
+    const t = l.t0 + tt; stCapture(t); PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow($('#proLyric'), PRO.an, t); rollDraw(PRO);
+    live.textContent = '🎤 Sing or hum it now';
+    if (tt > dur) { clearInterval(iv); LS.phase = 'idle'; fin(true); } }, 20); LS.pending.push(() => { clearInterval(iv); LS.phase = 'idle'; }); });
+  if (!ok || gone()) return; ST.setBusy(false); stScore(l, 'turn');
+}
+// sing along: the music keeps playing; every line you pass is scored
+async function stAlong() {
+  stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
+  const [a, b] = stRange(), lines = stLines().filter(l => l.t0 >= a - 0.01 && l.t1 <= b + 0.01); lines.forEach(stClearLine);
+  $('#stLive').textContent = '🎧 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '…';
+  const scored = new Set();
+  const done = await stPlay(a, b, { lead: ST.whole ? 0 : 1.5, band: ST.band, capture: t => { stCapture(t); for (const l of lines) if (!scored.has(l) && t > l.t1 + 0.3) { scored.add(l); stMark(l); } } });
+  if (LS.gen !== g && !done) return;
+  ST.setBusy(false); for (const l of lines) if (!scored.has(l)) stMark(l);
+  if (ST.whole) stSongSummary(lines); else stScore(stLines()[ST.k], 'along');
+}
+function stClearLine(l) { if (!ST.show) stShowReset(); const an = PRO.an; for (let i = Math.max(0, Math.floor((l.t0 - 0.5 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 + 0.6 - an.t0f) / an.hop)); i++) ST.user[i] = null; l.idx.forEach(i => { delete ST.show.notes[i].hit; ST.show.notes[i].c = 0; }); }
+// how a line went: per note (any octave), timing, starts, vibrato; marks each bar
+function stEval(l) {
+  const an = PRO.an, notes = l.idx.map((i, j) => { const n = an.notes[i]; return { i, pos: j, midi: n.midi, a: (n.b0 ?? n.t0) - l.t0, b: (n.b1 ?? n.t1) - l.t0, hisC: n.c, hisOn: n.on - n.c, vib: n.vib, leap: j ? n.midi - an.notes[l.idx[j - 1]].midi : 0 }; });
+  const sm = []; for (let i = Math.max(0, Math.floor((l.t0 - 0.4 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 + 0.4 - an.t0f) / an.hop)); i++) if (ST.user[i] != null) sm.push({ t: an.t0f + i * an.hop - l.t0, m: ST.user[i] });
+  return { notes, R: lsEval(notes, sm) };
+}
+function stMark(l) { const { R } = stEval(l); R.per.forEach(p => { const n = ST.show.notes[p.n.i]; n.hit = p.miss ? null : p.c; n.c = n.hit; }); rollDraw(PRO); return R; }
+function stScore(l, how) {
+  const { notes, R } = stEval(l), k = ST.k; stMark(l);
+  const rec = stRec(k), prev = rec.best; rec.tries = (rec.tries || 0) + 1; rec.best = Math.max(rec.best || 0, R.score); if (R.ok) { rec.ok = true; rec.at = Date.now(); } dirty = true; save();
+  ST.fails[k] = R.ok ? 0 : (ST.fails[k] || 0) + 1;
+  const res = $('#stRes'); res.textContent = '';
+  const head = el('div', 'ls-score'); head.append(el('b', 'ls-big', String(R.score)), el('span', '', ' / 100 · ' + R.per.filter(p => !p.miss && Math.abs(p.c) <= 25).length + ' of ' + R.per.length + ' words on the note' + (prev != null && R.score > prev ? ' · new best ↑' : '')));
+  res.appendChild(head);
+  // one thing to change, the way a teacher would pick it
+  const worst = R.per.filter(p => p.miss || Math.abs(p.c) > 35).sort((x, y) => (y.miss ? 999 : Math.abs(y.c)) - (x.miss ? 999 : Math.abs(x.c)))[0];
+  const word = p => { const w = ST.show.notes[p.n.i].word; return w ? '“' + w.replace(/-$/, '') + '”' : 'note ' + (p.n.pos + 1); };
+  let tip, help = null;
+  if (R.ok) tip = (R.score >= 90 ? cue('good') + ' ' : '') + '✓ Line ' + (k + 1) + ' learned.';
+  else if (worst && worst.miss) tip = 'I didn’t hear ' + word(worst) + '. ' + cue('missed');
+  else if (worst) { const dir = worst.c < 0 ? 'flat' : 'sharp'; tip = word(worst) + ' (' + nameOf(worst.n.midi) + ') was ' + Math.abs(worst.c) + '¢ ' + dir + (Math.abs(worst.n.hisC) <= 15 ? '; he sits right on it. ' : '. ') + (Math.abs(worst.n.leap) >= 4 ? cue('leap') : cue(dir)); help = worst; }
+  else if (Math.abs(R.lagMs) > 120) tip = 'The notes are right; you came in ' + Math.abs(R.lagMs) + ' ms ' + (R.lagMs > 0 ? 'late. ' + cue('late') : 'early. ' + cue('early'));
+  else tip = 'Close: ' + R.score + '. Once more and it’ll settle.';
+  res.appendChild(el('p', 'ls-tip', tip));
+  const row = el('div', 'row');
+  const again = el('button', R.ok ? 'small' : 'primary', '↻ Again'); again.dataset.act = 'again'; again.onclick = () => how === 'along' ? stAlong() : stTurn(); row.appendChild(again);
+  // help when a line keeps going wrong: lock in the note that's off, or hear his voice on its own
+  if (!R.ok && ST.fails[k] >= 2 && help) { const h = el('button', 'small', '🎯 Lock in ' + word(help)); h.dataset.act = 'lock'; h.onclick = () => stLock(help); row.appendChild(h); }
+  if (!R.ok && ST.fails[k] >= 2 && PRO.vox && !ST.alone) { const h = el('button', 'small', '🎤 Hear his voice alone'); h.onclick = () => { ST.alone = true; const cb = $('#stAlone'); if (cb) cb.checked = true; stListen(); }; row.appendChild(h); }
+  if (!R.ok && ST.fails[k] >= 3) res.appendChild(el('p', 'muted', 'Tip: listen twice before your turn, and hum it first; words can wait until the tune feels easy.'));
+  if (R.ok && k < stLines().length - 1) { const nx = el('button', 'primary', 'Next line →'); nx.dataset.act = 'nextline'; nx.onclick = () => stGo(k + 1); row.prepend(nx); }
+  res.appendChild(row); stNav();
+}
+async function stLock(p) {
+  stHalt(); if (!(await ensureListening())) return; const g = LS.gen; ST.setBusy(true); $('#stLive').textContent = '🎯 Hold ' + nameOf(p.n.midi) + ' inside the green band';
+  const r = await lsHoldRun(p.n.midi, {}); if (!r || LS.gen !== g) return; ST.setBusy(false);
+  $('#stLive').textContent = r.ok ? cue('good') + ' You found ' + nameOf(p.n.midi) + '. Now the line again: tap 🎤 My turn.' : 'Keep at it: hear the note in your head first, then sing it softly.';
+}
+function stSongSummary(lines) {
+  const res = $('#stRes'); res.textContent = ''; const out = lines.map(l => ({ k: stLines().indexOf(l), R: stEval(l).R })).filter(x => x.R.per.some(p => !p.miss));
+  if (!out.length) { res.appendChild(el('p', 'muted', 'Sing along with at least one line to get a score.')); return; }
+  out.forEach(x => { const rec = stRec(x.k); rec.best = Math.max(rec.best || 0, x.R.score); if (x.R.ok) { rec.ok = true; rec.at = Date.now(); } }); dirty = true; save();
+  const avg = Math.round(mean(out.map(x => x.R.score))), work = out.filter(x => x.R.score < 70).sort((a, b) => a.R.score - b.R.score);
+  res.append(el('p', 'cheer-big', avg >= 85 ? 'That was a real performance!' : avg >= 70 ? 'Lovely singing. A few lines to polish.' : 'Good run. Let’s work on the lines that need it.'), el('p', '', out.length + ' lines · average ' + avg));
+  const list = el('div', 'kr-lines');
+  for (const x of out) { const row = el('div', 'kr-line ' + (x.R.score >= 85 ? 'good' : x.R.score >= 70 ? 'fair' : 'work')); row.dataset.line = x.k; row.append(el('b', '', 'Line ' + (x.k + 1)), el('span', 'kr-lw', (((store.proWords || {})['pro:' + PRO.an.name] || {})[x.k] || '')), el('span', 'kr-ls', String(x.R.score)));
+    if (x.R.score < 70) { const b = el('button', 'small', 'Practise →'); b.dataset.act = 'practise'; b.onclick = () => { ST.whole = false; stGo(x.k); }; row.appendChild(b); } list.appendChild(row); }
+  res.appendChild(list); stNav();
 }
 // ---------- Sing the whole song: karaoke on the moving graph ----------
 // The whole song plays (or just the band, or guide notes the mic ignores), his learned notes scroll past as bars with
@@ -6499,7 +6675,7 @@ function lsLive(notes, speed) {
 }
 // a held-note exercise with a live meter: success when 1.5 s are spent inside ±25 cents
 function lsHoldRun(target, o = {}) {
-  const meter = $('#lsMeter'), live = $('#lsLive'); meter.hidden = false;
+  const meter = $('#lsMeter'), live = $('#lsLive') || $('#stLive'); meter.hidden = false;
   playTone(o.from ?? target, 1.4, PIPE, 0.05);
   LS.phase = 'turn'; LS.cap = { hold: target, from: o.from }; LS.start = ac.currentTime + 1.6; LS.pending.push(() => { LS.phase = 'idle'; }); let inT = 0, last = null, nearFrom = o.from == null, vibV = [];
   return lsWait(resolve => {

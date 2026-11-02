@@ -95,19 +95,13 @@ Three passes:
 
 If the artist offers an instrumental of the same recording, 🎻 Add the instrumental: the two files are lined up (loudness envelopes for the rough offset, then the waveforms to the sample), their level is matched second by second below 100 Hz (kick and bass only, so the voice can't skew it), and the instrumental is subtracted, leaving the voice. Pitch is then measured on the voice alone (beat and bass tuning still come from the full song). In the lesson: 🎤 Hear his voice alone, and 🎧 Sing with the band (headphones on) plays the instrumental from the same moment of the song under you.
 
-### Sing the whole song
+### Practise this song (one area, under the main graph)
 
-Karaoke on the moving graph: the whole song (from the start or from any line) with his learned notes scrolling past as bars and his voice in purple, the words above with the current word lit and the next line below, and your voice drawn live (folded to his octave, so any octave counts). Hear it as 🔈 guide notes (a tone that follows the tune, filtered out of the mic, so no headphones needed), 🎧 the whole song, or 🎧 just the band (with the instrumental). At the end every line gets a score, with your best line and Practise this line → for the ones under 70, which opens the coached lesson on that line.
-
-### Learn to sing it like this (a coached lesson)
-
-Under the analysis, the song is split into its lines. Each line climbs a ladder: Listen and learn (his line, then the notes alone, slowly) → Hum along, slowly (guide tones at 70% speed; the mic ignores them) → Sing it back on your own (count-in and starting note; any octave; your try is recorded for ▶ Hear yours). When a try isn't right, the coach diagnoses the main problem and picks a tool, escalating if it repeats:
-- one note flat or sharp → **Lock in one note** (hear it, hold it 1.5 s inside ±25¢ on a live meter), then put it back in its piece of the line;
-- a missed jump of 4+ half steps → **Siren to the jump** (start on the note before, slide up on "ng", hold);
-- several notes wrong → **Build it from the end** (backchaining: the last third, then the last two thirds, then the line); again → back to the slow guide;
-- late or early → **Sing on the clicks**;
-- the same note failing three times → the slow guide; any exercise failing three times → move on kindly.
-While you hum or sing, the same moving graph shows the line's bars scrolling past the playhead, your voice drawn live (green/gold/red) and his voice in purple. Low lines use a bass clef. Coaching cues rotate (several ways of saying each thing), each exercise says why it works, and the graph shows your voice against his. A line is learned (✓) at 80+ with every note within 35¢; then one style polish (his vibrato, or his slide into a note) earns a ★. Next visit starts with a quick review of a line learned on an earlier day.
+Everything happens on the main graph, with the real recording and the words (the lyric line above, each bar with its word). Pick a line with ‹ Line 3 of 18 › (or Whole song); ✎ Words fixes a line's words.
+- ▶ Listen: his line (or the whole song) with the playhead and the words.
+- 🎤 My turn: he sings the line, two soft clicks, then you sing or hum it back while the music waits, so the mic hears only you. Your voice is drawn over his bars as you sing.
+- 🎧 Sing along: the music keeps playing (headphones on) and every line you pass is scored; with the instrumental, sing along with just the band; with his voice separated, hear his voice alone.
+- ■ Stop and ↻ Again at any time. After a try: a score, each word's bar green/gold/red, one tip (the word that was off and how he sings it, timing, a cue), and help when a line keeps going wrong (🎯 Lock in the note on a live meter, 🎤 hear his voice alone, hum it first). ✓ when a line is learned (80+, every note within 35¢), kept between visits, with progress for the song.
 
 ## Your take, note by note
 
