@@ -887,7 +887,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && hard.pass2.filled >= 1 && hard.grace && hard.grace.midi === 67 && hard.grace.len < 0.12 && hard.flatE && hard.flatE.midi === 64 && hard.flatE.c <= -50 && hard.flatE.c >= -70 && hard.centredF >= 2 && /Found 1 short or half-hidden note\./.test(hard.how) && /1 note missed the learned tune/.test(hard.how)
       && rep3.phrases >= 10 && rep3.grid && rep3.voted.length === 1 && rep3.voted[0][0] === 67 && rep3.voted[0][1] <= -55 && rep3.differs.length === 1 && rep3.differs[0].join() === '59,62' && rep3.steps === '1,2,3'
       && band.src === 'band' && Math.abs(band.bandTune - 10) <= 4 && band.bias <= -10 && band.bias >= -20 && /against the band/.test(band.card)
-      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, rep3, band, bass }));
+      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 14 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, rep3, band, bass }));
   });
 
   await test('Learn to sing it like this: a coached lesson; a flat note gets "lock it in", then put back in its piece, learned ✓, then his vibrato for a ★', async page => {
@@ -1015,6 +1015,28 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const a = r.w.areas;
     expect(intro.prog === 4 && !intro.tip && [...seen].join() === 'breath,muscle,ear,home' && r.n === 2 && a.breath >= 50 && a.muscle >= 80 && a.ear >= 80 && a.home >= 80
       && r.sum.length === 4 && /since last time/.test(r.sum.join(' ')) && /Most room to grow/.test(r.focus) && r.prog === 4, JSON.stringify({ seen: [...seen], r }));
+  });
+
+  await test('Sing the whole song: the song plays on with the moving graph, the words show with the current word lit, your voice is drawn, and every line gets a score with Practise this line', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Sing test', 'file');
+      store.proWords = { 'pro:Sing test': { 0: 'one two three four five six se-ven eight nine ten', 1: 'Hap-py birth-day to you and to you my dear friend', 2: 'third line words here and there and more', 3: 'last line of the song for now we go home' } }; save();
+      // the singer follows his notes, a semitone flat on line 3
+      setInterval(() => { if (!KR.on) { V.on = false; return; } const t = ac.currentTime - KR.t0, ns = PRO.an.notes, n = ns.find(x => t >= x.b0 && t <= x.b1 - 0.04), li = KR.lines.findIndex(l => t >= l.t0 && t <= l.t1);
+        V.on = !!n; if (n) V.m = n.midi + (li === 2 ? -1 : 0); }, 15); });
+    const card = await page.evaluate(() => ({ card: !!$('[data-card="karaoke"]'), modes: document.querySelectorAll('[data-card="karaoke"] input[name="krMode"]').length, from: document.querySelectorAll('#krFrom option').length, lines: KR.lines.length }));
+    await page.selectOption('#krFrom', '1');
+    await page.click('#krGo');
+    await page.waitForFunction(() => KR.on && ac.currentTime - KR.t0 > KR.lines[1].t0 + 1, null, { timeout: 15000 });
+    const mid = await page.evaluate(() => ({ now: $('#krLyric .kr-now').textContent, lit: ($('#krLyric .kr-now .kr-on') || {}).textContent, next: $('#krLyric .kr-next').textContent, guide: !!guideTone, drawn: KR.user.filter(v => v != null).length, roll: !!$('#krRoll canvas') }));
+    await page.waitForFunction(() => !KR.on && $('#krSum .kr-line'), null, { timeout: 60000 });
+    const end = await page.evaluate(() => ({ rows: [...document.querySelectorAll('#krSum .kr-line')].map(r => [+r.dataset.line, +r.querySelector('.kr-ls').textContent, !!r.querySelector('[data-act="practise"]')]), head: $('#krSum').textContent.slice(0, 160), saved: store.proSings['Sing test'].length }));
+    await page.click('#krSum [data-act="practise"]');
+    const jumped = await page.evaluate(() => LS.k);
+    const l2 = end.rows.find(r => r[0] === 2), ok = end.rows.filter(r => r[0] !== 2);
+    expect(card.card && card.modes === 2 && card.from === card.lines + 1 && /Hap-py birth-day|Happy|birth/.test(mid.now) && mid.lit && /third line/.test(mid.next) && mid.guide && mid.drawn > 20 && mid.roll
+      && end.rows[0][0] === 1 && ok.every(r => r[1] >= 80 && !r[2]) && l2 && l2[1] < 70 && l2[2] && end.saved === 1 && jumped === 2, JSON.stringify({ card, mid, end, jumped }));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {

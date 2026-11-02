@@ -475,6 +475,17 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .ls-why summary { cursor: pointer; font-size: .85rem; color: var(--accent); } .ls-why p { margin: 4px 0 0; font-size: .86rem; }
 .ls-go { width: 100%; min-height: 52px; font-size: 1.08rem; }
 .ls-small { justify-content: center; }
+.kr-card { display: grid; gap: 10px; border: 2px solid var(--accent); } .kr-card h3, .kr-card p { margin: 0; }
+.kr-modes { display: grid; gap: 4px; } .kr-mode { display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap; font-size: .95rem; }
+#krFrom { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.kr-lyrics { text-align: center; display: grid; gap: 4px; min-height: 3.6em; }
+.kr-now { font: 700 1.35rem/1.35 var(--display); } .kr-now span { all: unset; } .kr-now .kr-on { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; } .kr-now .kr-done { color: var(--muted); }
+.kr-next { color: var(--muted); font-size: .98rem; min-height: 1.2em; }
+.kr-roll { display: grid; gap: 6px; } .kr-roll .pro-roll { height: min(320px, 42vh); }
+.kr-sum { display: grid; gap: 8px; } .kr-sum p { margin: 0; }
+.kr-lines { display: grid; gap: 4px; } .kr-line { display: grid; grid-template-columns: 4.5em 1fr 2.5em auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; border-left: 4px solid var(--line); background: var(--surface); }
+.kr-line.good { border-left-color: #1f9d55; } .kr-line.fair { border-left-color: #d9a400; } .kr-line.work { border-left-color: #d0533f; }
+.kr-lw { font-size: .88rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .kr-ls { font-weight: 700; text-align: right; }
 .wo-box { display: grid; gap: 14px; }
 .wo-card { display: grid; gap: 10px; } .wo-card h3, .wo-card p { margin: 0; }
 .wo-tip { padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
@@ -960,7 +971,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · daily workout, singing home</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · sing the whole song</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5518,7 +5529,7 @@ function startCard() {
 const PRO = { buf: null, an: null, src: null, gain: null, t0: 0, off: 0, view: 0, sel: -1, raf: 0, playing: false, drag: null };
 const KEY_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
-function proStop() { rollStop(PRO); lsStop(); }
+function proStop() { rollStop(PRO); lsStop(); if (KR.on) krStop(); }
 function proStart() {
   const box = $('#proBox'); box.textContent = ''; PRO.an = null; PRO.buf = null;
   const intro = el('div', 'pro-intro');
@@ -5821,6 +5832,7 @@ function proRender() {
     }
     out.appendChild(ib);
   }
+  out.appendChild(karaokeCard(an));
   out.appendChild(learnCard(an));
   out.appendChild(proInfoCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
@@ -5879,7 +5891,7 @@ function rollBind(R) {
     if (best >= 0) rollSelect(R, best);
   };
 }
-window.addEventListener('resize', () => { for (const R of [PRO, TAKE, LSR, WO.R]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
+window.addEventListener('resize', () => { for (const R of [PRO, TAKE, LSR, WO.R, KR.R]) if (R.an && R.cv && R.cv.isConnected) rollDraw(R); });
 function rollSelect(R, i) {
   const n = R.an.notes[i]; R.sel = i; const was = R.playing; rollStop(R); R.off = n.t0; rollDraw(R);
   const off = n.c == null ? 'not heard' : Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
@@ -5888,7 +5900,7 @@ function rollSelect(R, i) {
 }
 function rollGeom(R) {
   const an = R.an, top = 8, h = R.cv.clientHeight - 16, lo0 = an.lo - 2, hi0 = an.hi + 2, rows = hi0 - lo0 + 1, fit = h / rows;
-  if (fit >= 22) return { top, lo: lo0, hi: hi0, row: fit };
+  if (fit >= 14) return { top, lo: lo0, hi: hi0, row: fit };
   // too many notes to show at a readable size: show ~h/24 rows around the singer, following them
   const row = 24, n = Math.floor(h / row), half = n / 2, c = Math.max(lo0 + half, Math.min(hi0 - half + 1, R.vc ?? (an.lo + an.hi) / 2));
   const hi = Math.round(c + half) - 1; return { top, lo: hi - n + 1, hi, row };
@@ -6096,6 +6108,86 @@ function proInfoCard(an) {
   };
   c.appendChild(go);
   return c;
+}
+// ---------- Sing the whole song: karaoke on the moving graph ----------
+// The whole song plays (or just the band, or guide notes the mic ignores), his learned notes scroll past as bars with
+// his voice in purple, the words show above with the current word lit, and your voice is drawn live. At the end every
+// line gets a score, with a way straight into the coached lesson for the ones that need work.
+const KR = { R: { an: null }, on: false, iv: 0, src: null, t0: 0, from: 0, mode: 'tones', user: null, lines: [] };
+function krStop() { KR.on = false; clearInterval(KR.iv); KR.iv = 0; if (KR.src) { try { KR.src.stop(); } catch (e) {} KR.src = null; } guideOff(true); rollStop(KR.R); const b = $('#krGo'); if (b) { b.textContent = '▶ Start singing'; b.classList.add('primary'); } }
+function karaokeCard(an) {
+  KR.lines = proLines(an); const c = el('div', 'card kr-card'); c.dataset.card = 'karaoke';
+  c.append(el('h3', '', '🎤 Sing the whole song'), el('p', 'muted', 'Sing along from start to finish with the words. His notes scroll past as bars; your voice is drawn as you sing.'));
+  if (!KR.lines.length) { c.appendChild(el('p', 'muted', 'I couldn’t find clear lines in this song yet.')); return c; }
+  const modes = el('div', 'kr-modes'), opts = [['tones', '🔈 Guide notes', 'no headphones needed: the tune plays as a tone the mic ignores']].concat([['song', '🎧 The whole song', 'headphones on, so the mic hears only you']], PRO.inst ? [['band', '🎧 Just the band', 'headphones on: the instrumental, you sing his part']] : []);
+  if (!opts.some(o => o[0] === KR.mode)) KR.mode = 'tones';
+  for (const [k, t, d] of opts) { const lab = el('label', 'kr-mode'), r = el('input'); r.type = 'radio'; r.name = 'krMode'; r.value = k; r.checked = KR.mode === k; r.onchange = () => { KR.mode = k; }; lab.append(r, el('b', '', ' ' + t), el('span', 'muted', ' · ' + d)); modes.appendChild(lab); }
+  const fromS = el('select'); fromS.id = 'krFrom'; fromS.appendChild(el('option', '', 'From the beginning')); fromS.firstChild.value = 0;
+  KR.lines.forEach((l, k) => { const w = (((store.proWords || {})['pro:' + an.name] || {})[k] || '').split(/\s+/).slice(0, 4).join(' '); const o = el('option', '', 'From line ' + (k + 1) + (w ? ': ' + w + '…' : ' (' + fmt(l.t0) + ')')); o.value = k; fromS.appendChild(o); });
+  const go = el('button', 'primary ls-go', '▶ Start singing'); go.id = 'krGo'; go.onclick = () => KR.on ? krFinish() : krStart(+fromS.value);
+  const lyr = el('div', 'kr-lyrics'); lyr.id = 'krLyric'; lyr.innerHTML = '<div class="kr-now">&nbsp;</div><div class="kr-next">&nbsp;</div>';
+  const roll = el('div', 'kr-roll'); roll.id = 'krRoll'; const sum = el('div', 'kr-sum'); sum.id = 'krSum';
+  c.append(modes, fromS, go, lyr, roll, sum);
+  return c;
+}
+const krWords = (an, k) => (((store.proWords || {})['pro:' + an.name] || {})[k] || '');
+async function krStart(fromLine) {
+  krStop(); lsStop(); proStop(); if (!(await ensureListening())) return; await ensureAudio();
+  const an = PRO.an, lines = KR.lines, from = Math.max(0, lines[fromLine].t0 - 2), hop = an.hop;
+  KR.user = new Array(an.trace.length).fill(null); KR.from = fromLine;
+  Object.assign(KR.R, { an: { dur: an.dur, notes: an.notes, trace: KR.user, ref: an.trace, hop, t0f: an.t0f, lo: an.lo, hi: an.hi, beat: an.beat }, buf: null });
+  const box = $('#krRoll'); box.textContent = ''; rollMount(KR.R, box, { title: an.name, idp: 'kr', hint: 'His voice is purple; yours is drawn as you sing: green on the note, gold close, red off.', noAudio: '' });
+  box.querySelector('.pro-head button.primary').hidden = true; box.querySelector('.pro-head button.small').hidden = true; box.querySelector('.pro-pos').hidden = true;
+  box.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> his notes</span><span><i class="lg-his"></i> his voice</span><span>you: <b class="lg-g">green</b> on it · <b class="lg-y">gold</b> close · <b class="lg-r">red</b> off</span>';
+  $('#krSum').textContent = '';
+  // what you hear
+  const lag = KR.mode === 'band' ? (PRO.instLag || 0) : 0, buf = KR.mode === 'song' ? (PRO.mix || PRO.buf) : KR.mode === 'band' ? PRO.inst : null;
+  KR.t0 = ac.currentTime + 0.3 - from;
+  if (buf) { const s2 = ac.createBufferSource(), g = ac.createGain(); s2.buffer = buf; g.gain.value = 0.9; s2.connect(g); g.connect(ac.destination); s2.start(ac.currentTime + 0.3, Math.max(0, from - lag)); KR.src = s2; }
+  KR.on = true; const go = $('#krGo'); go.textContent = '■ Stop and see how I did'; go.classList.remove('primary');
+  const now = $('#krLyric .kr-now'), next = $('#krLyric .kr-next'), esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  let gNote = -1, lastLine = -2;
+  KR.iv = setInterval(() => {
+    const t = ac.currentTime - KR.t0; if (t > an.dur + 0.5) return krFinish();
+    const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1));
+    // guide notes: a tone that follows the tune, filtered out of the mic
+    if (KR.mode === 'tones') { if (n >= 0 && n !== gNote) { gNote = n; guideTone ? guideTo(an.notes[n].midi) : guideOn(an.notes[n].midi, 0.28); } else if (n < 0 && guideTone && !an.notes.some(x => t >= (x.b0 ?? x.t0) - 0.25 && t <= (x.b1 ?? x.t1) + 0.25)) { guideOff(); gNote = -1; } }
+    // your voice, folded to the octave of his note, so any octave counts
+    const k = Math.round((t - an.t0f) / hop);
+    if (S.voiced && S.midi != null && k >= 0 && k < KR.user.length) { const tg = n >= 0 ? an.notes[n].midi : null; KR.user[k] = tg != null ? tg + ((((S.midi - tg) % 12) + 18) % 12) - 6 : S.midi; }
+    // the words: this line, the word you're on lit up, and the next line
+    const li = lines.findIndex(l => t >= l.t0 - 0.8 && t <= l.t1 + 0.4), nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
+    if (li >= 0) { const toks = krWords(an, li).split(/\s+|(?<=-)/).filter(Boolean), at = lines[li].idx.indexOf(n);
+      now.innerHTML = toks.length ? toks.map((w, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(w) + '</span>' + (/-$/.test(w) ? '' : ' ')).join('') : '<span class="muted">Line ' + (li + 1) + (krWords(an, 0) ? '' : ' · add the words in 🎼 Song details') + '</span>'; }
+    else if (lastLine !== -1) now.innerHTML = '<span class="muted">♪</span>';
+    lastLine = li; next.textContent = nli >= 0 && nli < lines.length ? krWords(an, nli) || '' : '';
+    const R = KR.R; R.off = Math.max(0, t); const sp = rollSpan(R); R.view = Math.max(0, t - sp * 0.3); rollDraw(R);
+  }, 20);
+}
+function krFinish() {
+  if (!KR.on) return; const an = PRO.an, lines = KR.lines, endT = ac.currentTime - KR.t0; krStop();
+  // a score for every line you reached, measured like the lesson does
+  const res = [];
+  lines.forEach((l, k) => {
+    if (k < KR.from || l.t1 > endT) return;
+    const notes = l.idx.map((i, j) => { const n = an.notes[i]; return { midi: n.midi, a: (n.b0 ?? n.t0) - l.t0, b: (n.b1 ?? n.t1) - l.t0, pos: j }; });
+    const sm = []; for (let i = Math.max(0, Math.floor((l.t0 - 0.4 - an.t0f) / an.hop)); i <= Math.min(KR.user.length - 1, Math.ceil((l.t1 + 0.4 - an.t0f) / an.hop)); i++) if (KR.user[i] != null) sm.push({ t: an.t0f + i * an.hop - l.t0, m: KR.user[i] });
+    res.push({ k, R: lsEval(notes, sm) });
+  });
+  const sum = $('#krSum'); sum.textContent = '';
+  if (!res.length) { sum.appendChild(el('p', 'muted', 'Sing at least one whole line to get a score.')); return; }
+  const avg = Math.round(mean(res.map(r => r.R.score))), best = [...res].sort((a, b) => b.R.score - a.R.score)[0], work = res.filter(r => r.R.score < 70).sort((a, b) => a.R.score - b.R.score);
+  (store.proSings ||= {})[an.name] = [...(store.proSings[an.name] || []), { at: Date.now(), avg, lines: res.length }].slice(-20); dirty = true; save();
+  const prev = store.proSings[an.name].slice(-2, -1)[0];
+  sum.append(el('p', 'cheer-big', avg >= 85 ? 'That was a real performance!' : avg >= 70 ? 'Lovely singing. A few lines to polish.' : 'Good run. Let’s practise the lines that need it.'),
+    el('p', '', res.length + ' lines sung · average ' + avg + (prev ? ' (last time ' + prev.avg + ')' : '') + ' · best: line ' + (best.k + 1) + ' (' + best.R.score + ')'));
+  const list = el('div', 'kr-lines');
+  for (const r of res) { const row = el('div', 'kr-line ' + (r.R.score >= 85 ? 'good' : r.R.score >= 70 ? 'fair' : 'work')); row.dataset.line = r.k; const w = krWords(an, r.k);
+    row.append(el('b', '', 'Line ' + (r.k + 1)), el('span', 'kr-lw', w || ''), el('span', 'kr-ls', String(r.R.score)));
+    if (r.R.score < 70) { const b = el('button', 'small', 'Practise this line →'); b.dataset.act = 'practise'; b.onclick = () => { const lc = document.querySelector('[data-card="learn"]'); if (lc) lc.scrollIntoView({ block: 'start' }); lsLine(r.k); }; row.appendChild(b); }
+    list.appendChild(row); }
+  sum.appendChild(list);
+  if (work.length) sum.appendChild(el('p', 'muted', 'Most room to grow: line ' + (work[0].k + 1) + '. Tap Practise this line for a coached lesson on it.'));
 }
 // ---------- Learn to sing it: a coached lesson, line by line ----------
 // Each line climbs a ladder (listen → hum along slowly → sing it back on your own → style). When a try isn't right the
@@ -6364,7 +6456,7 @@ function lsEval(notes, sm) {
 }
 // run the current exercise, then let the coach decide what comes next
 async function lsRun() {
-  lsStop(); const g = LS.gen; LS.busy = true; try { await lsRun1(g); } finally { if (LS.gen === g) LS.busy = false; }
+  if (KR.on) krStop(); lsStop(); const g = LS.gen; LS.busy = true; try { await lsRun1(g); } finally { if (LS.gen === g) LS.busy = false; }
 }
 async function lsRun1(g) {
   await ensureAudio(); const ex = LS.ex, k = LS.k, all = lsNotes(k), live = $('#lsLive'), gone = () => LS.gen !== g;

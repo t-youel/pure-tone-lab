@@ -95,6 +95,10 @@ Three passes:
 
 If the artist offers an instrumental of the same recording, 🎻 Add the instrumental: the two files are lined up (loudness envelopes for the rough offset, then the waveforms to the sample), their level is matched second by second below 100 Hz (kick and bass only, so the voice can't skew it), and the instrumental is subtracted, leaving the voice. Pitch is then measured on the voice alone (beat and bass tuning still come from the full song). In the lesson: 🎤 Hear his voice alone, and 🎧 Sing with the band (headphones on) plays the instrumental from the same moment of the song under you.
 
+### Sing the whole song
+
+Karaoke on the moving graph: the whole song (from the start or from any line) with his learned notes scrolling past as bars and his voice in purple, the words above with the current word lit and the next line below, and your voice drawn live (folded to his octave, so any octave counts). Hear it as 🔈 guide notes (a tone that follows the tune, filtered out of the mic, so no headphones needed), 🎧 the whole song, or 🎧 just the band (with the instrumental). At the end every line gets a score, with your best line and Practise this line → for the ones under 70, which opens the coached lesson on that line.
+
 ### Learn to sing it like this (a coached lesson)
 
 Under the analysis, the song is split into its lines. Each line climbs a ladder: Listen and learn (his line, then the notes alone, slowly) → Hum along, slowly (guide tones at 70% speed; the mic ignores them) → Sing it back on your own (count-in and starting note; any octave; your try is recorded for ▶ Hear yours). When a try isn't right, the coach diagnoses the main problem and picks a tool, escalating if it repeats:
