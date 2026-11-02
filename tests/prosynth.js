@@ -2,7 +2,9 @@
 window.makeProSong = async function (opts = {}) {
   const SR = 44100, beat = 0.6, tune = 0.10; // 100 bpm, recording 10 cents sharp
   // [midi, beats, cents off, vibrato, slide-in]
-  const mel = [[60,1,0],[62,1,0],[64,1,0],[65,1,0],[67,2,0,1],[69,1,0],[67,1,-40],[65,1,0],[64,1,0],[62,2,0,1],[60,1,0,0,1],[64,1,0],[67,3,0,1]];
+  let mel = [[60,1,0],[62,1,0],[64,1,0],[65,1,0],[67,2,0,1],[69,1,0],[67,1,-40],[65,1,0],[64,1,0],[62,2,0,1],[60,1,0,0,1],[64,1,0],[67,3,0,1]];
+  // the hard case: an in-key note sung 60 cents flat, and a quick 80 ms grace note
+  if (opts.hard) { mel[8] = [64, 1, -60]; mel.splice(3, 0, [67, 0.15, 0]); }
   const lead = opts.bass ? 3.6 : 1.2, total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
   const off = new OfflineAudioContext(2, Math.ceil(SR * total), SR);
   const vox = off.createGain(); vox.gain.value = 0.5; vox.connect(off.destination);

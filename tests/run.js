@@ -865,6 +865,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const cal = await page.evaluate(() => ({ refs: store.proRefs.length, tol: store.settings.proTol, acc: pitchAcc(22) }));
     await page.evaluate(async () => { await proLoad(await makeProSong(), 'My take: test', 'mine'); });
     const cmp = await page.evaluate(() => $('.pro-compare').textContent);
+    // the hard case: a quick grace note the first pass skips, and an in-key note sung 60 cents flat
+    const hard = await page.evaluate(async () => { await proLoad(await makeProSong({ hard: true }), 'Hard', 'file'); const a = PRO.an;
+      const g = a.notes.find(n => n.fill), e = a.notes.find(n => n.snap);
+      return { pass2: a.pass2, grace: g && { midi: g.midi, len: +(g.t1 - g.t0).toFixed(2) }, flatE: e && { midi: e.midi, c: e.c }, how: $('.pro-how').textContent, centredF: a.notes.filter(n => n.midi === 65 && !n.snap).length }; });
     // with a bass guitar under the voice (and a bass-only intro): bass notes are set aside, the voice is still measured
     const bass = await page.evaluate(async () => { await proLoad(await makeProSong({ bass: true }), 'With bass', 'file'); const a = PRO.an, voice = [60, 62, 64, 65, 67, 69];
       PRO.view = 3; rollDraw(PRO); const g = rollGeom(PRO);
@@ -874,7 +878,8 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
       && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
       && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp)
-      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, bass }));
+      && hard.pass2.filled >= 1 && hard.grace && hard.grace.midi === 67 && hard.grace.len < 0.12 && hard.flatE && hard.flatE.midi === 64 && hard.flatE.c <= -50 && hard.flatE.c >= -70 && hard.centredF >= 2 && /Second pass: added 1 short/.test(hard.how) && /moved 1 bar/.test(hard.how)
+      && bass.inst >= 3 && bass.instLow && bass.voiceNotes >= 11 && bass.other === 0 && bass.row >= 22 && bass.legend, JSON.stringify({ intro, an, info, play, before, cal, cmp, hard, bass }));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

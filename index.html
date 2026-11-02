@@ -463,6 +463,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
 .pro-pos { width: 100%; accent-color: #3b3fb5; }
+.pro-how { margin: 0; font-size: .88rem; line-height: 1.4; }
 .pro-info { margin: 0; min-height: 1.3em; font-weight: 600; }
 .pro-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
 .pro-legend i { display: inline-block; vertical-align: middle; margin-right: 4px; }
@@ -880,7 +881,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · zoomed graph, coloured voice line</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · second pass</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5549,10 +5550,42 @@ async function proAnalyze(buf, onProg) {
     for (const n of notes) if (n.midi < best.w - 1 || n.midi > best.w + 20) n.inst = true;
   }
   const allNotes = notes.slice(); notes.length = 0; notes.push(...allNotes.filter(n => !n.inst));
+  // ---- second pass (1): singing the first pass left without a bar ----
+  // Short notes and notes half-hidden by the band: use the fainter readings, only inside the singer's range, down to 60 ms.
+  const pass2 = { filled: 0, snapped: 0 };
+  if (notes.length) {
+    const vlo2 = Math.min(...notes.map(n => n.midi)), vhi2 = Math.max(...notes.map(n => n.midi)), covered = new Uint8Array(frames);
+    for (const n of allNotes) for (let i = Math.max(0, Math.floor(n.t0 * SR / HOP)); i <= Math.min(frames - 1, Math.ceil(n.t1 * SR / HOP)); i++) covered[i] = 1;
+    let run = [];
+    const flush = () => {
+      if (run.length >= 3) { const n = fin({ v: run.map(r => r.v) }); n.t0 = run[0].i * HOP / SR; n.t1 = T(run[run.length - 1].i) + HOP / SR / 2; n.fill = true; delete n.v; notes.push(n); pass2.filled++; for (const r of run) if (am[r.i] == null) am[r.i] = r.v; }
+      run = [];
+    };
+    for (let i = 0; i < frames; i++) {
+      const w = weak[i] == null ? null : weak[i] - tune;
+      if (covered[i] || w == null || w < vlo2 - 2 || w > vhi2 + 2) { flush(); continue; }
+      if (run.length && Math.abs(w - medArr(run.slice(-6).map(r => r.v))) > 0.7) flush();
+      run.push({ i, v: w });
+    }
+    flush();
+    notes.sort((a, b) => a.t0 - b.t0);
+  }
   // key from the time spent on each pitch class
   const pc = new Array(12).fill(0); for (const n of notes) pc[((n.midi % 12) + 12) % 12] += n.t1 - n.t0;
   const corr = (prof, k) => { const a = pc, b = prof.map((_, j) => prof[(j - k + 12) % 12]), ma = mean(a), mb = mean(b); let sab = 0, saa = 0, sbb = 0; for (let j = 0; j < 12; j++) { sab += (a[j] - ma) * (b[j] - mb); saa += (a[j] - ma) ** 2; sbb += (b[j] - mb) ** 2; } return sab / Math.sqrt(saa * sbb || 1); };
   let key = { k: 0, minor: false, r: -2 }; for (let k = 0; k < 12; k++) { const a = corr(KK_MAJ, k), b = corr(KK_MIN, k); if (a > key.r) key = { k, minor: false, r: a }; if (b > key.r) key = { k, minor: true, r: b }; }
+  // ---- second pass (2): check each bar against the song's key ----
+  // Without sheet music a bar is the nearest note to what was sung. If that lands on an out-of-key note the song barely
+  // uses, or the voice sits well away from it, the singer almost certainly missed the in-key note beside it: move the bar there.
+  {
+    const scale = (key.minor ? [0, 2, 3, 5, 7, 8, 10, 11] : [0, 2, 4, 5, 7, 9, 11]).map(x => (x + key.k) % 12), inKey = mm => scale.includes(((mm % 12) + 12) % 12);
+    const tot = pc.reduce((a, b) => a + b, 0) || 1;
+    for (const n of notes) {
+      const pcn = ((n.midi % 12) + 12) % 12; if (inKey(n.midi) || (pc[pcn] / tot >= 0.04 && Math.abs(n.c) < 25)) continue; // a real off-key note is sung centred; a miss isn't
+      const md = n.midi + n.c / 100, cand = [n.midi - 1, n.midi + 1].filter(inKey).sort((a, b) => Math.abs(md - a) - Math.abs(md - b))[0];
+      if (cand != null && Math.abs(md - cand) <= 0.9) { n.midi = cand; n.c = Math.round((md - cand) * 100); n.on = Math.round(n.on + (md - cand - n.c / 100) * 100); n.snap = true; pass2.snapped++; }
+    }
+  }
   // the beat: onset strength from the full mix, autocorrelated over 60-180 bpm
   const env = []; for (let i = 0; i < frames; i++) { let e = 0; for (let k = 0, o = i * HOP; k < N; k += 4) e += raw[o + k] * raw[o + k]; env.push(Math.log(Math.sqrt(e / (N / 4)) + 1e-4)); }
   const ons = env.map((e, i) => i ? Math.max(0, e - env[i - 1]) : 0), om = mean(ons), oc = ons.map(v => v - om);
@@ -5579,11 +5612,14 @@ async function proAnalyze(buf, onProg) {
   const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
   const vlo = notes.length ? Math.min(...notes.map(n => n.midi)) : 48, vhi = notes.length ? Math.max(...notes.map(n => n.midi)) : 72;
   for (let i = 0; i < trace.length; i++) if (trace[i] != null && (trace[i] < vlo - 3 || trace[i] > vhi + 3)) trace[i] = null;
-  return { dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
+  return { pass2, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
+  const how = el('p', 'pro-how muted'); how.dataset.card = 'how';
+  how.textContent = 'How the bars are chosen: there\u2019s no sheet music for this song, so each bar is the note the singer was most likely aiming for, the nearest note in the song\u2019s key (' + an.key + '). So small misses show clearly, but a note missed by more than half a step can look like a different note. Second pass: ' + (an.pass2.filled ? 'added ' + an.pass2.filled + ' short or half-hidden note' + (an.pass2.filled > 1 ? 's' : '') : 'no notes were missing') + (an.pass2.snapped ? ', and moved ' + an.pass2.snapped + ' bar' + (an.pass2.snapped > 1 ? 's' : '') + ' back into the key, where the singer was off' : '') + '.';
+  out.appendChild(how);
   out.appendChild(proStats(an));
   out.appendChild(proCompare(an));
   rollDraw(PRO);
@@ -5617,7 +5653,8 @@ function rollPlay(R) {
   if (ao >= 0) src.start(0, ao); else src.start(ac.currentTime - ao, 0);
   R.src = src; R.t0 = ac.currentTime - R.off; R.playing = true; R.play.textContent = '❚❚ Pause';
   src.onended = () => { if (R.src === src) { R.off = Math.min(R.an.dur, ac.currentTime - R.t0); rollStop(R); rollDraw(R); } };
-  const loop = () => { if (!R.playing) return; const t = ac.currentTime - R.t0; if (t > R.an.dur + 0.5) { rollStop(R); return; } R.off = t; const sp = rollSpan(R); if (!R.drag && (t > R.view + sp * 0.75 || t < R.view)) R.view = Math.max(0, t - sp * 0.25); rollDraw(R); R.raf = requestAnimationFrame(loop); };
+  const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0);
+  const loop = () => { if (!R.playing) return; const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; } R.off = t; const sp = rollSpan(R); if (!R.drag && (t > R.view + sp * 0.75 || t < R.view)) R.view = Math.max(0, t - sp * 0.25); rollDraw(R); R.raf = requestAnimationFrame(loop); };
   loop();
 }
 function rollBind(R) {
@@ -5636,7 +5673,7 @@ window.addEventListener('resize', () => { for (const R of [PRO, TAKE]) if (R.an 
 function rollSelect(R, i) {
   const n = R.an.notes[i]; R.sel = i; const was = R.playing; rollStop(R); R.off = n.t0; rollDraw(R);
   const off = n.c == null ? 'not heard' : Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
-  R.info.textContent = (n.word ? '“' + n.word + '” · ' : '') + nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on != null && n.c != null ? (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '');
+  R.info.textContent = (n.word ? '“' + n.word + '” · ' : '') + nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on != null && n.c != null ? (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '') + (n.snap ? ' · checked against the key' : '') + (n.fill ? ' · found on the second pass' : '');
   if (was) rollPlay(R);
 }
 function rollGeom(R) {
