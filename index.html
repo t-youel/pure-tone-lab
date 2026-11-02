@@ -475,6 +475,9 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .ls-why summary { cursor: pointer; font-size: .85rem; color: var(--accent); } .ls-why p { margin: 4px 0 0; font-size: .86rem; }
 .ls-go { width: 100%; min-height: 52px; font-size: 1.08rem; }
 .ls-small { justify-content: center; }
+.ls-opts { display: grid; gap: 6px; }
+.ls-opts .guide-tog { display: flex; gap: 8px; align-items: center; }
+.ls-livebox { display: grid; gap: 6px; }
 .ls-chip { border-radius: 999px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: .9rem; }
 .ls-chip.on { border-color: var(--accent); font-weight: 700; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .ls-chip.done { background: color-mix(in srgb, var(--pure) 18%, var(--surface)); }
@@ -505,6 +508,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
 .pro-pos { width: 100%; accent-color: #3b3fb5; }
+.pro-inst { display: grid; gap: 6px; justify-items: start; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line); } .pro-inst p { margin: 0; }
 .pro-info-card summary { cursor: pointer; font-weight: 700; }
 .pro-info-card { display: grid; gap: 8px; } .pro-info-card p { margin: 6px 0 0; }
 .pi-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -934,7 +938,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · song details and words</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · his voice alone, live view</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5515,6 +5519,7 @@ async function proLoad(blob, name, kind) {
   const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
   let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
   PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1; PRO.name = name; PRO.kind = kind;
+  PRO.vox = null; PRO.inst = null; PRO.mix = buf;
   const an = await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; }, proInfo(name));
   an.name = name; an.kind = kind; PRO.an = an;
   if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
@@ -5522,11 +5527,11 @@ async function proLoad(blob, name, kind) {
 }
 function medArr(a) { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[s2.length >> 1]; }
 const proInfo = name => ((store.proInfo || {})[name]) || {};
-async function proAnalyze(buf, onProg, info = {}) {
+async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
-    if (filt === 'bass') { const off = new OfflineAudioContext(1, Math.ceil(4000 * dur), 4000), src = off.createBufferSource(); src.buffer = buf; let n2 = src; for (const [t, f] of [['highpass', 45], ['lowpass', 200], ['lowpass', 200]]) { const b = off.createBiquadFilter(); b.type = t; b.frequency.value = f; n2.connect(b); n2 = b; } n2.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0); }
-    const off = new OfflineAudioContext(1, len, SR), src = off.createBufferSource(); src.buffer = buf; let node = src;
+    if (filt === 'bass') { const off = new OfflineAudioContext(1, Math.ceil(4000 * dur), 4000), src = off.createBufferSource(); src.buffer = mixBuf || buf; let n2 = src; for (const [t, f] of [['highpass', 45], ['lowpass', 200], ['lowpass', 200]]) { const b = off.createBiquadFilter(); b.type = t; b.frequency.value = f; n2.connect(b); n2 = b; } n2.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0); }
+    const off = new OfflineAudioContext(1, len, SR), src = off.createBufferSource(); src.buffer = filt ? buf : (mixBuf || buf); let node = src;
     if (filt) { let n2 = src; for (const f of [250, 250, 250]) { const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = f; n2.connect(hp); n2 = hp; } const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; n2.connect(lp); node = lp; }
     node.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0);
   };
@@ -5779,11 +5784,21 @@ async function proAnalyze(buf, onProg, info = {}) {
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
+  if (an.kind === 'file') {
+    const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst';
+    if (an.isolated) { const d = PRO.iso.removedDb; ib.append(el('p', '', '🎻 His voice is separated from the band: ' + (d >= 20 ? 'almost all' : d >= 10 ? 'most' : 'some') + ' of the band was taken out. The notes are measured on his voice alone.' + (d < 10 ? ' If it still looks busy, check the instrumental is from the same recording.' : ''))); }
+    else {
+      ib.append(el('p', '', '🎻 Have the instrumental of this song? Add it and I’ll take the band out, leaving his voice alone. The notes get much cleaner, and you can sing with the band.'));
+      const lab = el('label', 'btn small', '🎻 Add the instrumental'); lab.tabIndex = 0; const fi = el('input'); fi.type = 'file'; fi.hidden = true; fi.id = 'proInstFile';
+      fi.onchange = () => { const f = fi.files[0]; if (f) proAddInstrumental(f); fi.value = ''; }; lab.appendChild(fi); ib.appendChild(lab);
+    }
+    out.appendChild(ib);
+  }
   out.appendChild(learnCard(an));
   out.appendChild(proInfoCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
   const step = (n, title, txt) => { const d = el('div', 'pp-step'); d.dataset.pass = n; d.append(el('span', 'pp-n', String(n)), el('b', '', title), el('span', 'muted', txt)); how.appendChild(d); };
-  step(1, 'Learned the song', (P.learn.given ? 'Using your song details. ' : '') + P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
+  step(1, 'Learned the song', (an.isolated ? 'Listened to his voice alone (band removed). ' : '') + (P.learn.given ? 'Using your song details. ' : '') + P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
   step(2, 'Checked every note', P.check.acc20 + '% of the singing within 20¢. ' + (P.check.misses ? P.check.misses + ' note' + (P.check.misses > 1 ? 's' : '') + ' missed the learned tune (shown in red). ' : 'No notes missed the learned tune. ') + (P.check.differs ? P.check.differs + ' sung differently from the other times the line came round, on purpose it seems (dashed purple).' : ''));
   step(3, 'Fine-tuned', (P.fine.tuneSrc === 'band' ? 'Tuned to the band’s bass' + (P.fine.shift ? ' (moved everything ' + (P.fine.shift > 0 ? '+' : '') + P.fine.shift + '¢)' : '') + '. ' : 'No clear bass, so tuned to the singer. ') + (P.fine.remeasured ? 'Re-measured ' + P.fine.remeasured + ' notes more precisely. ' : '') + 'True Tone now ' + P.fine.acc20 + '%.');
   how.appendChild(el('p', 'muted pp-note', 'Without sheet music the tune is learned from the singing itself, so a note missed by a whole step the same way every time can’t be caught.'));
@@ -5977,6 +5992,47 @@ function proCompare(an) {
 }
 
 
+
+// ---------- His voice alone: subtract the instrumental ----------
+// The full song and its official instrumental are the same mix with and without the voice. Line them up to the sample
+// (energy envelopes for the rough offset, then the waveforms), match their level section by section, and subtract:
+// what's left is the voice. Pitch is then measured on the voice alone, so guitar and bass can't become "notes".
+async function proMono(buf, SR, lowpass) { const off = new OfflineAudioContext(1, Math.ceil(SR * buf.duration), SR), s2 = off.createBufferSource(); s2.buffer = buf; let n2 = s2; if (lowpass) for (let k = 0; k < 3; k++) { const f = off.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lowpass; n2.connect(f); n2 = f; } n2.connect(off.destination); s2.start(); return (await off.startRendering()).getChannelData(0); }
+async function proIsolate(mixBuf, instBuf, onProg = () => {}) {
+  const SR = 16000; onProg('Lining up the two recordings'); const a = await proMono(mixBuf, SR), b = await proMono(instBuf, SR);
+  await new Promise(r => setTimeout(r, 0));
+  // rough offset from loudness envelopes (100 per second), searched over ±10 s
+  const H = 160, env = x => { const n = Math.floor(x.length / H), e = new Float32Array(n); for (let i = 0; i < n; i++) { let s3 = 0; for (let k = 0; k < H; k += 2) s3 += x[i * H + k] * x[i * H + k]; e[i] = Math.sqrt(s3); } const m = mean(Array.from(e)); for (let i = 0; i < n; i++) e[i] -= m; return e; };
+  const ea = env(a), eb = env(b), N = Math.min(ea.length, eb.length, 9000); let best = -Infinity, lagE = 0;
+  for (let L = -1000; L <= 1000; L++) { let s3 = 0; for (let i = Math.max(0, L); i < N && i - L < eb.length; i++) s3 += ea[i] * eb[i - L]; if (s3 > best) { best = s3; lagE = L; } }
+  // exact offset from the waveforms, around the rough one, on a loud 6-second stretch
+  let w0 = 0, wE = -1; for (let i = 0; i + 600 < ea.length; i += 100) { let e = 0; for (let k = 0; k < 600; k++) e += Math.abs(ea[i + k]); if (e > wE) { wE = e; w0 = i; } }
+  const c0 = w0 * H, cN = Math.min(6 * SR, a.length - c0 - 1); let bestF = -Infinity, lag = lagE * H;
+  for (let L = lagE * H - 240; L <= lagE * H + 240; L++) { let s3 = 0; for (let i = c0; i < c0 + cN; i += 2) { const j = i - L; if (j >= 0 && j < b.length) s3 += a[i] * b[j]; } if (s3 > bestF) { bestF = s3; lag = L; } }
+  onProg('Taking out the band'); await new Promise(r => setTimeout(r, 0));
+  // level match per second (mastering can differ a little), measured below 100 Hz where it's all kick and bass and no voice
+  // (in the voice range his notes share the band's key, which would skew the match), smoothed, then subtract
+  const al = await proMono(mixBuf, SR, 100), bl = await proMono(instBuf, SR, 100);
+  const v = new Float32Array(a.length), blk = SR, gains = [];
+  for (let s0 = 0; s0 < a.length; s0 += blk) { let ab = 0, bb = 0; for (let i = s0; i < Math.min(a.length, s0 + blk); i++) { const j = i - lag; if (j >= 0 && j < b.length) { ab += al[i] * bl[j]; bb += bl[j] * bl[j]; } } gains.push(bb > 1e-7 ? Math.max(0, Math.min(2, ab / bb)) : null); }
+  const okG = gains.filter(g => g != null), gAll = okG.length ? medArr(okG) : 1, gf = gains.map(g => g ?? gAll), gs = gf.map((g, i) => medArr(gf.slice(Math.max(0, i - 2), i + 3)));
+  for (let i = 0; i < a.length; i++) { const j = i - lag, bi = Math.floor(i / blk), f = (i % blk) / blk, g = gs[bi] * (1 - f) + (gs[Math.min(gs.length - 1, bi + 1)] ?? gs[bi]) * f; v[i] = a[i] - (j >= 0 && j < b.length ? g * b[j] : 0); }
+  // how much of the band was removed, measured where only the band plays (below 100 Hz)
+  let ea2 = 0, ev = 0; for (let i = 0; i < a.length; i += 2) { const j = i - lag, bi = Math.floor(i / blk), r = al[i] - (j >= 0 && j < bl.length ? gs[bi] * bl[j] : 0); ea2 += al[i] * al[i]; ev += r * r; }
+  const vb = ac.createBuffer(1, v.length, SR); vb.copyToChannel(v, 0);
+  return { vox: vb, lag: lag / SR, removedDb: Math.round(10 * Math.log10(ea2 / Math.max(1e-9, ev))), gain: Math.round(medArr(gs) * 100) / 100 };
+}
+async function proAddInstrumental(file) {
+  if (!PRO.mix) { toast('Load the full song first, then add its instrumental.'); return; }
+  await ensureAudio(); const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the instrumental…'); out.appendChild(msg);
+  let ib; try { ib = await ac.decodeAudioData(await file.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
+  const iso = await proIsolate(PRO.mix, ib, t => { msg.textContent = t + '…'; });
+  PRO.inst = ib; PRO.vox = iso.vox; PRO.instLag = iso.lag; PRO.iso = iso;
+  const an = await proAnalyze(PRO.vox, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + ' from his voice alone… ' + Math.round(f * 100) + '%'; }, proInfo(PRO.name), PRO.mix);
+  an.name = PRO.name; an.kind = PRO.kind; an.isolated = true; PRO.an = an;
+  if (an.notes.length < 4) { msg.textContent = 'The instrumental didn’t line up with this song. Make sure it’s the instrumental of the same recording.'; return; }
+  proRender(); toast('His voice is separated from the band');
+}
 // ---------- Song details you can give: key, tempo, swing, and the words ----------
 // When you know them (from the artist's page, a songbook, a chord sheet), the app trusts them instead of guessing.
 function proSplitLyrics(text) {
@@ -6004,7 +6060,7 @@ function proInfoCard(an) {
     if (ni.lyrics) { const ls = proSplitLyrics(ni.lyrics), w = ((store.proWords ||= {})['pro:' + name] = {}); proLines(an).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); }
     dirty = true; save();
     if (!PRO.buf) return; const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Checking the song again with your details…'); out.appendChild(msg);
-    const a2 = await proAnalyze(PRO.buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3') + '… ' + Math.round(f * 100) + '%'; }, ni);
+    const a2 = await proAnalyze(PRO.vox || PRO.mix || PRO.buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3') + '… ' + Math.round(f * 100) + '%'; }, ni, PRO.vox ? PRO.mix : null); a2.isolated = !!PRO.vox;
     a2.name = name; a2.kind = PRO.kind; PRO.an = a2;
     // the lines can shift a little with a new tempo; place the words again
     if (ni.lyrics) { const ls = proSplitLyrics(ni.lyrics), w = (store.proWords['pro:' + name] = {}); proLines(a2).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); save(); }
@@ -6072,6 +6128,12 @@ function learnCard(an) {
   if (!LS.lines.length) { c.appendChild(el('p', 'muted', 'I couldn’t find clear lines in this song to practise.')); return c; }
   const nav = el('div', 'ls-nav'); nav.id = 'lsLines'; c.appendChild(nav);
   const music = el('div', 'ls-music'); music.id = 'lsMusic'; c.appendChild(music);
+  if (PRO.vox) {
+    const opts = el('div', 'ls-opts');
+    const t1 = el('label', 'guide-tog'), c1 = el('input'); c1.type = 'checkbox'; c1.id = 'lsAlone'; c1.checked = !!LS.alone; c1.onchange = () => { LS.alone = c1.checked; }; t1.append(c1, document.createTextNode(' 🎤 Hear his voice alone'));
+    const t2 = el('label', 'guide-tog'), c2 = el('input'); c2.type = 'checkbox'; c2.id = 'lsBand'; c2.checked = !!LS.band; c2.onchange = () => { LS.band = c2.checked; if (c2.checked) toast('Put headphones on, so the mic hears only you'); }; t2.append(c2, document.createTextNode(' 🎧 Sing with the band (headphones on)'));
+    opts.append(t1, t2); c.appendChild(opts);
+  }
   const panel = el('div', 'ls-panel'); panel.id = 'lsPanel'; c.appendChild(panel);
   const recs = (store.proLearn || {})[lsKey()] || {}, day = 864e5, first = LS.lines.findIndex((_, k) => !(recs[k] && recs[k].ok));
   const review = LS.lines.findIndex((_, k) => recs[k] && recs[k].ok && Date.now() - (recs[k].at || 0) > day);
@@ -6093,20 +6155,21 @@ const lsWords = k => (((store.proWords || {})[lsKey()] || {})[k] || '');
 function lsMusic(curPos) {
   const box = $('#lsMusic'); if (!box || !LS.an) return; const notes = lsNotes(LS.k), an = LS.an;
   const kn = KEY_NAMES.indexOf(an.key.split(' ')[0]), minor = /minor/.test(an.key), tonic = ((minor ? kn + 3 : kn) % 12 + 12) % 12, sig = KEYSIG[tonic][1], ks = Math.abs(sig);
-  const disp = mean(notes.map(n => n.midi)) < 60 ? 12 : 0, beat = lsBeat(), Y = st => 80 - (st - 30) * 5;
+  const avg = mean(notes.map(n => n.midi)), bass = avg < 55, disp = !bass && avg < 60 ? 12 : 0, beat = lsBeat(), Y = st => 80 - (st - (bass ? 18 : 30)) * 5;
   const toks = lsWords(LS.k).split(/\s+|(?<=-)/).filter(Boolean);
   const xs = []; let x = 58 + ks * 10 + 18; for (const n of notes) { xs.push(x); x += 40 + Math.min(3, (n.b - n.a) / beat) * 8; }
   const W = Math.max(x + 6, 320), out = [];
   for (let k = 0; k < 5; k++) out.push(`<line class="ln" x1="4" x2="${W - 4}" y1="${40 + k * 10}" y2="${40 + k * 10}"/>`);
-  out.push(`<text class="glyph" x="6" y="84" font-size="62">𝄞</text>`);
+  out.push(bass ? `<text class="glyph" x="8" y="70" font-size="40">𝄢</text>` : `<text class="glyph" x="6" y="84" font-size="62">𝄞</text>`);
   if (disp) out.push(`<text class="nn" x="22" y="110" style="font-size:11px;fill:var(--ink)">8</text>`);
-  for (let k = 0; k < ks; k++) out.push(`<text class="glyph" x="${50 + k * 10}" y="${Y(sig > 0 ? SHARP_STEP[k] : FLAT_STEP[k]) + 5}" font-size="17">${sig > 0 ? '♯' : '♭'}</text>`);
+  for (let k = 0; k < ks; k++) out.push(`<text class="glyph" x="${50 + k * 10}" y="${Y((sig > 0 ? SHARP_STEP[k] : FLAT_STEP[k]) - (bass ? 14 : 0)) + 5}" font-size="17">${sig > 0 ? '♯' : '♭'}</text>`);
   notes.forEach((n, j) => {
     const cx = xs[j], sp = spell(n.midi + disp, tonic, sig), y = Y(sp.step), bt = Math.round((n.b - n.a) / beat * 2) / 2, g = [];
     if (j === curPos) g.push(`<circle class="halo" cx="${cx}" cy="${y}" r="14"/>`);
-    for (let st = 28; st >= sp.step; st -= 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
-    for (let st = 40; st <= sp.step; st += 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
-    const up = sp.step < 34;
+    const lo2 = bass ? 16 : 28, hi2 = bass ? 28 : 40, midS = bass ? 22 : 34;
+    for (let st = lo2; st >= sp.step; st -= 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    for (let st = hi2; st <= sp.step; st += 2) g.push(`<line x1="${cx - 11}" x2="${cx + 11}" y1="${Y(st)}" y2="${Y(st)}" stroke="currentColor" stroke-width="1.2"/>`);
+    const up = sp.step < midS;
     g.push(`<ellipse cx="${cx}" cy="${y}" rx="6.6" ry="4.7" transform="rotate(-20 ${cx} ${y})" fill="${bt >= 2 ? 'var(--surface)' : 'currentColor'}" stroke="currentColor" stroke-width="1.6"/>`);
     if (bt < 4) g.push(up ? `<line x1="${cx + 6}" x2="${cx + 6}" y1="${y - 1}" y2="${y - 33}" stroke="currentColor" stroke-width="1.4"/>` : `<line x1="${cx - 6}" x2="${cx - 6}" y1="${y + 1}" y2="${y + 33}" stroke="currentColor" stroke-width="1.4"/>`);
     if (bt <= 0.5) g.push(up ? `<path d="M${cx + 6} ${y - 33} q 2 9 9 13 q -5 -4 -9 -6 z" fill="currentColor"/>` : `<path d="M${cx - 6} ${y + 33} q 2 -9 9 -13 q -5 4 -9 6 z" fill="currentColor"/>`);
@@ -6175,7 +6238,7 @@ function lsPlayHis(from, to) {
   const l = LS.lines[LS.k], a = from ?? l.t0, b = to ?? l.t1;
   return lsWait(fin => {
     if (!PRO.buf) return fin(null);
-    const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = PRO.buf; g.gain.value = 0.9; src.connect(g); g.connect(ac.destination);
+    const alone = LS.alone && PRO.vox, src = ac.createBufferSource(), g = ac.createGain(); src.buffer = alone ? PRO.vox : PRO.buf; g.gain.value = alone ? 2 : 0.9; src.connect(g); g.connect(ac.destination);
     src.start(0, Math.max(0, a - 0.25), b - a + 0.6); LS.src = src; const lv = $('#lsLive'); if (lv) lv.textContent = '🔊 Listen…';
     src.onended = () => { if (LS.src === src) LS.src = null; fin(true); };
   });
@@ -6191,7 +6254,11 @@ function lsCapture(notes, o = {}) {
   for (let k = 0; k < 4; k++) click(0.1 + k * beat, k === 0);
   if (o.clicks) for (let k = 0; k * beat < dur; k++) click(0.1 + (4 + k) * beat, false);
   if (!o.guide) playTone(notes[0].midi, Math.max(0.6, 3 * beat - 0.3), PIPE, 0.1);
-  LS.start = ac.currentTime + 0.1 + 4 * beat; LS.samples = []; LS.phase = 'turn'; LS.cap = { notes, speed }; LS.pending.push(() => { LS.phase = 'idle'; stopTicks(); guideOff(true); });
+  LS.start = ac.currentTime + 0.1 + 4 * beat; LS.samples = []; LS.phase = 'turn'; LS.cap = { notes, speed };
+  const liveRoll = lsLive(notes, speed);
+  // the band underneath, on headphones: the instrumental from the same moment of the song
+  if (LS.band && PRO.inst && speed === 1) { const s4 = ac.createBufferSource(), g4 = ac.createGain(); s4.buffer = PRO.inst; g4.gain.value = 0.8; s4.connect(g4); g4.connect(ac.destination);
+    const at = notes[0].abs0 - (PRO.instLag || 0) - 4 * beat; s4.start(LS.start - 4 * beat, Math.max(0, at), notes[notes.length - 1].b + 4 * beat + 0.6); LS.pending.push(() => { try { s4.stop(); } catch (e) {} }); } LS.pending.push(() => { LS.phase = 'idle'; stopTicks(); guideOff(true); });
   // record the try, so you can hear yours next to his
   let chunks = [], mr = null; try { if (typeof MediaRecorder !== 'undefined' && analyser) { if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); } mr = new MediaRecorder(recDest.stream); mr.ondataavailable = e => e.data.size && chunks.push(e.data); setTimeout(() => { try { mr.state === 'inactive' && mr.start(); } catch (e) {} }, Math.max(0, (LS.start - ac.currentTime - 0.2) * 1000)); LS.rec = mr; } } catch (e) { mr = null; }
   return lsWait(resolve => {
@@ -6202,6 +6269,7 @@ function lsCapture(notes, o = {}) {
       const tt = t * speed, cur = notes.findIndex(n => tt >= n.a && tt < n.b);
       if (o.guide) { if (cur >= 0 && cur !== gIdx) { gIdx = cur; guideTone ? guideTo(notes[cur].midi) : guideOn(notes[cur].midi, 0.3); } }
       if (S.voiced && S.midi != null) LS.samples.push({ t: tt, m: S.midi });
+      liveRoll(tt, S.voiced && S.midi != null ? S.midi : null);
       live.textContent = '🎤 ' + (o.guide ? 'Hum along' : 'Sing now') + (cur >= 0 ? ' · ' + nameOf(notes[cur].midi) : '');
       if (t > dur + 0.7) {
         clearInterval(LS.timer); LS.timer = 0; LS.phase = 'idle'; guideOff(true);
@@ -6210,6 +6278,25 @@ function lsCapture(notes, o = {}) {
       }
     }, 20);
   });
+}
+
+// the same moving graph as everywhere else, live: bars scroll past the playhead and your voice is drawn as you sing
+function lsLive(notes, speed) {
+  const an = LS.an, lead = 0.3, hop = 0.02, base = notes[0].abs0, dur = notes[notes.length - 1].b + 0.8, n = Math.ceil(dur / hop);
+  const ns = notes.map(x => ({ t0: x.a + lead, t1: x.b + lead, b0: x.a + lead, b1: x.b + lead, midi: x.midi, c: 0 }));
+  const his = new Array(n).fill(null); for (let k = 0; k < n; k++) { const ti = Math.round((base - lead + k * hop - an.t0f) / an.hop); const v = an.trace[ti]; his[k] = v == null ? null : v + LS.oct; }
+  const ms = ns.map(x => x.midi), trace = new Array(n).fill(null);
+  rollStop(LSR); Object.assign(LSR, { an: { dur, notes: ns, trace, ref: his, hop, t0f: hop / 2, lo: Math.min(...ms), hi: Math.max(...ms) }, buf: null });
+  const res = $('#lsRes'); if (res) { res.textContent = ''; const box = el('div', 'ls-livebox'); rollMount(LSR, box, { title: speed < 1 ? 'Hum along: watch your line' : 'Sing: watch where your notes land', idp: 'ls', hint: 'Your voice is drawn as you sing: green on the note, gold close, red off. His voice is purple.', noAudio: '' });
+    box.querySelector('.pro-head button.primary').hidden = true; box.querySelector('.pro-head button.small').hidden = true; box.querySelector('.pro-pos').hidden = true;
+    box.querySelector('.pro-legend').innerHTML = '<span><i class="lg-bar"></i> the note</span><span><i class="lg-his"></i> his voice</span><span>you: <b class="lg-g">green</b> on it · <b class="lg-y">gold</b> close · <b class="lg-r">red</b> off</span>';
+    res.appendChild(box); LS.lastRes = null; }
+  const fold = (m, tg) => tg + ((((m - tg) % 12) + 18) % 12) - 6;
+  return (tt, m) => {
+    const t = tt + lead, k = Math.floor(t / hop);
+    if (m != null && k >= 0 && k < n) { const nn = ns.find(x => t >= x.t0 - 0.15 && t <= x.t1 + 0.15); trace[k] = nn ? fold(m, nn.midi) : null; }
+    LSR.off = Math.max(0, t); const sp = rollSpan(LSR); LSR.view = Math.max(0, t - sp * 0.3); rollDraw(LSR);
+  };
 }
 // a held-note exercise with a live meter: success when 1.5 s are spent inside ±25 cents
 function lsHoldRun(target, o = {}) {

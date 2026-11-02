@@ -83,6 +83,10 @@ Three passes:
 2. **Check every note** against the learned tune: cents off, early or late, misses (an off-centre note the other times disagree with, shown red) and deliberate variations (a centred note that differs, dashed purple, not counted wrong).
 3. **Fine-tune**: tuning measured from the band's bass line (so flat and sharp are against the band), each note's pitch re-measured with a longer window near the note, tempo re-fitted to the note starts; then re-scored.
 
+### His voice alone (the instrumental)
+
+If the artist offers an instrumental of the same recording, 🎻 Add the instrumental: the two files are lined up (loudness envelopes for the rough offset, then the waveforms to the sample), their level is matched second by second below 100 Hz (kick and bass only, so the voice can't skew it), and the instrumental is subtracted, leaving the voice. Pitch is then measured on the voice alone (beat and bass tuning still come from the full song). In the lesson: 🎤 Hear his voice alone, and 🎧 Sing with the band (headphones on) plays the instrumental from the same moment of the song under you.
+
 ### Learn to sing it like this (a coached lesson)
 
 Under the analysis, the song is split into its lines. Each line climbs a ladder: Listen and learn (his line, then the notes alone, slowly) → Hum along, slowly (guide tones at 70% speed; the mic ignores them) → Sing it back on your own (count-in and starting note; any octave; your try is recorded for ▶ Hear yours). When a try isn't right, the coach diagnoses the main problem and picks a tool, escalating if it repeats:
@@ -91,7 +95,7 @@ Under the analysis, the song is split into its lines. Each line climbs a ladder:
 - several notes wrong → **Build it from the end** (backchaining: the last third, then the last two thirds, then the line); again → back to the slow guide;
 - late or early → **Sing on the clicks**;
 - the same note failing three times → the slow guide; any exercise failing three times → move on kindly.
-Coaching cues rotate (several ways of saying each thing), each exercise says why it works, and the graph shows your voice against his. A line is learned (✓) at 80+ with every note within 35¢; then one style polish (his vibrato, or his slide into a note) earns a ★. Next visit starts with a quick review of a line learned on an earlier day.
+While you hum or sing, the same moving graph shows the line's bars scrolling past the playhead, your voice drawn live (green/gold/red) and his voice in purple. Low lines use a bass clef. Coaching cues rotate (several ways of saying each thing), each exercise says why it works, and the graph shows your voice against his. A line is learned (✓) at 80+ with every note within 35¢; then one style polish (his vibrato, or his slide into a note) earns a ★. Next visit starts with a quick review of a line learned on an earlier day.
 
 ## Your take, note by note
 

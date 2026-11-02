@@ -936,8 +936,9 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const inHum = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase }));
     await page.click('#lsPanel [data-act="hear"]'); await page.waitForTimeout(300);
     const afterHear = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase, dis: $('#lsPanel [data-act="go"]').disabled, guide: !!guideTone }));
-    await page.click('#lsPanel [data-act="go"]'); await page.waitForTimeout(800);
-    const again = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase }));
+    await page.evaluate(() => { setInterval(() => { V.on = LS.phase === 'turn'; V.m = 60; }, 20); });
+    await page.click('#lsPanel [data-act="go"]'); await page.waitForFunction(() => LS.phase === 'turn' && ac.currentTime - LS.start > 1, null, { timeout: 15000 });
+    const again = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase, live: !!document.querySelector('#lsRes .ls-livebox canvas'), drawn: LSR.an.trace.filter(v => v != null).length, moving: LSR.off > 0.6 }));
     await page.click('#lsPanel [data-act="stop"]');
     const stopped = await page.evaluate(() => ({ busy: LS.busy, phase: LS.phase, pend: LS.pending.length, dis: $('#lsPanel [data-act="go"]').disabled }));
     // arrows
@@ -950,7 +951,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(/Line 1 of \d+/.test(ui.nav) && /0 of \d+ lines learned/.test(ui.nav) && ui.notes === ui.n0 && ui.big && ui.chips === 1
       && busy1.busy && busy1.dis && busy1.stop && !afterSkip.busy && afterSkip.kind === 'hum' && !afterSkip.dis
       && inHum.busy && inHum.phase === 'turn' && !afterHear.busy && afterHear.phase === 'idle' && !afterHear.dis && !afterHear.guide
-      && again.busy && !stopped.busy && stopped.pend === 0 && !stopped.dis && moved.k === 1 && /Line 2 of/.test(moved.nav)
+      && again.busy && again.live && again.drawn > 10 && again.moving && !stopped.busy && stopped.pend === 0 && !stopped.dis && moved.k === 1 && /Line 2 of/.test(moved.nav)
       && words.lyr === 'Hap- py birth- day' && /birth-day/.test(words.saved), JSON.stringify({ ui, busy1, afterSkip, inHum, afterHear, again, stopped, moved, words }));
   });
 
@@ -967,6 +968,21 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       lyr: [...document.querySelectorAll('#lsMusic svg .lyr')].map(t => t.textContent).slice(0, 3).join(' '), pass1: $('.pp-step[data-pass="1"]').textContent, open: $('[data-card="info"] summary').textContent }));
     expect(before !== 'C major' && after.key === 'C major' && Math.abs(after.bpm - 100) <= 1 && after.given && after.saved.key === 'C major' && after.saved.bpm === 100
       && after.w0 === 'There’s no gravity that sucked me in your orbit' && after.w1 === 'There’s no magnet that was in your heart' && after.lyr === 'There’s no gravity' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
+  });
+
+  await test('His voice alone: adding the instrumental lines it up, takes the band out, and the notes come from his voice; the lesson offers his voice alone and singing with the band; low lines use a bass clef', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => {
+      store.profile = { low: 40, high: 60, natural: 50, type: 'Baritone', zlo: 43, zhi: 57 }; openLab('pro');
+      await proLoad(await makeProSong({ bass: true }), 'With band', 'file'); const before = { notes: PRO.an.notes.length, inst: PRO.an.inst.length };
+      await proAddInstrumental(await makeProSong({ bass: true, noVoice: true, pad: 0.37, level: 0.85 }));
+      await new Promise(r => setTimeout(r, 100));
+      const a = PRO.an;
+      return { before, lag: PRO.iso.lag, gain: PRO.iso.gain, removed: PRO.iso.removedDb, notes: a.notes.map(n => n.midi).filter(m => m >= 60).join(), flat: (a.notes.find(n => n.c < -25) || {}).c, inst: a.inst.length,
+        card: $('[data-card="inst"]').textContent, pass1: $('.pp-step[data-pass="1"]').textContent, alone: !!$('#lsAlone'), band: !!$('#lsBand'), oct: LS.oct, clef: $('#lsMusic svg').textContent.includes('𝄢') };
+    });
+    expect(Math.abs(r.lag + 0.37) < 0.002 && Math.abs(r.gain - 1.18) < 0.05 && r.removed >= 20 && r.inst === 0 && r.before.inst >= 3 && r.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && r.flat <= -35 && r.flat >= -45
+      && /almost all of the band/.test(r.card) && /his voice alone/.test(r.pass1) && r.alone && r.band && r.oct === -12 && r.clef, JSON.stringify(r));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {
