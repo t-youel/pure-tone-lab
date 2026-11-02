@@ -701,10 +701,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     // a singer who follows whatever the target asks for
     await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
     await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 400000 });
-    const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !$('#easyCard').hidden && /Play again/.test($('#easyCard').textContent) && /More games/.test($('#easyCard').textContent) }));
-    expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && open.first === 'match' && open.card && tip && routine.stars >= 10 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, tip, routine }));
+    const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !$('#easyCard').hidden && /Play again/.test($('#easyCard').textContent) && /More lessons/.test($('#easyCard').textContent) }));
+    expect(open.screen === 'easy' && /Home,Lessons,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && open.first === 'match' && open.card && tip && routine.stars >= 10 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, tip, routine }));
     // the games menu, and two of the new games
-    await page.click('#easyCard >> text=More games');
+    await page.click('#easyCard >> text=More lessons');
     const tiles = await page.evaluate(() => [...document.querySelectorAll('#easyMenu .easy-tile')].map(x => x.dataset.game).join());
     await page.click('.easy-tile[data-game="piano"]');
     await page.waitForFunction(() => EZ.piano && !$('#easyPiano').hidden, null, { timeout: 5000 });
@@ -785,6 +785,25 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       }
     }
     expect(!bad.length, 'does not fit: ' + bad.join(', '));
+  });
+
+  await test('Sing with the band: pick a popular song, sing it, then hear it back with drums, bass and piano in sync', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; save(); openLab('band'); });
+    const songs = await page.evaluate(() => [...document.querySelectorAll('.band-song')].map(b => b.dataset.song).join());
+    await page.click('.band-song[data-song="bday"]');
+    const loaded = await page.evaluate(() => ({ song: G.song.id, screen: document.body.dataset.screen, band: G.bandMode, metro: G.metro }));
+    await page.evaluate(() => { G.tempo = 'normal'; V.follow = true; });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 });
+    await page.waitForFunction(() => (store.clips || []).some(c => c.song === 'bday'), null, { timeout: 10000 });
+    const clip = await page.evaluate(() => { const c = store.clips.filter(c => c.song === 'bday').pop(); return { lead: c.lead, beat: c.beat, notes: c.notes && c.notes.length, offer: !!document.querySelector('#report [data-card="band"]') }; });
+    await page.click('#report [data-card="band"] button');
+    await page.waitForFunction(() => !!bandTake, null, { timeout: 8000 });
+    const playing = await page.evaluate(() => ({ nodes: bandNodes.length, label: $('#report [data-card="band"] button').textContent }));
+    await page.click('#report [data-card="band"] button');
+    const stopped = await page.evaluate(() => ({ take: !!bandTake, nodes: bandNodes.length }));
+    expect(songs === 'saints,bday,jingle,twinkle,grace' && loaded.song === 'bday' && loaded.screen === 'songs' && loaded.band && clip.lead > 1 && clip.notes === 25 && clip.offer && playing.nodes > 100 && /Stop/.test(playing.label) && !stopped.take && stopped.nodes === 0, JSON.stringify({ songs, loaded, clip, playing, stopped }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {

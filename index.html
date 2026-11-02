@@ -422,6 +422,10 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pn-key.want { background: color-mix(in srgb, var(--nc) 30%, var(--surface)); border-color: var(--nc); box-shadow: 0 0 0 4px var(--nc); animation: pnglow 1s infinite alternate; }
 @keyframes pnglow { to { box-shadow: 0 0 0 9px color-mix(in srgb, var(--nc) 40%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .pn-key.want { animation: none; } }
+.band-songs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.band-song { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); }
+.band-song b { font: 700 1.05rem var(--display); }
+.band-offer { border-color: var(--pure); }
 .tour-box { display: grid; gap: 12px; }
 .tour-sec { display: grid; gap: 6px; }
 .tour-head { display: flex; align-items: center; gap: 10px; }
@@ -764,7 +768,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · fits everywhere</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · sing with the band</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -2029,6 +2033,7 @@ function finishRun() {
   stopTicks(); guideOff();
   G.run = 'done'; G.idx = G.seq.length; G.attempt++;
   const firstSong = !store.baseline;
+  G.recorded = !!REC.mr && REC.lead != null; G.runEnd = Date.now();
   saveRun();
   recFinish(runStats(), firstSong && !!store.baseline);
   if (CO.on) coachAfter(runStats());
@@ -2252,6 +2257,62 @@ function chordPlan(seq, beat, doMidi) {
     out.push({ t: t0, dur: t - t0, pcs: CH[best], k: best }); prev = best;
   }
   return out;
+}
+// ---------- the band: drums, bass and piano, made by the app ----------
+let bandNodes = [], noiseBuf = null;
+function bandNoise() { if (!noiseBuf) { noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const dd = noiseBuf.getChannelData(0); for (let i = 0; i < dd.length; i++) dd[i] = Math.random() * 2 - 1; } return noiseBuf; }
+function bandHit(kind, t) {
+  const g = ac.createGain(); g.connect(toneOut); bandNodes.push(g);
+  if (kind === 'kick') { const o = ac.createOscillator(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); g.gain.setValueAtTime(0.75, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(g); o.start(t); o.stop(t + 0.32); bandNodes.push(o); return; }
+  const n = ac.createBufferSource(), f = ac.createBiquadFilter(); n.buffer = bandNoise(); n.connect(f); f.connect(g); bandNodes.push(n);
+  if (kind === 'snare') { f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18); n.start(t); n.stop(t + 0.2);
+    const o = ac.createOscillator(), og = ac.createGain(); o.frequency.value = 190; og.gain.setValueAtTime(0.18, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.08); o.connect(og); og.connect(toneOut); o.start(t); o.stop(t + 0.1); bandNodes.push(o, og); }
+  else { f.type = 'highpass'; f.frequency.value = 7000; g.gain.setValueAtTime(kind === 'hatO' ? 0.09 : 0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + (kind === 'hatO' ? 0.12 : 0.04)); n.start(t); n.stop(t + 0.14); }
+}
+function bandBass(m, t, dur) {
+  const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+  o.type = 'sawtooth'; o.frequency.value = m2f(m); lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 3;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.28, t + 0.01); g.gain.exponentialRampToValueAtTime(0.06, t + dur * 0.8); g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(lp); lp.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + 0.02); bandNodes.push(o, g);
+}
+function bandStab(pcs, base, t, dur) {
+  for (const pc of pcs) { const m = base + ((pc - base) % 12 + 12) % 12, o = ac.createOscillator(), g = ac.createGain();
+    o.setPeriodicWave(makeWave([1, 0.5, 0.25, 0.12, 0.06])); o.frequency.value = m2f(m);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.01); g.gain.exponentialRampToValueAtTime(0.012, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + 0.05);
+    o.connect(g); g.connect(toneOut); o.start(t); o.stop(t + dur + 0.07); bandNodes.push(o, g); }
+}
+// play the band for a song: count-in, then drums on every beat, bass on the chord roots, piano chords on 2 and 4
+function bandPlay(notes, beat, doM, firstAt) {
+  const seq = notes.map(([m, b]) => ({ m, b })), total = seq.reduce((a, n) => a + n.b, 0), plan = chordPlan(seq, beat, doM);
+  let bassBase = doM; while (bassBase > 45) bassBase -= 12; while (bassBase < 33) bassBase += 12;
+  let compBase = doM; while (compBase > 60) compBase -= 12; while (compBase < 50) compBase += 12;
+  for (let k = 1; k <= 4; k++) bandHit('hat', firstAt - k * beat); // count-in
+  const beats = Math.ceil(total) + 2;
+  for (let k = 0; k < beats; k++) {
+    const t = firstAt + k * beat, inBar = k % 4;
+    bandHit(inBar === 0 || inBar === 2 ? 'kick' : 'snare', t);
+    bandHit('hat', t); bandHit('hat', t + beat / 2);
+    const c = plan.find(p => k * beat >= p.t - 1e-6 && k * beat < p.t + p.dur - 1e-6) || plan[plan.length - 1];
+    if (k < total + 1) { bandBass(bassBase + ((c.pcs[0] - bassBase) % 12 + 12) % 12, t, beat * 0.9); if (inBar === 1 || inBar === 3) bandStab(c.pcs, compBase, t, beat * 0.8); }
+  }
+  bandHit('kick', firstAt + beats * beat); bandHit('hatO', firstAt + beats * beat);
+  return firstAt + (beats + 1) * beat;
+}
+function bandStop() { bandNodes.forEach(n => { try { n.stop ? n.stop() : n.disconnect(); } catch (e) {} }); bandNodes = []; }
+let bandTake = null;
+// your recorded take, played back with the band in sync
+async function playWithBand(clip, btn) {
+  if (bandTake) { bandTake.stop(); return; }
+  await ensureAudio();
+  let blob = null; try { blob = await idbDo('readonly', s2 => s2.get(clipKey(clip.id))); } catch (e) {}
+  if (!blob || clip.lead == null || !clip.notes) { toast('This take can\'t be played with the band. Sing it once more.'); return; }
+  let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { toast('This take couldn\'t be played back.'); return; }
+  const src = ac.createBufferSource(), vg = ac.createGain(); src.buffer = buf; vg.gain.value = 1.6; src.connect(vg); vg.connect(toneOut);
+  const t0 = ac.currentTime + 0.25, end = bandPlay(clip.notes, clip.beat, clip.doM, t0 + clip.lead + 0.06);
+  src.start(t0); bandNodes.push(src);
+  const done = () => { bandStop(); bandTake = null; if (btn) btn.textContent = '🎸 Hear it with the band'; };
+  bandTake = { stop: done }; if (btn) btn.textContent = '■ Stop the band';
+  setTimeout(() => { if (bandTake && bandTake.stop === done) done(); }, Math.max(buf.duration, end - ac.currentTime) * 1000 + 600);
 }
 function padChord(pcs, start, dur, base) {
   const t = ac.currentTime + 0.03 + start, end = t + dur + 0.25, nodes = [];
@@ -2501,6 +2562,12 @@ function renderReport() {
   if (st.phrase && !G.song.lab) stat('Lines shaped', st.phrase.shaped + ' of ' + st.phrase.lines);
   box.appendChild(top);
   if (!G.song.lab && !CO.on) { const sc = showcasePanel(st); if (sc) box.appendChild(sc); }
+  if (!G.song.lab && !CO.on && G.recorded) {
+    const bc = el('div', 'coach-offer band-offer'); bc.dataset.card = 'band';
+    const bb = el('button', 'primary', '🎸 Hear it with the band');
+    bb.onclick = async () => { let c = null; for (let k = 0; k < 20 && !c; k++) { c = [...(store.clips || [])].filter(x => x.song === G.song.id && x.at >= G.runEnd - 500).sort((a, b2) => b2.at - a.at)[0]; if (!c) await new Promise(r => setTimeout(r, 150)); } if (c) playWithBand(c, bb); else toast('Your take is still saving. Try again in a moment.'); };
+    bc.append(el('span', '', G.bandMode ? 'Now hear yourself with a band: drums, bass and piano, in your key.' : 'Hear your singing played back with a band.'), bb); box.appendChild(bc);
+  }
   const tiles = document.createElement('div'); tiles.className = 'tiles';
   const LBL = { pure: '✦ pure', ok: '✓ in tune', low: '↑ low', high: '↓ high', missed: 'missed' };
   st.all.forEach((r, i) => {
@@ -2872,6 +2939,7 @@ const LAB = [
   { id: 'breaks', kind: 'drill', title: 'Break finder', tags: ['Registers'], time: '30 s', blurb: 'One slow siren shows where your voice changes gear between chest and head voice.' },
   { id: 'blend', kind: 'drill', title: 'Blend the break', tags: ['Registers'], time: '1 min', blurb: 'Sirens through your break, getting lighter as you climb. Scores the jump and any push.' },
   { id: 'swell', kind: 'drill', title: 'Swell', tags: ['Dynamics'], time: '30 s', blurb: 'Soft, loud, soft on one note, with the pitch holding still.' },
+  { id: 'band', kind: 'drill', title: 'Sing with the band', tags: ['Songs', 'Performance'], time: '3 min', blurb: 'Pick a popular song, sing it through, then hear yourself back with a band: drums, bass and piano, in your key.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
@@ -3670,7 +3738,29 @@ function freeTrace(fr, ring) {
   const w = el('div', 'vi-block'); w.innerHTML = `<span class="label">Your siren</span><svg viewBox="0 0 ${W} ${H}" class="siren-svg" role="img" aria-label="Your pitch over time"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>${r}</svg><span class="muted mono">${nameOf(Math.round(lo + 1))} – ${nameOf(Math.round(hi - 1))}</span>`;
   return w;
 }
+const BAND_SONGS = ['saints', 'bday', 'jingle', 'twinkle', 'grace'];
 Object.assign(DRILLS, {
+  // Sing with the band: pick a popular song, sing it, then hear it back with drums, bass and piano
+  band: {
+    lane: () => ({ target: null }),
+    start() {
+      D.phase = 'intro';
+      dSet({ step: 'Sing with the band', prompt: 'Pick a song', sub: 'Sing it all the way through with the metronome. Then hear your own voice played back with a band, in your key.', live: '', prog: -1 });
+      const ex = $('#dExtra'); ex.textContent = '';
+      const grid = el('div', 'band-songs');
+      const fits = store.profile ? songFits(store.profile) : [];
+      for (const id of BAND_SONGS) {
+        const sg = SONGS.find(x => x.id === id), f = fits.find(x => x.s.id === id);
+        const b = el('button', 'band-song'); b.dataset.song = id;
+        b.append(el('b', '', sg.name), el('span', 'muted', (sg.notes.length) + ' notes' + (f && f.fit >= 0.5 ? ' · ★ uses notes you sing well' : '')));
+        b.onclick = async () => { await ensureListening(); closeLab(); G.bandMode = true; G.metro = true; $('#btnMetro').setAttribute('aria-pressed', true); singSongId(id); toast('Sing it through, then tap 🎸 Hear it with the band'); };
+        grid.appendChild(b);
+      }
+      ex.appendChild(grid);
+      dBtns([]);
+    },
+    tick() {},
+  },
   // Unit 2 extra: how long and how evenly you can let the air out
   exhale: {
     lane: () => D.phase === 'in' ? { breath: true } : {},
@@ -3988,7 +4078,7 @@ const UNITS = [
     learn: 'Go from soft to loud without strain, and try different colors: light, bright, full and a gentle cry.',
     cue: 'Louder from the breath, not the throat',
     how: 'Volume comes from breath pressure and how firmly the folds close. Color comes from the shape above them. Both can change without the pitch moving.' },
-  { id: 'u10', n: 10, stage: 4, title: 'Rhythm & phrasing', check: { kind: 'song', id: 'jukebox', metric: 'timing', label: 'Jukebox Jive, on the beat and in tune', tk: 'u10b' }, song: 'jukebox',
+  { id: 'u10', n: 10, stage: 4, title: 'Rhythm & phrasing', check: { kind: 'song', id: 'jukebox', metric: 'timing', label: 'Jukebox Jive, on the beat and in tune', tk: 'u10b' }, song: 'jukebox', extra: 'band',
     learn: 'Feel the pulse, land notes on the beat, plan where to breathe, and stress the important words.',
     cue: 'Tap the beat · breathe at the commas',
     how: 'Rhythm is what makes a song move. Phrasing is how you shape lines across the beat, the way you would say them.' },
@@ -4086,7 +4176,7 @@ function seedTries() {
   store.triesSeeded = true; dirty = true;
 }
 // When each Lab exercise opens (by stage). Songs are all open.
-const LAB_LEVEL = { exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const LAB_LEVEL = { band: 2, exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
 const SONG_LEVEL = {};
 // The stage of the furthest open unit. Panels and Lab exercises open by stage.
 const level = () => store.unlockAll || isTester() ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
@@ -4289,7 +4379,7 @@ function recStart() {
     if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); }
     const mt = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
     const mr = new MediaRecorder(recDest.stream, mt ? { mimeType: mt, audioBitsPerSecond: 64000 } : { audioBitsPerSecond: 64000 });
-    Object.assign(REC, { mr, chunks: [], t0: now(), trace: [], lastT: 0, song: G.song.id });
+    Object.assign(REC, { mr, chunks: [], t0: now(), trace: [], lastT: 0, song: G.song.id, lead: G.run === 'countin' ? G.t0 - now() : null, beat: beatSec(), notes: G.seq.map(n => [n.m, n.b]), doM: G.shift });
     mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
     mr.start(1000);
   } catch (e) { REC.mr = null; }
@@ -4309,7 +4399,7 @@ function recFinish(st, isFirst) {
       const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
       if (!blob.size) return res(null);
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      const meta = { id, song, at: Date.now(), score: st.monotone ? 0 : st.score, ok: st.ok, n: st.n, secs: Math.round(secs), size: blob.size, type: blob.type, star: false, first: !!isFirst, target: G.seq.map(n => n.m), trace };
+      const meta = { id, song, at: Date.now(), score: st.monotone ? 0 : st.score, ok: st.ok, n: st.n, secs: Math.round(secs), size: blob.size, type: blob.type, star: false, first: !!isFirst, target: G.seq.map(n => n.m), trace, lead: REC.lead, beat: REC.beat, notes: REC.notes, doM: REC.doM };
       try { await idbDo('readwrite', s2 => s2.put(blob, clipKey(id))); } catch (e) { return res(null); }
       if (!store.clips) store.clips = [];
       store.clips.push(meta); dirty = true; save();
@@ -4433,7 +4523,7 @@ function ezBar() {
   const b = $('#easyBtns'); b.textContent = '';
   const add = (icon, label, fn, cls) => { const x = el('button', 'easy-btn' + (cls ? ' ' + cls : '')); x.append(el('span', 'ei', icon), el('span', 'el', label)); x.onclick = fn; x.setAttribute('aria-label', label); b.appendChild(x); };
   add('🏠', 'Home', () => $('#t-home').click());
-  add('🎮', 'Games', () => ezMenu(), !$('#easyMenu').hidden ? 'go' : '');
+  add('🎮', 'Lessons', () => ezMenu(), !$('#easyMenu').hidden ? 'go' : '');
   add('🔁', 'Again', () => { if (EZ.phase === 'done') easyOpen(EZ.list); else { guideOff(); EZ.phase = 'ready'; EZ.readyAt = 0; EZ.song = null; EZ.piano = null; ezRender(); } });
   add('⏭', 'Next', () => ezNext());
   add('ⓘ', 'Helpers', () => { const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'ezWordsTog'; cb.checked = ezWordsOn(); cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.ezWords = cb.checked; dirty = true; save(); ezRender(); }; lab.append(cb, document.createTextNode(' Show instructions in words (on for the first few days)'));
@@ -4834,7 +4924,7 @@ function ezDone() {
   const row = el('div', 'ec-row');
   const btn = (icon, label, fn, main) => { const b = el('button', 'ec-go' + (main ? '' : ' ec-alt')); b.append(el('span', '', icon), el('span', 'ec-gl', label)); b.setAttribute('aria-label', label); b.onclick = fn; row.appendChild(b); };
   btn('🔁', 'Play again', () => easyOpen(EZ.list), true);
-  btn('🎮', 'More games', () => { $('#easyCard').hidden = true; ezMenu(); });
+  btn('🎮', 'More lessons', () => { $('#easyCard').hidden = true; ezMenu(); });
   btn('🏠', 'Home', () => $('#t-home').click());
   c.appendChild(row);
 }
