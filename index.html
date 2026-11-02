@@ -878,7 +878,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · your take, note by note's inside</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · any song file can be picked's inside</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -967,7 +967,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="row">
     <button id="btnDemo" class="small">Play demo voice</button>
     <label class="btn small" for="fileIn" tabindex="0" id="fileLabel">Analyze a recording</label>
-    <input type="file" id="fileIn" accept="audio/*" hidden>
+    <input type="file" id="fileIn" hidden>
     <span class="muted" style="font-size:.88rem">Try overtone singing: hold "oo", then slowly shape toward "ee" and watch for a second ladder of lines.</span>
   </div>
   <div class="two">
@@ -5438,7 +5438,7 @@ function proStart() {
   intro.append(el('p', '', 'Pick a song by a singer you love. You’ll see every note as a bar the length the note should last, and their voice as a line, so you can see how close they stay to the True Tone, where they slide, and how they use vibrato and the beat.'));
   const row = el('div', 'row');
   const fl = el('label', 'btn primary', '📁 A song from your device'); fl.tabIndex = 0;
-  const fi = el('input'); fi.type = 'file'; fi.accept = 'audio/*'; fi.hidden = true; fi.id = 'proFile';
+  const fi = el('input'); fi.type = 'file'; fi.hidden = true; fi.id = 'proFile';
   fi.onchange = () => { const f = fi.files[0]; if (f) proLoad(f, f.name.replace(/\.[^.]+$/, ''), 'file'); fi.value = ''; };
   fl.appendChild(fi); fl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } };
   row.appendChild(fl);
