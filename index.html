@@ -732,7 +732,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · celebrate arrivals</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · hungry chicks</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4365,22 +4365,24 @@ function ezLanes(x, Y, mid, span, w, d, target) {
     const narrow = EZ.lw < 80 * d, cx0 = narrow ? 20 * d : 28 * d;
     x.fillStyle = col; x.beginPath(); x.arc(cx0, y, (isT ? 18 : 14) * d, 0, 7); x.fill();
     x.fillStyle = '#fff'; x.font = `700 ${(isT ? 14 : 11) * d}px system-ui, sans-serif`; x.textAlign = 'center'; x.fillText(DEG_NAME[dg], cx0, y + 1 * d);
-    if (!narrow) { x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y); }
+    if (!narrow && ezNames()) { x.fillStyle = isT ? C.ink : C.muted; x.font = `${isT ? 700 : 500} ${13 * d}px system-ui, sans-serif`; x.textAlign = 'left'; x.fillText(nameOf(m), 54 * d, y); }
   }
   x.restore();
 }
 // a coloured chip with a note's syllable and name, e.g. beside the bird or the nest
 function ezChip(x, cx, cy, m, d, prefix) {
-  const dg = ezDeg(m), col = DEG_COLOR[dg] || C.muted, txt = (prefix || '') + (DEG_NAME[dg] || '♯') + ' ' + nameOf(Math.round(m));
+  const dg = ezDeg(m), col = DEG_COLOR[dg] || C.muted, txt = (prefix || '') + (DEG_NAME[dg] || '•') + (ezNames() ? ' ' + nameOf(Math.round(m)) : '');
   x.save(); x.font = `700 ${16 * d}px system-ui, sans-serif`; const tw = x.measureText(txt).width + 18 * d, th = 28 * d;
   x.fillStyle = col; x.beginPath(); x.roundRect ? x.roundRect(cx - tw / 2, cy - th / 2, tw, th, th / 2) : x.rect(cx - tw / 2, cy - th / 2, tw, th); x.fill();
   x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, cx, cy + 1 * d); x.restore();
 }
 function ezHome() {
   if (EZ.home != null) return EZ.home;
-  const p = store.profile; if (p && p.natural != null) return Math.round(p.natural);
-  const z = labZone(); return Math.round(z.center);
+  const p = store.profile; let m = p && p.natural != null ? Math.round(p.natural) : Math.round(labZone().center);
+  if (isBlack(m)) m--; // Do sits on a white key
+  return m;
 }
+const ezNames = () => !!(store.settings && store.settings.ezNames);
 const ezKey = () => EZ.list[EZ.i];
 const ezStep = () => { const k = ezKey(); return k ? { k, ...EASY_GAMES[k] } : null; };
 function easyOpen(list) {
@@ -4403,7 +4405,8 @@ function ezBar() {
   add('🔁', 'Again', () => { if (EZ.phase === 'done') easyOpen(EZ.list); else { guideOff(); EZ.phase = 'ready'; EZ.readyAt = 0; EZ.song = null; EZ.piano = null; ezRender(); } });
   add('⏭', 'Next', () => ezNext());
   add('ⓘ', 'Helpers', () => { const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'ezWordsTog'; cb.checked = ezWordsOn(); cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.ezWords = cb.checked; dirty = true; save(); ezRender(); }; lab.append(cb, document.createTextNode(' Show instructions in words (on for the first few days)'));
-    infoSheet('For helpers', [lab, el('p', '', 'First Notes is an easy start for every new singer, and needs no reading. Each game shows a target: sing so the bird, balloon or frog reaches it, and a star appears. The note keeps playing so it is easy to match, and each scale note has its own colour.'), el('p', '', 'Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best. If nothing moves, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.')]); });
+    const lab2 = el('label', 'guide-tog'), cb2 = el('input'); cb2.type = 'checkbox'; cb2.id = 'ezNamesTog'; cb2.checked = ezNames(); cb2.onchange = () => { if (!store.settings) store.settings = {}; store.settings.ezNames = cb2.checked; dirty = true; save(); }; lab2.append(cb2, document.createTextNode(' Show note names (C, D, E…) as well as the coloured syllables'));
+    infoSheet('For helpers', [lab, lab2, el('p', '', 'First Notes is an easy start for every new singer, and needs no reading. Each game shows a target: sing so the bird, balloon or frog reaches it, and a star appears. The note keeps playing so it is easy to match, and each scale note has its own colour.'), el('p', '', 'Sit beside the singer, sing along, copy their sound back to them, and cheer every star. Short and often works best. If nothing moves, check the mic is on and try a louder "ooo". Headphones help if hearing is reduced.')]); });
 }
 // the start card: picture, name, one or two plain sentences a helper can read out, and a big Start button
 function ezCard() {
@@ -4463,6 +4466,33 @@ function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'
 function ezWon(after) { guideOff(); EZ.tgt = null; EZ.phase = 'won'; $('#easyPic').textContent = '🎉'; setTimeout(() => { if (!EZ.on || EZ.phase !== 'won') return; $('#easyPic').textContent = ''; ezNext(); }, after || 1800); }
 function ezEchoPlay() { const e = EZ.echo; e.phase = 'listen'; e.t0 = now(); EZ.tgt = null; ezMute(e.notes.length * 1.1 + 0.5); e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1)); }
 function ezCelebrate(then) { guideOff(); EZ.cel = { at: now(), until: now() + 3.2, then, tgt: EZ.tgt, k: ezKey() }; chime('high'); setTimeout(() => EZ.on && EZ.cel && chime('ding'), 400); }
+// a badge under the singer: spot on, close, a little low or a little high
+function ezFeedback(x, cx, cy, off, d) {
+  if (off == null) return;
+  const a = Math.abs(off), inb = a <= ezTol();
+  const [txt, col] = a <= 15 ? ['✨ Spot on!', C.pure] : inb ? ['Close!', C.good] : off < 0 ? ['A little low ⬆', C.accent] : ['A little high ⬇', C.warn];
+  x.save(); x.font = `800 ${17 * d}px system-ui, sans-serif`; const tw = x.measureText(txt).width + 20 * d, th = 30 * d;
+  x.fillStyle = col; x.beginPath(); x.roundRect ? x.roundRect(cx - tw / 2, cy - th / 2, tw, th, th / 2) : x.rect(cx - tw / 2, cy - th / 2, tw, th); x.fill();
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, cx, cy + 1 * d); x.restore();
+}
+// baby birds, drawn simply: beaks open wide while they wait for the worm, closed and happy once fed
+function ezChicks(x, cx, cy, s, open, t) {
+  x.save();
+  [-1, 1].forEach((side, j) => {
+    const bx = cx + side * s * 0.5, by = cy - (open ? Math.abs(Math.sin(t * 5 + j)) * s * 0.12 : 0), r = s * 0.36;
+    x.fillStyle = '#ffd23f'; x.strokeStyle = '#d99a00'; x.lineWidth = Math.max(1, s * 0.04);
+    x.beginPath(); x.arc(bx, by, r, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = '#222'; x.beginPath(); x.arc(bx - side * r * 0.25, by - r * 0.25, r * 0.12, 0, 7); x.fill();
+    const tipX = bx + side * r * 1.05, baseX = bx + side * r * 0.55, my = by + r * 0.05;
+    x.fillStyle = '#ff8c1a';
+    if (open) {
+      x.beginPath(); x.moveTo(baseX, my - r * 0.12); x.lineTo(tipX, my - r * 0.55); x.lineTo(baseX, my - r * 0.38); x.closePath(); x.fill();
+      x.beginPath(); x.moveTo(baseX, my + r * 0.12); x.lineTo(tipX, my + r * 0.5); x.lineTo(baseX, my + r * 0.36); x.closePath(); x.fill();
+      x.fillStyle = '#c0392b'; x.beginPath(); x.moveTo(baseX, my - r * 0.1); x.lineTo(tipX * 0.98 + baseX * 0.02, my); x.lineTo(baseX, my + r * 0.1); x.closePath(); x.fill();
+    } else { x.beginPath(); x.moveTo(baseX, my - r * 0.15); x.lineTo(tipX, my); x.lineTo(baseX, my + r * 0.15); x.closePath(); x.fill(); }
+  });
+  x.restore();
+}
 // while the app plays a note, the mic hears the speaker: ignore it, and learn how loud the speaker is in this room
 function ezMute(secs) { EZ.muteUntil = now() + secs; }
 function ezNext() {
@@ -4525,10 +4555,14 @@ function ezTick() {
       else if (e.phase === 'sing') {
         EZ.tgt = e.notes[e.i];
         if (inb) e.got.push(1);
-        if (e.got.length >= 8 || et > 2.4 * (e.i + 1)) {
-          if (e.got.length >= 8) ezStar();
-          e.i++; e.got = []; e.t0 = t - 2.4 * e.i;
-          if (e.i >= e.notes.length) { e.round++; ezCelebrate(() => { if (e.round >= 3) ezWon(2500); else { const h = ezHome(); e.notes = [[h + 2, h], [h, h + 2, h + 4]][e.round - 1]; ezEchoPlay(); } }); }
+        const nextRound = () => { if (e.round >= 3) ezWon(2500); else { const h = ezHome(); e.notes = [[h + 2, h], [h, h + 2, h + 4]][e.round - 1]; e.missed = 0; ezEchoPlay(); } };
+        if (e.got.length >= 8) { // got it: the frog hops to the next pad
+          chime('high'); e.i++; e.got = []; e.t0 = t; e.tries = 0;
+          if (e.i >= e.notes.length) { e.round++; if (e.missed) nextRound(); else { ezStar(); ezCelebrate(nextRound); } }
+        } else if (et > 6) { // not yet: play this pad's note again and wait
+          e.tries = (e.tries || 0) + 1; e.got = []; e.t0 = t;
+          if (e.tries >= 5) { e.missed = (e.missed || 0) + 1; e.i++; e.tries = 0; if (e.i >= e.notes.length) { e.round++; nextRound(); } }
+          else { ezMute(1.2); playTone(e.notes[e.i], 1, PURE); }
         }
       }
     }
@@ -4564,7 +4598,7 @@ function ezDraw(v, inb) {
     ezLanes(x, Y, mid, span, w, d, mid);
     x.fillStyle = inside ? C.pure : C.good; x.globalAlpha = inside ? 0.45 : 0.25; x.fillRect(EZ.lw - 8 * d, Y(mid + 0.5), w - EZ.lw + 8 * d, Y(mid - 0.5) - Y(mid + 0.5)); x.globalAlpha = 1;
     if (k0 === 'grow') { emoji(['🌱', '🌿', '🌷', '🌻'][Math.min(3, Math.floor(prog * 4))], w * 0.55, h * 0.78, big * (0.8 + prog)); emoji('🎤', w * 0.55, Y(mid + off), big * 0.8); }
-    else { const sz = k0 === 'echo' ? big * 1.4 : big; if (g.goal) emoji(g.goal, w * 0.86, Y(mid), sz); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(mid) + big * 0.75, big * 0.55); emoji(g.sprite, EZ.lw + 40 * d + (w * 0.86 - EZ.lw - 100 * d) * prog, Y(mid + off), sz); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
+    else { const sz = k0 === 'echo' ? big * 1.4 : big; if (g.goal) emoji(g.goal, w * 0.86, Y(mid), sz); if (g.chicks) ezChicks(x, w * 0.86, Y(mid) - big * 0.6, big * 1.05, true, t); emoji(g.sprite, EZ.lw + 40 * d + (w * 0.86 - EZ.lw - 100 * d) * prog, Y(mid + off), sz); if (prog >= 1) emoji('⭐', w * 0.86, Y(mid) - big, big * 1.1); }
     const f = $('#easyFace'); f.textContent = inside ? '😊' : off > 0 ? '⬇' : '⬆'; f.className = 'easy-face' + (inside ? ' good' : '');
     return;
   }
@@ -4574,7 +4608,7 @@ function ezDraw(v, inb) {
     ezLanes(x, Y, mid, span, w, d, tg);
     x.fillStyle = C.pure; x.globalAlpha = 0.45; x.fillRect(EZ.lw - 8 * d, Y(tg + 0.5), w - EZ.lw + 8 * d, Y(tg - 0.5) - Y(tg + 0.5)); x.globalAlpha = 1;
     const gx = ce.k === 'echo' ? w * 0.8 : ce.k === 'grow' ? w * 0.55 : w * 0.72;
-    if (ce.k === 'match') { emoji('🪺', gx, Y(tg), big * 1.2); emoji('🐦', gx, Y(tg) - big * 0.55, big * 1.2); emoji('🐣🐣', gx, Y(tg) + big * 0.8 - bounce, big * 0.7); }
+    if (ce.k === 'match') { emoji('🪺', gx, Y(tg), big * 1.2); ezChicks(x, gx, Y(tg) - big * 0.6 - bounce * 0.5, big * 1.05, false, t); emoji('🐦', gx + big * 0.9, Y(tg) - big * 0.6, big * 1.1); emoji('🪱', gx, Y(tg) - big * 0.95, big * 0.45, Math.max(0, 1 - el2)); }
     else if (ce.k === 'updown') { emoji('☁️', gx, Y(tg), big * 1.5); emoji('🎈', gx, Y(tg) - big * 0.6 - bounce, big * 1.2); emoji('🌈', gx - big * 1.6, Y(tg) - big * 0.2, big); }
     else if (ce.k === 'echo') { emoji('🪷', gx, Y(tg), big * 1.6); emoji('🐸', gx, Y(tg) - big * 0.6 - bounce, big * 1.6); }
     else if (ce.k === 'grow') { for (let j = 0; j < 3; j++) emoji(j < EZ.flowers ? '🌻' : '🌱', w * (0.35 + j * 0.2), h * 0.78 - (j < EZ.flowers ? big * 0.6 : 0) - (j === EZ.flowers - 1 ? bounce : 0), j < EZ.flowers ? big * 1.4 : big * 0.6); }
@@ -4601,11 +4635,15 @@ function ezDraw(v, inb) {
   // the games
   if (EZ.phase === 'run' && EZ.tgt != null && (k0 === 'match' || k0 === 'updown')) {
     const need = k0 === 'match' ? 2 : 1, prog = Math.min(1, EZ.inBand / need);
-    emoji(g.goal, w * 0.86, Y(EZ.tgt)); if (g.chicks) emoji('🐣🐣', w * 0.86, Y(EZ.tgt) + big * 0.75, big * 0.55);
-    ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.9, EZ.tgt, d, '🎯 ');
-    const bx = EZ.lw + 40 * d + (w * 0.86 - EZ.lw - 100 * d) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || Y(EZ.tgt) + big);
+    const nestX = w * 0.86, nestY = Y(EZ.tgt);
+    emoji(g.goal, nestX, nestY); if (g.chicks) ezChicks(x, nestX, nestY - big * 0.6, big * 1.05, true, t);
+    ezChip(x, nestX, nestY - big * 1.15, EZ.tgt, d, '🎯 ');
+    const sx = EZ.lw + 40 * d; let bx = sx + (nestX - sx) * prog, by = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : (EZ.lastBy || nestY + big);
     if (v != null) EZ.lastBy = by;
-    emoji(g.sprite, bx, by, big, v != null ? 1 : 0.4); if (v != null) ezChip(x, bx, by + big * 0.75, v, d);
+    if (prog > 0.85) { const f = (prog - 0.85) / 0.15; by = by * (1 - f) + (nestY - big * 0.35) * f; } // the last stretch: glide down into the nest
+    emoji(g.sprite, bx, by, big, v != null ? 1 : 0.4);
+    if (g.chicks) emoji('🪱', bx + big * 0.45, by + big * 0.1, big * 0.4, v != null ? 1 : 0.4);
+    if (v != null) { ezChip(x, bx, by + big * 0.75, v, d); ezFeedback(x, bx, by + big * 0.75 + 32 * d, (v - EZ.tgt) * 100, d); }
     return;
   }
   if (EZ.phase === 'run' && k0 === 'echo' && EZ.echo) {
@@ -4613,13 +4651,13 @@ function ezDraw(v, inb) {
     e.notes.forEach((m, j) => { const px = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : j / (n2 - 1))), lit = e.phase === 'listen' ? Math.floor((t - e.t0) / 1.1) === j : e.i === j; emoji('🪷', px, Y(m), big * (lit ? 1.6 : 1.3), lit ? 1 : 0.6); x.save(); x.fillStyle = DEG_COLOR[ezDeg(m)] || C.muted; x.globalAlpha = 0.8; x.beginPath(); x.arc(px, Y(m) + big * 0.6, 7 * d, 0, 7); x.fill(); x.restore(); });
     const fx = w * (0.3 + 0.5 * (n2 === 1 ? 0.5 : Math.min(e.i, n2 - 1) / (n2 - 1))), fy = v != null ? Y(Math.max(mid - span, Math.min(mid + span, v))) : Y(e.notes[Math.min(e.i, n2 - 1)]) - big * 0.6;
     emoji('🐸', e.phase === 'listen' ? w * 0.15 : fx, e.phase === 'listen' ? Y(e.notes[0]) : fy - big * 0.3, big * 1.5, v != null || e.phase === 'listen' ? 1 : 0.6);
-    if (v != null) ezChip(x, fx, fy + big * 0.75, v, d);
+    if (v != null && e.phase === 'sing') { ezChip(x, fx, fy + big * 0.9, v, d); ezFeedback(x, fx, fy + big * 0.9 + 32 * d, (v - EZ.tgt) * 100, d); }
     return;
   }
   if (EZ.phase === 'run' && k0 === 'grow') {
     const pr = Math.min(1, EZ.inBand / 3);
     for (let j = 0; j < 3; j++) { const px = w * (0.35 + j * 0.2), grown = j < EZ.flowers ? 1 : j === EZ.flowers ? pr : 0; emoji(grown >= 1 ? '🌻' : grown > 0.66 ? '🌷' : grown > 0.33 ? '🌿' : '🌱', px, h * 0.82 - grown * big * 0.6, big * (0.6 + grown * 0.8), j <= EZ.flowers ? 1 : 0.35); }
-    if (v != null) { const by = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('💧', w * (0.35 + Math.min(2, EZ.flowers) * 0.2), by, big * 0.7); ezChip(x, Math.min(w - 70 * d, w * (0.35 + Math.min(2, EZ.flowers) * 0.2) + big), by, v, d); }
+    if (v != null) { const by = Y(Math.max(mid - span, Math.min(mid + span, v))); emoji('💧', w * (0.35 + Math.min(2, EZ.flowers) * 0.2), by, big * 0.7); ezChip(x, Math.min(w - 70 * d, w * (0.35 + Math.min(2, EZ.flowers) * 0.2) + big), by, v, d); ezFeedback(x, Math.min(w - 80 * d, w * (0.35 + Math.min(2, EZ.flowers) * 0.2) + big), by + 32 * d, (v - EZ.tgt) * 100, d); }
     ezChip(x, w * 0.86, Y(EZ.tgt) - big * 0.6, EZ.tgt, d, '🎯 ');
     return;
   }
