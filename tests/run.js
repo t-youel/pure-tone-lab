@@ -834,6 +834,36 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && played.pn.join() === played.want.join() && played.demo, JSON.stringify({ lines, played }));
   });
 
+  await test('Voice Tutor: comments on a band take, builds a lesson for the flat line, then compares the retry with the band', async page => {
+    await voice(page); await setLevel(page, 10);
+    await page.evaluate(() => { openLab('band'); }); await page.click('.band-song[data-song="bday"]');
+    // first take: line 3 a little flat; once the lesson starts the singer gets it right
+    await page.evaluate(() => { tutorListen = false; G.tempo = 'normal'; V.follow = true; window.fixed = false; setInterval(() => { V.off = !fixed && !G.song.tutor && G.idx >= 12 && G.idx <= 18 ? -0.6 : 0; }, 20); });
+    await page.click('#btnSing');
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(300);
+    const first = await page.evaluate(() => { const c = document.querySelector('#report [data-card="tutor"]'); return { text: c && c.textContent, start: !!(c && c.querySelector('[data-act="start"]')), steps: [...c.querySelectorAll('.tutor-plan li')].map(l => l.textContent) }; });
+    await page.click('#report [data-card="tutor"] [data-act="start"]');
+    const steps = [];
+    for (let k = 0; k < 3; k++) {
+      await page.waitForFunction(() => G.song.tutor && G.run === 'singing', null, { timeout: 20000 });
+      const info = await page.evaluate(() => ({ kind: G.song.tutor, n: G.seq.length, tempo: G.tempo, shift: G.shift, words: G.seq.map(n => n.w).join(' ') }));
+      await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(200);
+      info.say = await page.evaluate(() => document.querySelector('#report [data-card="tutor"] .tutor-say').textContent);
+      info.saved = await page.evaluate(() => (store.runs || []).some(r => r.id === 'tutor'));
+      steps.push(info);
+      await page.click('#report [data-card="tutor"] [data-act="next"]');
+    }
+    await page.evaluate(() => { fixed = true; });
+    await page.waitForFunction(() => G.song.id === 'bday' && G.run === 'singing', null, { timeout: 20000 });
+    const band = await page.evaluate(() => ({ band: G.bandMode, tempo: G.tempo }));
+    await page.waitForFunction(() => G.run === 'done', null, { timeout: 60000 }); await page.waitForTimeout(300);
+    const after = await page.evaluate(() => { const c = document.querySelector('#report [data-card="tutor"]'); return { text: c.textContent, faster: !!c.querySelector('[data-act="faster"],[data-act="song"]'), on: TUT.on }; });
+    expect(first.start && /flat|under the note|short/.test(first.text) && /line 3/.test(first.text) && first.steps.length === 4
+      && steps.map(s => s.kind).join() === 'notes,slow,tempo' && steps[1].n === 7 && steps[1].tempo === 'slow' && steps[2].tempo === 'normal' && steps.every(s => !s.saved)
+      && /dear|friend/.test(steps[1].words) && band.band && /went from \d+ to \d+/.test(after.text) && after.faster && !after.on && /performance|good shape/.test(after.text),
+      JSON.stringify({ first, steps, band, after }));
+  });
+
   await test('reference notes last at least 1.5 seconds', async page => {
     const s = await page.evaluate(() => ({ hear: RUNGS.filter(r => r.k === 'echo').map(r => r.hear) }));
     await page.evaluate(async () => { await ensureAudio(); window.durs = []; const pt = playTone; window.playTone = (m, d, a, w) => { durs.push(d); return pt(m, d, a, w); }; });

@@ -426,6 +426,16 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .band-song { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); }
 .band-song b { font: 700 1.05rem var(--display); }
 .band-offer { border-color: var(--pure); }
+.tutor-card { border: 2px solid var(--accent); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface); margin-bottom: 10px; }
+.tutor-head { font: 700 1.1rem var(--display); }
+.tutor-say { margin: 0; font-size: 1.02rem; line-height: 1.45; }
+.tutor-plan { margin: 0; padding-left: 1.4em; color: var(--muted); }
+.tutor-btns, .tutor-more { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tutor-more .label { flex-basis: 100%; }
+.tutor-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.tstep { font-size: .85rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tstep.now { border-color: var(--accent); color: var(--ink); font-weight: 700; }
+.tstep.done { border-color: var(--pure); color: var(--ink); }
 .band-mix { flex-basis: 100%; display: grid; gap: 6px; }
 .mix-row { display: grid; grid-template-columns: 8.5em 1fr 3.2em; align-items: center; gap: 8px; font-weight: 600; }
 .mix-row input { width: 100%; accent-color: var(--pure); }
@@ -781,7 +791,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · band mix + line notes</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · Voice Tutor</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -2530,6 +2540,7 @@ function skillsBlock(sk) {
 }
 function runAvg() { return runStats().avg; }
 function saveRun() {
+  if (G.song.tutor) return;
   const st = runStats();
   if (!store.runs) store.runs = [];
   const good = strongSyl(st);
@@ -2637,6 +2648,135 @@ const FIX = {
   st: 'The pitch wavered. Breathe low and let a slow, even stream of air carry the note.',
   fo: 'The sound was a bit noisy around the tone. Relax your jaw and feel the buzz behind your teeth and nose.',
 };
+
+// ---------- Voice Tutor: comments on a take, builds a lesson for the hard line, then back to the band ----------
+const TUT = { on: false };
+let tutorListen = true;
+const TUT_STEPS = { notes: 'The tricky notes, slowly', slow: 'The whole line, slowly', tempo: 'The line at full speed', band: 'Back with the band' };
+const lineOk = l => l.score >= 80 && l.ok / l.n >= 0.8;
+const quote = w => '“' + w + '”';
+// the whole word a note belongs to: "birth-" -> "birthday"; names the syllable too when it is part of a longer word
+function wordFull(i) {
+  let j = i; while (j > 0 && G.seq[j].cont) j--;
+  let a = j; for (let k = j - 1; k >= 0; k--) { if (G.seq[k].cont) continue; if (/-$/.test(G.seq[k].w)) a = k; else break; }
+  const parts = []; for (let k = a; k < G.seq.length; k++) { if (G.seq[k].cont) continue; parts.push(G.seq[k].w); if (k >= j && !/-$/.test(G.seq[k].w)) break; }
+  const word = parts.join('').replace(/-/g, '').replace(/[,.;:!?]+$/, ''), syl = wordAt(i).replace(/-$/, '');
+  return syl.toLowerCase() === word.toLowerCase() ? quote(word) : quote(syl) + ' in ' + quote(word);
+}
+// what a voice teacher would say about one note
+function tutorNoteAdvice(i, r) {
+  const n = G.seq[i], pv = i > 0 ? G.seq[i - 1] : null, jump = pv ? n.m - pv.m : 0, w = wordFull(i);
+  if (r.status === 'missed') return 'I didn’t hear ' + w + '. Keep the sound going right through the line, and take your breath at the comma before it, not in the middle.';
+  if (r.status === 'low') return jump >= 4 ? 'On ' + w + ' you fall a little short of the jump up. Hear the high note in your head first, then keep the air moving through the jump, as if the note sits higher than it is.'
+    : w + ' sits just under the note. Keep the breath flowing to the end of the phrase (pitch sags when the air runs out) and think of the note as a touch higher.';
+  return jump <= -4 ? 'Coming down to ' + w + ' you stay a little high. Let the voice drop all the way; relax and land on the note.'
+    : w + ' is pushed a little above the note. Use less effort, not more: loosen your jaw and neck and let the note settle.';
+}
+// plan a lesson from the take just sung (a band song)
+function tutorPlan(st) {
+  const ls = lineNotes(st), weak = ls.filter(l => !lineOk(l)).sort((a, b) => a.score - b.score);
+  const snap = G.seq.map((n, i) => ({ m: n.m, b: n.b, w: n.w, cont: n.cont, word: wordAt(i) }));
+  const plan = { songId: G.song.id, shift: G.shift, tempo: G.tempo, seq: snap, lines: G.lines.map(x => x.slice()), ls, score: st.score, focus: null, notes: [], advice: '' };
+  if (!weak.length) return plan;
+  const f = weak[0]; plan.focus = f.k;
+  const bad = st.all.map((r, i) => ({ r, i })).filter(x => x.i >= f.seg[0] && x.i <= f.seg[1] && (x.r.status === 'missed' || x.r.status === 'low' || x.r.status === 'high'));
+  bad.sort((a, b) => (b.r.status === 'missed' ? 999 : Math.abs(b.r.c)) - (a.r.status === 'missed' ? 999 : Math.abs(a.r.c)));
+  plan.notes = bad.slice(0, 3).map(x => x.i).sort((a, b) => a - b);
+  plan.advice = bad.length ? tutorNoteAdvice(bad[0].i, bad[0].r) : 'The notes are close. This time make the line smooth and even: one breath, one long sound.';
+  plan.steps = [...(plan.notes.length ? ['notes'] : []), 'slow', 'tempo', 'band'];
+  return plan;
+}
+// a short practice song made from part of the real one, in the same key
+function tutorSong(kind) {
+  const P = TUT, seq = P.seq, [a, b] = P.lines[P.focus], toks = [], notes = [];
+  const add = (i, beats, first) => { notes.push([seq[i].m - P.shift, beats ?? seq[i].b]); toks.push(beats != null || (first && seq[i].cont) ? (seq[i].word || 'oo') : seq[i].cont ? '_' : seq[i].w); };
+  if (kind === 'notes') {
+    P.notes.forEach((i, k) => { if (k) toks.push('/'); if (i > a) add(i - 1, 2); add(i, 3); });
+  } else for (let i = a; i <= b; i++) add(i, null, i === a);
+  const total = P.steps.length, at = P.steps.indexOf(kind) + 1;
+  return { id: 'tutor', tutor: kind, kind: 'Tutor', name: '🎓 Step ' + at + ' of ' + total + ': ' + TUT_STEPS[kind], words: toks.join(' '), notes };
+}
+async function tutorGo() {
+  const kind = TUT.steps[TUT.step]; if (!kind) return;
+  if (!(await ensureListening())) return;
+  if (kind === 'band') {
+    G.tempo = TUT.tempo; G.shift = TUT.shift; G.bandMode = true; G.metro = true; $('#btnMetro').setAttribute('aria-pressed', true);
+    loadSong(SONGS.find(x => x.id === TUT.songId), true);
+    toast('The band is ready. Sing it all the way through.'); startRun(); return;
+  }
+  G.tempo = kind === 'tempo' ? TUT.tempo : (TUT.tempo === 'slow' || TUT.tempo === 'vslow' ? 'vslow' : 'slow');
+  loadSong(tutorSong(kind), true);
+  if (tutorListen) { toast('Listen first, then you sing it.'); listenFirst(() => startRun()); } else startRun();
+}
+function tutorStart(plan) { Object.assign(TUT, plan, { on: true, step: 0, tries: 0, base: { score: plan.score, lines: plan.ls.map(l => l.score) } }); tutorGo(); }
+// "more lessons": the Lab exercises that fit what the tutor heard
+function tutorMore(st) {
+  const out = [], seen = new Set();
+  for (const f of diagnose(st)) if (f.lab && !seen.has(f.lab) && LAB.find(x => x.id === f.lab) && level() >= (LAB_LEVEL[f.lab] || 1)) { seen.add(f.lab); out.push(f.lab); }
+  return out.slice(0, 2);
+}
+function tutorCard(st) {
+  const isStep = !!G.song.tutor, isBand = !G.song.tutor && G.bandMode && BAND_SONGS.includes(G.song.id);
+  if (!isStep && !isBand) return null;
+  const box = el('div', 'tutor-card'); box.dataset.card = 'tutor';
+  box.appendChild(el('span', 'tutor-head', '🎓 Your Voice Tutor'));
+  const say = t => box.appendChild(el('p', 'tutor-say', t)), btns = el('div', 'tutor-btns');
+  const button = (txt, fn, cls = 'primary', act) => { const b = el('button', cls, txt); if (act) b.dataset.act = act; b.onclick = fn; btns.appendChild(b); return b; };
+  if (isStep) {
+    const kind = G.song.tutor;
+    // in the tricky-notes step only the held notes (the ones that went wrong) count; the lead-in notes are there for context
+    const target = kind === 'notes' ? st.all.filter((r, i) => G.seq[i].b === 3) : st.all;
+    const ok = target.filter(r => r.status === 'pure' || r.status === 'ok').length, frac = ok / Math.max(1, target.length);
+    const pass = frac >= 0.7; TUT.tries++;
+    const steps = el('div', 'tutor-steps'); TUT.steps.forEach((k, j) => steps.appendChild(el('span', 'tstep' + (j < TUT.step || (j === TUT.step && pass) ? ' done' : j === TUT.step ? ' now' : ''), (j < TUT.step || (j === TUT.step && pass) ? '✓ ' : '') + TUT_STEPS[k]))); box.appendChild(steps);
+    const next = () => { TUT.step++; TUT.tries = 0; tutorGo(); };
+    if (pass) {
+      say([ok === target.length ? 'Spot on, every note.' : ok + ' of ' + target.length + ' in tune. That’s the shape of it.',
+        kind === 'notes' ? 'Your ear knows these notes now. Let’s put them back in the line.' : kind === 'slow' ? 'Slow is where the voice learns. Now the same line at full speed.' : 'Line ready. Let’s hear it with the band.'].join(' '));
+      button(TUT.steps[TUT.step + 1] === 'band' ? '🎸 Back to the band' : '▶ Next: ' + TUT_STEPS[TUT.steps[TUT.step + 1]], next, 'primary', 'next');
+    } else if (TUT.tries < 3) {
+      const worst = st.all.map((r, i) => ({ r, i })).filter(x => x.r.status !== 'pure' && x.r.status !== 'ok').sort((a, b) => (b.r.status === 'missed' ? 999 : Math.abs(b.r.c)) - (a.r.status === 'missed' ? 999 : Math.abs(a.r.c)))[0];
+      say((ok ? 'Closer: ' + ok + ' of ' + target.length + ' in tune. ' : 'Good effort. ') + (worst ? tutorNoteAdvice(worst.i, worst.r) : '') + ' Once more.');
+      button('↻ Try that again', () => tutorGo(), 'primary', 'again');
+      button('Skip ahead', next, 'small', 'next');
+    } else {
+      say('You’ve put real work in here. Some notes take a few sessions to settle, and that’s normal. Let’s keep going; it often clicks in context.');
+      button('▶ Keep going', next, 'primary', 'next');
+    }
+    button('End lesson', () => { TUT.on = false; loadSong(SONGS.find(x => x.id === TUT.songId), true); }, 'small', 'end');
+    box.appendChild(btns); return box;
+  }
+  // a band take: compare with the last lesson, then plan the next one
+  const plan = tutorPlan(st), ls = plan.ls, best = [...ls].sort((a, b) => b.score - a.score)[0];
+  const back = TUT.on && TUT.songId === G.song.id && TUT.steps && TUT.steps[TUT.step] === 'band';
+  if (back) {
+    const was = TUT.base.lines[TUT.focus], now = ls[TUT.focus] ? ls[TUT.focus].score : 0, d = st.score - TUT.base.score;
+    const line = 'line ' + (TUT.focus + 1) + ' (' + quote(ls[TUT.focus].words.replace(/[,.;!?]$/, '')) + ')';
+    say(now - was >= 10 ? 'Listen to that: ' + line + ' went from ' + was + ' to ' + now + '. That’s exactly what practice is for.'
+      : now >= was ? 'On ' + line + ' you held your ground (' + was + ' → ' + now + '). Under a band it takes a few rounds for a fix to stick. You did the work, and it will come.'
+      : line[0].toUpperCase() + line.slice(1) + ' slipped a little with the band (' + was + ' → ' + now + '). That’s common: the band pulls your attention. We’ll go again.');
+    say(d > 0 ? 'Whole song: ' + TUT.base.score + ' → ' + st.score + '. Up ' + d + ' points.' : 'Whole song: ' + st.score + ' this time (' + TUT.base.score + ' before).');
+    TUT.on = false;
+  } else {
+    say(best && best.score >= 60 ? 'Nice work on ' + quote(best.words.replace(/[,.;!?]$/, '')) + ': ' + best.ok + ' of ' + best.n + ' in tune.' : 'Thank you for singing it all the way through. That’s the hardest part, and you did it.');
+  }
+  if (plan.focus != null) {
+    const f = ls[plan.focus];
+    say((back ? 'Next, ' : 'Let’s work on ') + 'line ' + (plan.focus + 1) + ', ' + quote(f.words.replace(/[,.;!?]$/, '')) + ' (' + f.score + '). ' + plan.advice);
+    const ol = el('ol', 'tutor-plan'); plan.steps.forEach(k => ol.appendChild(el('li', '', TUT_STEPS[k]))); box.appendChild(ol);
+    button('🎓 ' + (back ? 'Next lesson' : 'Start the lesson'), () => tutorStart(plan), 'primary', 'start');
+  } else {
+    say(st.score >= 90 ? 'That’s a performance. Every line in tune with the band.' : 'Every line is in good shape now.');
+    const fasterT = { vslow: 'slow', slow: 'medium', medium: 'normal' }[G.tempo];
+    if (fasterT) { say('Ready for more? Try it a little faster.'); button('▶ Sing it faster', async () => { if (!(await ensureListening())) return; G.tempo = fasterT; loadSong(G.song, true); startRun(); }, 'primary', 'faster'); }
+    const others = BAND_SONGS.filter(id => id !== G.song.id), done = new Set((store.clips || []).map(c => c.song)), nx = others.find(id => !done.has(id)) || others[0];
+    button('🎸 Next song: ' + SONGS.find(x => x.id === nx).name, async () => { if (!(await ensureListening())) return; singSongId(nx); toast('Sing it through. Your tutor will be listening.'); }, fasterT ? 'small' : 'primary', 'song');
+  }
+  const more = tutorMore(st);
+  if (more.length) { const m = el('div', 'tutor-more'); m.appendChild(el('span', 'label', 'More lessons for you')); for (const id of more) { const b = el('button', 'small', LAB.find(x => x.id === id).title + ' →'); b.onclick = () => openLab(id); m.appendChild(b); } box.append(btns, m); }
+  else box.appendChild(btns);
+  return box;
+}
 function renderReport() {
   const box = $('#report');
   if (G.run !== 'done') { box.hidden = true; return; }
@@ -2645,11 +2785,12 @@ function renderReport() {
   if (CO.on) {
     const cb = el('div', 'coach-offer'); const nx = el('button', 'primary', '▶ ' + (CO.msg.startsWith('Level up') ? 'Next step: ' : 'Again: ') + rungLabel(CO.rung, G.fullLen || st.n));
     nx.onclick = () => { loadSong(G.song, true); startRun(); }; cb.append(el('b', '', CO.msg), nx); box.appendChild(cb);
-  } else if (!G.song.check && st.n >= 5 && (st.monotone || st.ok / st.n < 0.5)) {
+  } else if (!G.song.check && !G.song.tutor && st.n >= 5 && (st.monotone || st.ok / st.n < 0.5)) {
     const cb = el('div', 'coach-offer'); const on = el('button', 'primary', '🛟 Start coach mode');
     on.onclick = () => { setCoach(true); startRun(); };
     cb.append(el('span', '', 'Too fast? The coach breaks it into small steps: hear a note, sing it back, with a second try on any miss.'), on); box.appendChild(cb);
   }
+  if (!CO.on) { const tc = tutorCard(st); if (tc) box.appendChild(tc); }
   const runs = (store.runs || []).filter(r => r.id === G.song.id), prev = runs.length > 1 ? runs[runs.length - 2] : null;
   const scoreOf = r => (r.ok ?? 0) * 1000 + r.avg, isBest = runs.length > 1 && scoreOf(runs[runs.length - 1]) > Math.max(...runs.slice(0, -1).map(scoreOf));
   const top = document.createElement('div'); top.className = 'report-top';
@@ -2664,8 +2805,8 @@ function renderReport() {
   if (st.breath && st.breath.marks && !G.song.lab) stat('Breaths at ʼ', st.breath.taken + ' of ' + st.breath.marks);
   if (st.phrase && !G.song.lab) stat('Lines shaped', st.phrase.shaped + ' of ' + st.phrase.lines);
   box.appendChild(top);
-  if (!G.song.lab && !CO.on) { const sc = showcasePanel(st); if (sc) box.appendChild(sc); }
-  if (!G.song.lab && !CO.on && G.recorded) {
+  if (!G.song.lab && !G.song.tutor && !CO.on) { const sc = showcasePanel(st); if (sc) box.appendChild(sc); }
+  if (!G.song.lab && !G.song.tutor && !CO.on && G.recorded) {
     const bc = el('div', 'coach-offer band-offer'); bc.dataset.card = 'band';
     const getClip = async () => { let c = null; for (let k = 0; k < 20 && !c; k++) { c = [...(store.clips || [])].filter(x => x.song === G.song.id && x.at >= G.runEnd - 500).sort((a, b2) => b2.at - a.at)[0]; if (!c) await new Promise(r => setTimeout(r, 150)); } return c; };
     const bb = el('button', 'primary', '🎸 Hear it with the band'); bb.dataset.act = 'all';
@@ -3045,7 +3186,7 @@ const LAB = [
   { id: 'breaks', kind: 'drill', title: 'Break finder', tags: ['Registers'], time: '30 s', blurb: 'One slow siren shows where your voice changes gear between chest and head voice.' },
   { id: 'blend', kind: 'drill', title: 'Blend the break', tags: ['Registers'], time: '1 min', blurb: 'Sirens through your break, getting lighter as you climb. Scores the jump and any push.' },
   { id: 'swell', kind: 'drill', title: 'Swell', tags: ['Dynamics'], time: '30 s', blurb: 'Soft, loud, soft on one note, with the pitch holding still.' },
-  { id: 'band', kind: 'drill', title: 'Sing with the band', tags: ['Songs', 'Performance'], time: '3 min', blurb: 'Pick a popular song, sing it through, then hear yourself back with a band: drums, bass and piano, in your key.' },
+  { id: 'band', kind: 'drill', title: 'Voice Tutor: sing with the band', tags: ['Voice Tutor', 'Songs'], time: '5–15 min', blurb: 'Pick a popular song and sing it with a band. Your tutor tells you what went well, builds a lesson for the tricky parts, then sends you back to the band to try again.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
@@ -3851,7 +3992,7 @@ Object.assign(DRILLS, {
     lane: () => ({ target: null }),
     start() {
       D.phase = 'intro';
-      dSet({ step: 'Sing with the band', prompt: 'Pick a song', sub: 'Sing it all the way through with the metronome. Then hear your own voice played back with a band, in your key.', live: '', prog: -1 });
+      dSet({ step: '🎓 Voice Tutor', prompt: 'Pick a song', sub: 'Sing it all the way through with the metronome. Then hear yourself with the band, and your tutor will help you with the tricky parts.', live: '', prog: -1 });
       const ex = $('#dExtra'); ex.textContent = '';
       const grid = el('div', 'band-songs');
       const fits = store.profile ? songFits(store.profile) : [];
@@ -3859,7 +4000,7 @@ Object.assign(DRILLS, {
         const sg = SONGS.find(x => x.id === id), f = fits.find(x => x.s.id === id);
         const b = el('button', 'band-song'); b.dataset.song = id;
         b.append(el('b', '', sg.name), el('span', 'muted', (sg.notes.length) + ' notes' + (f && f.fit >= 0.5 ? ' · ★ uses notes you sing well' : '')));
-        b.onclick = async () => { await ensureListening(); closeLab(); G.bandMode = true; G.metro = true; $('#btnMetro').setAttribute('aria-pressed', true); singSongId(id); toast('Sing it through, then tap 🎸 Hear it with the band'); };
+        b.onclick = async () => { await ensureListening(); closeLab(); G.bandMode = true; G.metro = true; $('#btnMetro').setAttribute('aria-pressed', true); singSongId(id); TUT.on = false; toast('Sing it through. Your tutor will be listening.'); };
         grid.appendChild(b);
       }
       ex.appendChild(grid);
@@ -4480,7 +4621,7 @@ const idbDo = (mode, fn) => idb().then(db => new Promise((res, rej) => { const t
 const clipKey = id => KEY + ':' + id;
 function recStart() {
   recAbort();
-  if (realStore || !ac || typeof MediaRecorder === 'undefined' || (store.settings && store.settings.record === false)) return;
+  if (realStore || !ac || typeof MediaRecorder === 'undefined' || (store.settings && store.settings.record === false) || (G.song && G.song.tutor)) return;
   try {
     if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); }
     const mt = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));

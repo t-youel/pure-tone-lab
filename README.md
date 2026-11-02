@@ -74,6 +74,14 @@ The microphone path runs through a narrow notch filter at the guide's frequency,
 without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
 on GitHub Actions after every push.
 
+## Voice Tutor
+
+Opens at Level 2 (after the Stage 1 basics). Pick a popular song in **Lab → Voice Tutor: sing with the band** and sing it through. Then:
+
+- **Hear it with the band**: your take with drums, bass and piano, with sliders for your voice and the band.
+- **Your lines**: each line marked Sung well, Nearly there or Needs work, with **▶ Hear me** (that line of your take) and **♪ How it goes**.
+- **Your Voice Tutor**: praises your best line, names the hardest line and the word that went wrong (flat, sharp or missed), and says why and what to do. It builds a lesson on the fly: the tricky notes slowly, the whole line slowly, the line at full speed, then back with the band. After the retry it compares the line and the whole song with before, then plans the next lesson, or suggests a faster tempo or the next song once every line is in good shape.
+
 ## Backlog
 
 - **Body signals while singing.** Measure heart rate, breathing rate and heart-rate variability by holding a fingertip
