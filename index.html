@@ -450,6 +450,30 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .lr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 600px) { .mix-row { grid-template-columns: 7em 1fr 3em; } }
 .tour-box { display: grid; gap: 14px; }
+.pro-box { display: grid; gap: 14px; }
+.pro-intro { display: grid; gap: 10px; } .pro-intro p { margin: 0; }
+.pro-intro select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); max-width: 100%; }
+.small-print { font-size: .88rem; }
+.pro-out { display: grid; gap: 10px; }
+.pro-msg { font-weight: 600; }
+.pro-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pro-name { font: 700 1.15rem var(--display); margin-right: auto; overflow-wrap: anywhere; }
+.pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
+.pro-pos { width: 100%; accent-color: #3b3fb5; }
+.pro-info { margin: 0; min-height: 1.3em; font-weight: 600; }
+.pro-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+.pro-legend i { display: inline-block; vertical-align: middle; margin-right: 4px; }
+.lg-bar { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.85); }
+.lg-line { width: 22px; height: 3px; background: var(--ink); border-radius: 2px; }
+.lg-off { width: 22px; height: 9px; border-radius: 5px; background: rgba(240,151,58,.85); outline: 2px solid #d0533f; }
+.pro-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.pro-stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.pro-stat b { font: 700 1.35rem var(--display); }
+.pro-stat .muted { font-size: .85rem; line-height: 1.35; }
+.pro-compare { display: grid; gap: 8px; justify-items: start; } .pro-compare p { margin: 0; }
+.pro-refs h3 { margin: 0 0 6px; } .pro-ref-list { margin: 0 0 8px; padding-left: 1.2em; }
+@media (max-width: 600px) { .pro-stats { grid-template-columns: 1fr 1fr; } .pro-roll { height: 46vh; } }
 .as-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 60; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
   max-width: calc(100vw - 24px); padding: 8px 10px 8px 14px; border-radius: 999px; background: var(--ink); color: var(--bg); box-shadow: 0 6px 20px rgba(0,0,0,.25); font-weight: 600; font-size: .92rem; }
 .as-bar button { background: var(--surface); color: var(--ink); }
@@ -852,7 +876,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · your starting point's inside</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · learn from the pros's inside</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -932,6 +956,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
       </div>
     </div>
     <div id="labSlot"></div>
+    <div id="proBox" class="pro-box" hidden></div>
   </div>
 </section>
 
@@ -2538,7 +2563,8 @@ $('#btnListen').onclick = () => listenFirst();
 
 // ---------- end-of-song report ----------
 // A note's score: pitch accuracy (full marks within 15 cents, nothing by 100) times tone quality.
-const pitchAcc = c => clamp(1 - (Math.abs(c) - 15) / 85);
+const proTol = () => (store.settings && store.settings.proTol) || 15;
+const pitchAcc = c => clamp(1 - (Math.abs(c) - proTol()) / 85);
 const scoreOfNote = r => r.status === 'missed' ? 0 : Math.round(100 * pitchAcc(r.c) * (0.55 + 0.45 * r.p / 100));
 function runStats() {
   const all = G.seq.map((n, i) => G.res[i] || { m: n.m, status: 'missed' }), sung = all.filter(r => r.status !== 'missed');
@@ -3262,6 +3288,7 @@ const LAB = [
   { id: 'band', kind: 'drill', title: 'Voice Tutor: sing with the band', tags: ['Voice Tutor', 'Songs'], time: '5–15 min', blurb: 'Pick a popular song and sing it with a band. Your tutor tells you what went well, builds a lesson for the tricky parts, then sends you back to the band to try again.' },
   { id: 'warmup', kind: 'drill', title: 'Vocal warm-up', tags: ['Warm-up', 'Breath'], time: '4 min', blurb: 'Loosen up the way speakers do before a talk: release, belly breathing, lip trills, hums, sirens and crisp words.' },
   { id: 'hum', kind: 'song', song: 'hum', title: 'Five-note hum', tags: ['Warm-up'], time: '30 s', blurb: 'A gentle warm-up on "mm" to find your resonance before anything else.' },
+  { id: 'pro', kind: 'pro', title: 'Learn from the pros', tags: ['Listening', 'True Tone'], time: 'any', blurb: 'Load a song by a singer you love and see how they carry the True Tone: every note as a bar, their voice as a line, plus vibrato, beat and how flat or sharp they lean. Look at your own takes the same way.' },
   { id: 'explore', kind: 'explore', title: 'Explore sounds', tags: ['Overtones'], time: 'any', blurb: 'Free play with the spectrogram and pitch trail. Try overtone singing, hear the demo voice, or analyze a recording.' },
 ];
 const D = { id: null, kind: null, phase: 'intro', t0: 0 };
@@ -3313,13 +3340,14 @@ function openLab(id, fromPath) {
   if ($('#tab-lab').hidden) { $('#t-lab').click(); }
   $('#labHome').hidden = true; $('#labStage').hidden = false;
   $('#lsTitle').textContent = L.title; $('#lsTags').textContent = L.tags.join(' · ') + ' · ' + L.time;
-  $('#drillBox').hidden = L.kind !== 'drill'; $('#labSlot').hidden = L.kind === 'drill';
+  $('#drillBox').hidden = L.kind !== 'drill'; $('#labSlot').hidden = L.kind === 'drill' || L.kind === 'pro'; $('#proBox').hidden = L.kind !== 'pro'; proStop();
   $('#tab-listen').hidden = L.kind !== 'explore';
   if (L.kind === 'song') { placeSingCard('lab'); loadSong(SONGS.find(x => x.id === L.song)); }
   else placeSingCard('sing');
   if (L.kind === 'explore') { sizeCanvas(spec); sizeCanvas(trail); specCtx.fillStyle = C.spec0; specCtx.fillRect(0, 0, spec.width, spec.height); }
   $('#dExtra').textContent = '';
   if (L.kind === 'drill') { $('#dResult').hidden = true; $('#lane').hidden = false; DRILLS[id].start(); }
+  if (L.kind === 'pro') proStart();
   $('#labStage').scrollIntoView({ block: 'nearest' });
 }
 function guidePref() { return !!(store.settings && store.settings.guide) && !ASSESS.on; }
@@ -3330,7 +3358,7 @@ function guideToggle(text) {
   return lab;
 }
 function closeLab() {
-  D.run = null; guideOff();
+  D.run = null; guideOff(); proStop(); $('#proBox').hidden = true;
   const back = D.fromPath; D.id = null; D.kind = null; D.fromPath = false; $('#labHome').hidden = false; $('#labStage').hidden = true; placeSingCard('sing'); renderLab();
   if (back) $('#t-home').click();
 }
@@ -4499,7 +4527,7 @@ function seedTries() {
   store.triesSeeded = true; dirty = true;
 }
 // When each Lab exercise opens (by stage). Songs are all open.
-const LAB_LEVEL = { band: 2, exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
+const LAB_LEVEL = { pro: 2, band: 2, exhale: 1, onset: 1, echo: 2, breaks: 3, blend: 3, swell: 3, patterns: 1, warmup: 1, range: 1, hold: 1, match: 1, scale: 1, hum: 1, leaps: 2, check: 2, vowels: 3, explore: 4 };
 const SONG_LEVEL = {};
 // The stage of the furthest open unit. Panels and Lab exercises open by stage.
 const level = () => store.unlockAll || isTester() ? 4 : Math.max(1, ...UNITS.filter(u => unitOpen(u)).map(u => u.stage));
@@ -5391,6 +5419,279 @@ function startCard() {
   c.appendChild(row);
   if (!L) c.appendChild(el('p', 'muted', 'Best time to retake it: when you finish a stage, or every few weeks.'));
   return c;
+}
+
+// ---------- Learn from the pros: analyse any recording, note by note ----------
+// Decodes a song (a file the singer owns, or one of their own takes), finds the voice's pitch every 20 ms, adjusts for the
+// recording's tuning, splits it into notes, and measures how a singer carries the True Tone: accuracy, lean, vibrato,
+// steadiness, starts and beat. Nothing leaves the device.
+const PRO = { buf: null, an: null, src: null, gain: null, t0: 0, off: 0, view: 0, sel: -1, raf: 0, playing: false, drag: null };
+const KEY_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+function proStop() { PRO.playing = false; cancelAnimationFrame(PRO.raf); if (PRO.src) { try { PRO.src.stop(); } catch (e) {} PRO.src = null; } const b = $('#proPlay'); if (b) b.textContent = '▶ Play'; }
+function proStart() {
+  const box = $('#proBox'); box.textContent = ''; PRO.an = null; PRO.buf = null;
+  const intro = el('div', 'pro-intro');
+  intro.append(el('p', '', 'Pick a song by a singer you love. You’ll see every note as a bar the length the note should last, and their voice as a line, so you can see how close they stay to the True Tone, where they slide, and how they use vibrato and the beat.'));
+  const row = el('div', 'row');
+  const fl = el('label', 'btn primary', '📁 A song from your device'); fl.tabIndex = 0;
+  const fi = el('input'); fi.type = 'file'; fi.accept = 'audio/*'; fi.hidden = true; fi.id = 'proFile';
+  fi.onchange = () => { const f = fi.files[0]; if (f) proLoad(f, f.name.replace(/\.[^.]+$/, ''), 'file'); fi.value = ''; };
+  fl.appendChild(fi); fl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } };
+  row.appendChild(fl);
+  const clips = [...(store.clips || [])].sort((a, b) => b.at - a.at).slice(0, 6);
+  if (clips.length) {
+    const sel = el('select'); sel.id = 'proClip'; sel.appendChild(el('option', '', '🎤 One of my recordings…')); sel.firstChild.value = '';
+    for (const c of clips) { const o = el('option', '', ((SONGS.find(x => x.id === c.song) || {}).name || 'Take') + ' · ' + new Date(c.at).toLocaleDateString() + (c.checkup === 'start' ? ' · first day' : '')); o.value = c.id; sel.appendChild(o); }
+    sel.onchange = async () => { const c = clips.find(x => x.id === sel.value); if (!c) return; let blob = null; try { blob = await idbDo('readonly', s2 => s2.get(clipKey(c.id))); } catch (e) {} if (blob) proLoad(blob, 'My take: ' + ((SONGS.find(x => x.id === c.song) || {}).name || 'song'), 'mine'); else toast('That recording is no longer on this device.'); };
+    row.appendChild(sel);
+  }
+  intro.append(row, el('p', 'muted small-print', 'Use a song file you own (MP3, M4A, WAV, AAC). Songs inside Apple Music or Spotify are locked and can’t be opened. The song stays on this device: nothing is uploaded. Works best when the voice is clear and up front; a vocals-only (a cappella) track is ideal.'));
+  box.append(intro, el('div', 'pro-out'));
+  box.lastChild.id = 'proOut';
+  proRefsCard(box);
+}
+async function proLoad(blob, name, kind) {
+  proStop(); await ensureAudio();
+  const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
+  let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
+  PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1;
+  const an = await proAnalyze(buf, f => { msg.textContent = 'Listening to every note… ' + Math.round(f * 100) + '%'; });
+  an.name = name; an.kind = kind; PRO.an = an;
+  if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
+  proRender();
+}
+function medArr(a) { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[s2.length >> 1]; }
+async function proAnalyze(buf, onProg) {
+  const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
+  const render = async filt => {
+    const off = new OfflineAudioContext(1, len, SR), src = off.createBufferSource(); src.buffer = buf; let node = src;
+    if (filt) { const hp = off.createBiquadFilter(), hp2 = off.createBiquadFilter(); hp.type = hp2.type = 'highpass'; hp.frequency.value = hp2.frequency.value = 180; const lp = off.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; src.connect(hp); hp.connect(hp2); hp2.connect(lp); node = lp; }
+    node.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0);
+  };
+  const x = await render(true), raw = await render(false);
+  const N = 768, HOP = 320, frames = Math.max(0, Math.floor((x.length - N) / HOP)), nsd = new Float64Array(N + 1), sqa = new Float64Array(N + 1);
+  const minLag = Math.floor(SR / 1100), maxLag = Math.floor(SR / 70);
+  let peak = 0; const rmsA = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) { let e = 0; for (let k = 0, o = i * HOP; k < N; k += 4) e += x[o + k] * x[o + k]; rmsA[i] = Math.sqrt(e / (N / 4)); peak = Math.max(peak, rmsA[i]); }
+  const gate = peak * 0.06, m = new Array(frames).fill(null), weak = new Array(frames).fill(null);
+  for (let i = 0; i < frames; i++) {
+    if (i % 300 === 0) { onProg(i / frames); await new Promise(r => setTimeout(r, 0)); }
+    if (rmsA[i] < gate) continue;
+    const o = i * HOP; sqa[0] = 0; for (let k = 0; k < N; k++) sqa[k + 1] = sqa[k] + x[o + k] * x[o + k];
+    for (let t = 0; t <= maxLag; t++) { let acf = 0; for (let k = 0, e = N - t; k < e; k++) acf += x[o + k] * x[o + k + t]; const mm = sqa[N - t] + (sqa[N] - sqa[t]); nsd[t] = mm > 0 ? 2 * acf / mm : 0; }
+    let pos = false, best = -1, bi = -1; const pk = [];
+    for (let t = 1; t <= maxLag; t++) { if (nsd[t - 1] <= 0 && nsd[t] > 0) { pos = true; best = -1; bi = -1; } else if (nsd[t - 1] > 0 && nsd[t] <= 0 && pos) { if (bi >= minLag) pk.push(bi); pos = false; } if (pos && nsd[t] > best) { best = nsd[t]; bi = t; } }
+    if (!pk.length) continue;
+    let mx = 0; for (const q of pk) mx = Math.max(mx, nsd[q]); const q = pk.find(q2 => nsd[q2] >= 0.9 * mx);
+    if (nsd[q] < 0.5 || q >= maxLag) continue;
+    const a = nsd[q - 1], b = nsd[q], c = nsd[q + 1], den = a - 2 * b + c, sh = den ? (a - c) / (2 * den) : 0;
+    weak[i] = f2m(SR / (q + sh)); if (nsd[q] >= 0.8) m[i] = weak[i];
+  }
+  onProg(1);
+  // tidy the line: fix octave slips against the neighbourhood, then a short median
+  const win = (i, r) => { const v = []; for (let j = Math.max(0, i - r); j <= Math.min(frames - 1, i + r); j++) if (m[j] != null) v.push(m[j]); return v; };
+  for (let i = 0; i < frames; i++) if (m[i] != null) { const nm = medArr(win(i, 6)); if (Math.abs(m[i] - nm - 12) < 1) m[i] -= 12; else if (Math.abs(m[i] - nm + 12) < 1) m[i] += 12; }
+  const sm = m.map((v, i) => v == null ? null : (() => { const w = []; for (let j = i - 2; j <= i + 2; j++) if (m[j] != null) w.push(m[j]); return w.length >= 3 ? medArr(w) : null; })());
+  // the recording's own tuning (old records and some bands are not at A440): the circular mean of steady frames
+  let cs = 0, sn = 0;
+  for (let i = 1; i < frames - 1; i++) if (sm[i] != null && sm[i - 1] != null && sm[i + 1] != null && Math.abs(sm[i + 1] - sm[i - 1]) < 0.12) { const ang = 2 * Math.PI * sm[i]; cs += Math.cos(ang); sn += Math.sin(ang); }
+  const tune = Math.atan2(sn, cs) / (2 * Math.PI); // semitones, -0.5..0.5
+  const am = sm.map(v => v == null ? null : v - tune), T = i => i * HOP / SR + N / 2 / SR;
+  // notes: a new note when the voice moves more than ~0.6 semitone for 80 ms, or stops for 60 ms
+  const notes = []; let cur = null, gap = 0, pend = [];
+  const close = (i1) => {
+    if (!cur) return; const v = cur.v; cur = null; if (v.length < 5) return;
+    const i0 = i1 - v.length + 1, n = fin({ v, i0 }); n.t0 = i0 * HOP / SR; n.t1 = T(i1) + HOP / SR / 2;
+    notes.push(n);
+  };
+  function fin({ v }) {
+    const mid = v.slice(Math.floor(v.length * 0.2), Math.ceil(v.length * 0.8)), md = medArr(mid), midi = Math.round(md);
+    const n = { midi, c: Math.round((md - midi) * 100), on: Math.round((mean(v.slice(0, 2)) - midi) * 100), vib: null, drift: 0, v };
+    if (v.length >= 30) {
+      const ma = v.map((_, k) => mean(v.slice(Math.max(0, k - 7), k + 8))), dev = v.map((y, k) => y - ma[k]);
+      // only where it actually wobbles: crossings of more than ±6 cents, timed from the first to the last
+      const xs = []; let sg = 0; for (let k = 0; k < dev.length; k++) { const d = dev[k]; if (Math.abs(d) < 0.06) continue; const s5 = d > 0 ? 1 : -1; if (sg && s5 !== sg) xs.push(k); sg = s5; }
+      const rate = xs.length >= 4 ? (xs.length - 1) / 2 / ((xs[xs.length - 1] - xs[0]) * HOP / SR) : 0, width = Math.round(Math.sqrt(mean(dev.map(d => d * d))) * 141);
+      if (rate >= 3.5 && rate <= 8.5 && width >= 12) n.vib = { rate: Math.round(rate * 10) / 10, width };
+      const mm2 = mean(ma); n.drift = Math.round(Math.sqrt(mean(ma.map(y => (y - mm2) ** 2))) * 100);
+    }
+    return n;
+  }
+  for (let i = 0; i < frames; i++) {
+    const v = am[i];
+    if (v == null) { gap++; if (gap >= 3) { if (cur) cur.v.push(...pend); pend = []; close(i - gap); } continue; }
+    if (gap && cur && pend.length) { cur.v.push(...pend); pend = []; }
+    gap = 0;
+    if (!cur) { cur = { v: [v] }; continue; }
+    const ref = medArr(cur.v.slice(-25));
+    if (Math.abs(v - ref) > 0.7) { pend.push(v); if (pend.length >= 4) { const p2 = pend; pend = []; close(i - p2.length); cur = { v: p2 }; } }
+    else { if (pend.length) { cur.v.push(...pend); pend = []; } cur.v.push(v); }
+  }
+  if (cur) { cur.v.push(...pend); close(frames - 1); }
+  for (let k = notes.length - 1; k > 0; k--) {
+    const a = notes[k - 1], b = notes[k];
+    if (a.midi === b.midi && b.t0 - a.t1 <= 0.09) { notes.splice(k - 1, 2, Object.assign(fin({ v: a.v.concat(b.v), i0: a.i0 }), { t0: a.t0, t1: b.t1, on: a.on })); }
+  }
+  notes.forEach((n, k) => {
+    let i = Math.round(n.t0 * SR / HOP); const floor = k ? notes[k - 1].t1 : 0;
+    for (let s4 = 0; s4 < 5 && i > 0; s4++) { const w = weak[i - 1]; if (w == null || Math.abs(w - tune - n.midi) > 1 || (i - 1) * HOP / SR < floor) break; i--; }
+    n.t0 = i * HOP / SR; delete n.v;
+  });
+  // key from the time spent on each pitch class
+  const pc = new Array(12).fill(0); for (const n of notes) pc[((n.midi % 12) + 12) % 12] += n.t1 - n.t0;
+  const corr = (prof, k) => { const a = pc, b = prof.map((_, j) => prof[(j - k + 12) % 12]), ma = mean(a), mb = mean(b); let sab = 0, saa = 0, sbb = 0; for (let j = 0; j < 12; j++) { sab += (a[j] - ma) * (b[j] - mb); saa += (a[j] - ma) ** 2; sbb += (b[j] - mb) ** 2; } return sab / Math.sqrt(saa * sbb || 1); };
+  let key = { k: 0, minor: false, r: -2 }; for (let k = 0; k < 12; k++) { const a = corr(KK_MAJ, k), b = corr(KK_MIN, k); if (a > key.r) key = { k, minor: false, r: a }; if (b > key.r) key = { k, minor: true, r: b }; }
+  // the beat: onset strength from the full mix, autocorrelated over 60-180 bpm
+  const env = []; for (let i = 0; i < frames; i++) { let e = 0; for (let k = 0, o = i * HOP; k < N; k += 4) e += raw[o + k] * raw[o + k]; env.push(Math.log(Math.sqrt(e / (N / 4)) + 1e-4)); }
+  const ons = env.map((e, i) => i ? Math.max(0, e - env[i - 1]) : 0), om = mean(ons), oc = ons.map(v => v - om);
+  let beat = null;
+  if (dur >= 8) {
+    const fps = SR / HOP, ac0 = mean(oc.map(v => v * v)) || 1; let bestL = 0, bestV = -1, vals = {};
+    for (let L = Math.floor(fps * 60 / 180); L <= Math.ceil(fps * 60 / 60); L++) { let a2 = 0; for (let i = L; i < oc.length; i++) a2 += oc[i] * oc[i - L]; a2 /= (oc.length - L); const w = Math.exp(-0.5 * (Math.log2((L / fps) / 0.6) / 0.9) ** 2); vals[L] = a2; if (a2 * w > bestV) { bestV = a2 * w; bestL = L; } }
+    const conf = vals[bestL] / ac0, period = bestL / fps;
+    let ph = 0, phV = -1; for (let f = 0; f < bestL; f++) { let s3 = 0; for (let i = f; i < ons.length; i += bestL) s3 += ons[i]; if (s3 > phV) { phV = s3; ph = f; } }
+    const grid = period / 2, phase = ph / fps + N / 2 / SR;
+    const devs = notes.map(n => { let d = ((n.t0 - phase) % grid + grid) % grid; if (d > grid / 2) d -= grid; return d * 1000; });
+    beat = { bpm: Math.round(60 / period), conf: Math.round(conf * 100) / 100, phase, period, off: Math.round(medArr(devs.map(Math.abs))), feel: Math.round(mean(devs)) };
+  }
+  // summary
+  const dsum = notes.reduce((a, n) => a + (n.t1 - n.t0), 0) || 1, wmean = f => notes.reduce((a, n) => a + f(n) * (n.t1 - n.t0), 0) / dsum;
+  const longs = notes.filter(n => n.t1 - n.t0 >= 0.6), vibs = longs.filter(n => n.vib);
+  const sum = {
+    acc20: Math.round(wmean(n => Math.abs(n.c) <= 20 ? 1 : 0) * 100), acc35: Math.round(wmean(n => Math.abs(n.c) <= 35 ? 1 : 0) * 100),
+    avg: Math.round(wmean(n => Math.abs(n.c))), bias: Math.round(wmean(n => n.c)),
+    clean: Math.round(100 * notes.filter(n => Math.abs(n.on - n.c) <= 40).length / notes.length), scoop: Math.round(100 * notes.filter(n => n.on - n.c < -40).length / notes.length),
+    vibShare: longs.length ? Math.round(100 * vibs.length / longs.length) : null, vibRate: vibs.length ? medArr(vibs.map(n => n.vib.rate)) : null, vibWidth: vibs.length ? medArr(vibs.map(n => n.vib.width)) : null,
+    drift: longs.length ? medArr(longs.map(n => n.drift)) : null, lo: Math.min(...notes.map(n => n.midi)), hi: Math.max(...notes.map(n => n.midi)),
+  };
+  const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
+  return { dur, notes, trace, hop: HOP / SR, t0f: N / 2 / SR, tune: Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
+}
+function proRender() {
+  const an = PRO.an, out = $('#proOut'); out.textContent = '';
+  const head = el('div', 'pro-head'); head.append(el('b', 'pro-name', an.name));
+  const play = el('button', 'primary', '▶ Play'); play.id = 'proPlay'; play.onclick = () => PRO.playing ? proStop() : proPlay();
+  const back = el('button', 'small', '⟲ From the start'); back.onclick = () => { const was = PRO.playing; proStop(); PRO.off = 0; PRO.view = 0; proDraw(); if (was) proPlay(); };
+  head.append(play, back); out.appendChild(head);
+  const wrap = el('div', 'pro-roll-wrap'); const cv = el('canvas', 'pro-roll'); cv.id = 'proRoll'; wrap.appendChild(cv); out.appendChild(wrap);
+  const sl = el('input'); sl.type = 'range'; sl.min = 0; sl.max = Math.round(an.dur * 10); sl.value = 0; sl.id = 'proPos'; sl.className = 'pro-pos';
+  sl.oninput = () => { const t = sl.value / 10, was = PRO.playing; if (was) proStop(); PRO.off = t; PRO.view = Math.max(0, t - proSpan() * 0.25); proDraw(); if (was) proPlay(); };
+  out.appendChild(sl);
+  const info = el('p', 'pro-info muted', 'Tap a bar to see that note. Drag the graph to move along the song.'); info.id = 'proInfo'; out.appendChild(info);
+  const legend = el('div', 'pro-legend'); legend.innerHTML = '<span><i class="lg-bar"></i> the note (bar length = how long it lasts)</span><span><i class="lg-line"></i> the voice</span><span><i class="lg-off"></i> more than 25¢ off</span>';
+  out.appendChild(legend);
+  out.appendChild(proStats(an));
+  out.appendChild(proCompare(an));
+  proBindRoll(cv); proDraw();
+}
+const proSpan = () => { const cv = $('#proRoll'); return cv ? Math.max(2, (cv.clientWidth - 46) / 90) : 8; };
+function proStats(an) {
+  const s2 = an.sum, grid = el('div', 'pro-stats');
+  const card = (k, label, val, txt) => { const c = el('div', 'pro-stat'); c.dataset.stat = k; c.append(el('span', 'label', label), el('b', '', val), el('span', 'muted', txt)); grid.appendChild(c); };
+  card('true', 'True Tone', s2.acc20 + '%', 'of the singing within 20¢ of the note · ' + s2.avg + '¢ off on average');
+  card('lean', 'Flat or sharp', Math.abs(s2.bias) <= 5 ? 'Centered' : Math.abs(s2.bias) + '¢ ' + (s2.bias < 0 ? 'flat' : 'sharp'), Math.abs(s2.bias) <= 5 ? 'No lean either way' : s2.bias < 0 ? 'Leans a little under the notes' : 'Leans a little above the notes');
+  card('vib', 'Vibrato', s2.vibShare == null ? '–' : s2.vibShare + '%', s2.vibRate ? 'of long notes · ' + s2.vibRate + ' wobbles a second, ±' + s2.vibWidth + '¢' : 'No long notes with vibrato');
+  card('steady', 'Steadiness', s2.drift == null ? '–' : '±' + s2.drift + '¢', 'How much long notes drift (vibrato not counted)');
+  card('starts', 'Note starts', s2.clean + '%', 'start right on the note' + (s2.scoop ? ' · ' + s2.scoop + '% slide up into it' : ''));
+  card('beat', 'Beat', an.beat ? an.beat.bpm + ' bpm' : '–', an.beat ? (an.beat.conf < 0.08 ? 'The beat isn’t clear in this recording' : 'Notes land ' + an.beat.off + ' ms from the beat · ' + (Math.abs(an.beat.feel) <= 40 ? 'right on it' : an.beat.feel > 0 ? 'a laid-back feel, just behind' : 'pushing, just ahead')) : 'Too short to find a beat');
+  card('key', 'Key and range', an.key, nameOf(an.lo) + ' – ' + nameOf(an.hi) + ' · ' + (an.hi - an.lo) + ' semitones');
+  card('tune', 'Recording tuning', (an.tune > 0 ? '+' : '') + an.tune + '¢', Math.abs(an.tune) <= 10 ? 'Standard pitch (A = 440)' : 'Off standard pitch; the notes are measured from the singer’s own tuning');
+  return grid;
+}
+// pro benchmarks: what real singers do, so scores can be fair rather than machine-perfect
+function proRefsCard(box) {
+  const refs = store.proRefs || [], c = el('div', 'card pro-refs'); c.dataset.card = 'prorefs';
+  c.appendChild(el('h3', '', '🎧 Your pro benchmarks'));
+  if (!refs.length) c.appendChild(el('p', 'muted', 'Analyse a song by a singer you admire, then tap "Save as a pro benchmark". The app learns how close real singers stay to the note.'));
+  else {
+    const ul = el('ul', 'pro-ref-list'); for (const r of refs) ul.appendChild(el('li', '', r.name + ': ' + r.acc20 + '% within 20¢, ' + r.avg + '¢ off on average')); c.appendChild(ul);
+    const tol = Math.max(15, Math.min(35, Math.round(medArr(refs.map(r => r.avg))))); // never stricter than the usual ±15¢
+    const lab = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'proTolOn'; cb.checked = !!(store.settings && store.settings.proTol);
+    cb.onchange = () => { if (!store.settings) store.settings = {}; store.settings.proTol = cb.checked ? tol : null; dirty = true; save(); toast(cb.checked ? 'Scores now give full marks within ±' + tol + '¢, as close as your pros sing' : 'Scores back to the strict ±15¢'); };
+    lab.append(cb, document.createTextNode(tol > 15 ? ' Score my singing like the pros (full marks within ±' + tol + '¢ instead of ±15¢)' : ' Score my singing like the pros (your pros are within ±15¢, the same as the usual scoring)'));
+    c.append(lab, el('p', 'muted', 'Real singers are rarely machine-perfect. With this on, a note as close as your pros typically sing earns full marks.'));
+  }
+  const old = box.querySelector('[data-card="prorefs"]'); if (old) old.replaceWith(c); else box.appendChild(c);
+}
+function proCompare(an) {
+  const c = el('div', 'pro-compare'), refs = store.proRefs || [];
+  if (an.kind === 'file') {
+    const saved = refs.some(r => r.name === an.name);
+    c.appendChild(el('p', '', an.sum.acc20 >= 75 ? 'A strong True Tone: most of this singing sits within 20¢ of the note. Notice the places it slides or drifts on purpose; that’s style, not error.' : 'Even great singers drift. Listen for where they leave the note on purpose (slides, bends, a cry in the voice) and where it’s simply off.'));
+    const b = el('button', saved ? 'small' : 'primary', saved ? '✓ Saved as a pro benchmark' : '⭐ Save as a pro benchmark'); b.disabled = saved; b.dataset.act = 'saveref';
+    b.onclick = () => { (store.proRefs ||= []).push({ name: an.name, at: Date.now(), acc20: an.sum.acc20, avg: an.sum.avg, bias: an.sum.bias, vibShare: an.sum.vibShare }); if (store.proRefs.length > 10) store.proRefs.shift(); dirty = true; save(); b.disabled = true; b.textContent = '✓ Saved as a pro benchmark'; proRefsCard($('#proBox')); };
+    c.appendChild(b);
+  } else if (refs.length) {
+    const pa = Math.round(mean(refs.map(r => r.acc20))), pv = Math.round(mean(refs.map(r => r.avg)));
+    c.appendChild(el('p', '', 'You: ' + an.sum.acc20 + '% within 20¢ (' + an.sum.avg + '¢ off on average). Your pros: ' + pa + '% (' + pv + '¢). ' + (an.sum.acc20 >= pa ? 'You’re right up there with them!' : 'The gap is ' + (pa - an.sum.acc20) + ' points. Every lesson closes it.')));
+  } else c.appendChild(el('p', 'muted', 'Analyse a pro singer’s song too, then come back to compare your take with theirs.'));
+  return c;
+}
+function proPlay() {
+  if (!PRO.buf) return; proStop();
+  const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = PRO.buf; g.gain.value = 0.9; src.connect(g); g.connect(ac.destination);
+  if (PRO.off >= PRO.an.dur - 0.05) PRO.off = 0;
+  src.start(0, PRO.off); PRO.src = src; PRO.t0 = ac.currentTime - PRO.off; PRO.playing = true; $('#proPlay').textContent = '❚❚ Pause';
+  src.onended = () => { if (PRO.src === src) { PRO.off = Math.min(PRO.an.dur, ac.currentTime - PRO.t0); proStop(); proDraw(); } };
+  const loop = () => { if (!PRO.playing) return; const t = ac.currentTime - PRO.t0; PRO.off = t; const sp = proSpan(); if (!PRO.drag && (t > PRO.view + sp * 0.75 || t < PRO.view)) PRO.view = Math.max(0, t - sp * 0.25); proDraw(); PRO.raf = requestAnimationFrame(loop); };
+  loop();
+}
+function proBindRoll(cv) {
+  cv.onpointerdown = e => { PRO.drag = { x: e.clientX, v: PRO.view, moved: false }; cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = e => { if (!PRO.drag) return; const dx = e.clientX - PRO.drag.x; if (Math.abs(dx) > 4) PRO.drag.moved = true; if (PRO.drag.moved) { PRO.view = Math.max(0, Math.min(PRO.an.dur - 1, PRO.drag.v - dx / 90)); proDraw(); } };
+  cv.onpointerup = e => {
+    const d = PRO.drag; PRO.drag = null; if (!d || d.moved) return;
+    const r = cv.getBoundingClientRect(), t = PRO.view + (e.clientX - r.left - 46) / 90, g = proGeom(cv);
+    const m = g.hi - (e.clientY - r.top - g.top) / g.row + 0.5;
+    let best = -1, bd = 1e9; PRO.an.notes.forEach((n, i) => { if (t >= n.t0 - 0.05 && t <= n.t1 + 0.05) { const dd = Math.abs(n.midi - m); if (dd < bd) { bd = dd; best = i; } } });
+    if (best >= 0) proSelect(best);
+  };
+  window.addEventListener('resize', () => { if (!$('#proBox').hidden && PRO.an) proDraw(); });
+}
+function proSelect(i) {
+  const n = PRO.an.notes[i]; PRO.sel = i; const was = PRO.playing; proStop(); PRO.off = n.t0; proDraw();
+  const off = Math.abs(n.c) <= 5 ? 'dead on' : Math.abs(n.c) + '¢ ' + (n.c < 0 ? 'flat' : 'sharp');
+  $('#proInfo').textContent = nameOf(n.midi) + ' · ' + (n.t1 - n.t0).toFixed(2) + ' s · ' + off + (n.on - n.c < -40 ? ' · slides up into it' : n.on - n.c > 40 ? ' · comes down into it' : '') + (n.vib ? ' · vibrato ' + n.vib.rate + '/s' : '');
+  if (was) proPlay();
+}
+function proGeom(cv) { const an = PRO.an, top = 8, h = cv.clientHeight - 16, lo = an.lo - 2, hi = an.hi + 2, row = h / (hi - lo + 1); return { top, lo, hi, row }; }
+function proDraw() {
+  const cv = $('#proRoll'); if (!cv || !PRO.an) return; const an = PRO.an, dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.documentElement), ink = css.getPropertyValue('--ink').trim() || '#1a1c2c', line = css.getPropertyValue('--line').trim() || '#d9dce8', muted = css.getPropertyValue('--muted').trim() || '#646a85', surf = css.getPropertyValue('--surface').trim() || '#fff';
+  const L = 46, PX = 90, G = proGeom(cv), y = mm => G.top + (G.hi - mm) * G.row + G.row / 2, X = t => L + (t - PRO.view) * PX, t1v = PRO.view + (W - L) / PX;
+  g.fillStyle = surf; g.fillRect(0, 0, W, H);
+  // note rows; C and A lines stronger, letter names down the side
+  g.font = '600 11px system-ui, sans-serif'; g.textBaseline = 'middle';
+  for (let mm = G.lo; mm <= G.hi; mm++) {
+    const pc2 = ((mm % 12) + 12) % 12, nat = [0, 2, 4, 5, 7, 9, 11].includes(pc2);
+    g.strokeStyle = line; g.globalAlpha = pc2 === 0 ? 0.9 : nat ? 0.45 : 0.18; g.lineWidth = pc2 === 0 ? 1.2 : 1;
+    g.beginPath(); g.moveTo(L, y(mm)); g.lineTo(W, y(mm)); g.stroke(); g.globalAlpha = 1;
+    if (nat && G.row >= 7) { g.fillStyle = pc2 === 0 ? ink : muted; g.fillText(pc2 === 0 ? nameOf(mm) : nameOf(mm).replace(/\d+$/, ''), 6, y(mm)); }
+  }
+  // the beat, faintly
+  if (an.beat && an.beat.conf >= 0.08) { g.strokeStyle = line; g.globalAlpha = 0.5; for (let t = an.beat.phase + Math.ceil((PRO.view - an.beat.phase) / an.beat.period) * an.beat.period; t < t1v; t += an.beat.period) { g.beginPath(); g.moveTo(X(t), G.top); g.lineTo(X(t), H - 8); g.stroke(); } g.globalAlpha = 1; }
+  // the notes as bars
+  an.notes.forEach((n, i) => {
+    if (n.t1 < PRO.view || n.t0 > t1v) return;
+    const x0 = Math.max(L, X(n.t0)), x1 = X(n.t1), yy = y(n.midi), bh = Math.max(6, G.row * 0.8), off = Math.abs(n.c) > 25;
+    g.fillStyle = 'rgba(240,151,58,.82)'; g.beginPath(); g.roundRect ? g.roundRect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh, bh / 2) : g.rect(x0, yy - bh / 2, Math.max(3, x1 - x0), bh); g.fill();
+    if (off || i === PRO.sel) { g.strokeStyle = i === PRO.sel ? ink : '#d0533f'; g.lineWidth = 2; g.stroke(); }
+    if (off && x1 - x0 > 26) { g.fillStyle = '#d0533f'; g.font = '700 10px system-ui, sans-serif'; g.textBaseline = 'bottom'; g.fillText((n.c > 0 ? '+' : '') + n.c + '¢', x0 + 2, yy - bh / 2 - 1); g.textBaseline = 'middle'; }
+  });
+  // the voice as a line, with a light halo so it reads over the bars
+  const i0 = Math.max(0, Math.floor((PRO.view - an.t0f) / an.hop) - 1), i1 = Math.min(an.trace.length - 1, Math.ceil((t1v - an.t0f) / an.hop) + 1);
+  for (const [w, col] of [[4.5, 'rgba(255,255,255,.9)'], [2, ink]]) {
+    g.strokeStyle = col; g.lineWidth = w; g.lineJoin = 'round'; g.beginPath(); let on = false;
+    for (let i = i0; i <= i1; i++) { const v = an.trace[i]; if (v == null || v < G.lo - 1 || v > G.hi + 1) { on = false; continue; } const px = X(an.t0f + i * an.hop); if (px < L) { on = false; continue; } if (!on) { g.moveTo(px, y(v)); on = true; } else g.lineTo(px, y(v)); }
+    g.stroke();
+  }
+  // where we are
+  const ph = X(PRO.off); if (ph >= L && ph <= W) { g.strokeStyle = '#3b3fb5'; g.lineWidth = 2; g.beginPath(); g.moveTo(ph, 0); g.lineTo(ph, H); g.stroke(); }
+  g.fillStyle = muted; g.font = '11px system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText(Math.floor(PRO.off / 60) + ':' + String(Math.floor(PRO.off % 60)).padStart(2, '0'), L + 4, 2);
+  const sl = $('#proPos'); if (sl && document.activeElement !== sl) sl.value = Math.round(PRO.off * 10);
 }
 // ---------- What's inside: the whole app at a glance ----------
 // A simple map: the 4 stages as a journey (what you learn, what it unlocks, where you are), then picture tiles for the rest.

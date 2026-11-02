@@ -841,6 +841,37 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && played.pn.join() === played.want.join() && played.demo, JSON.stringify({ lines, played }));
   });
 
+  await test('Learn from the pros: a recording becomes note bars and a voice line; tuning, a flat note, vibrato, a slide and the beat are found; pro benchmark sets scoring', async page => {
+    await setLevel(page, 10);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(() => openLab('pro'));
+    const intro = await page.evaluate(() => ({ shown: !$('#proBox').hidden, file: !!$('#proFile') }));
+    await page.evaluate(async () => { await proLoad(await makeProSong(), 'Test singer', 'file'); });
+    const an = await page.evaluate(() => { const a = PRO.an; return { notes: a.notes.map(n => n.midi).join(), flat: a.notes[6].c, tune: a.tune, bpm: a.beat.bpm, feel: a.beat.feel, vib: a.notes.filter(n => n.vib).length, slide: a.notes[10].on - a.notes[10].c, sum: a.sum,
+      stats: [...document.querySelectorAll('.pro-stat')].map(c => c.dataset.stat).join() }; });
+    // tap the flat note's bar
+    const box = await page.evaluate(() => { const cv = $('#proRoll'), r = cv.getBoundingClientRect(), g = proGeom(cv), n = PRO.an.notes[6]; PRO.view = n.t0 - 1; proDraw();
+      return { x: r.left + 46 + (n.t0 + 0.2 - PRO.view) * 90, y: r.top + g.top + (g.hi - n.midi) * g.row + g.row / 2 }; });
+    await page.mouse.click(box.x, box.y);
+    const info = await page.evaluate(() => ({ sel: PRO.sel, text: $('#proInfo').textContent }));
+    await page.click('#proPlay'); await page.waitForTimeout(700);
+    const play = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, label: $('#proPlay').textContent }));
+    await page.click('#proPlay');
+    const before = await page.evaluate(() => pitchAcc(22));
+    await page.click('[data-act="saveref"]');
+    // a looser pro (a soul singer who bends a lot) saved earlier; the median sets the tolerance
+    await page.evaluate(() => { store.proRefs.unshift({ name: 'Bendy pro', at: 1, acc20: 60, avg: 30, bias: 0 }); proRefsCard($('#proBox')); });
+    await page.click('#proTolOn');
+    const cal = await page.evaluate(() => ({ refs: store.proRefs.length, tol: store.settings.proTol, acc: pitchAcc(22) }));
+    await page.evaluate(async () => { await proLoad(await makeProSong(), 'My take: test', 'mine'); });
+    const cmp = await page.evaluate(() => $('.pro-compare').textContent);
+    await page.evaluate(() => { store.settings.proTol = null; });
+    expect(intro.shown && intro.file && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
+      && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
+      && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
+      && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp), JSON.stringify({ intro, an, info, play, before, cal, cmp }));
+  });
+
   await test('Voice Tutor: comments on a band take, builds a lesson for the flat line, then compares the retry with the band', async page => {
     await voice(page); await setLevel(page, 10);
     await page.evaluate(() => { openLab('band'); }); await page.click('.band-song[data-song="bday"]');
