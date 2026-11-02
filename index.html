@@ -732,7 +732,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · fits iPhone</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · celebrate arrivals</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4457,10 +4457,14 @@ async function ezStart() {
   if (k === 'piano') ezPianoStart();
   ezRender();
 }
-function ezSetTarget(m) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); EZ.sungT = 0; playTone(m, 1.4, PURE); setTimeout(() => { if (EZ.on && EZ.tgt === m && EZ.phase === 'run') guideOn(m, 0.3); }, 1500); }
+function ezSetTarget(m) { EZ.tgt = m; EZ.inBand = 0; EZ.tStart = now(); EZ.sungT = 0; ezPrompt(); }
+function ezPrompt() { if (EZ.tgt == null) return; EZ.lastPrompt = now(); ezMute(1.7); playTone(EZ.tgt, 1.4, PURE); }
 function ezStar() { EZ.stars++; EZ.got++; chime('high'); const f = $('#easyFace'); f.classList.remove('pop'); void f.offsetWidth; f.classList.add('pop'); ezRender(); }
 function ezWon(after) { guideOff(); EZ.tgt = null; EZ.phase = 'won'; $('#easyPic').textContent = '🎉'; setTimeout(() => { if (!EZ.on || EZ.phase !== 'won') return; $('#easyPic').textContent = ''; ezNext(); }, after || 1800); }
-function ezEchoPlay() { const e = EZ.echo; e.phase = 'listen'; e.t0 = now(); EZ.tgt = null; e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1)); }
+function ezEchoPlay() { const e = EZ.echo; e.phase = 'listen'; e.t0 = now(); EZ.tgt = null; ezMute(e.notes.length * 1.1 + 0.5); e.notes.forEach((m, i) => playTone(m, 0.9, PURE, i * 1.1)); }
+function ezCelebrate(then) { guideOff(); EZ.cel = { at: now(), until: now() + 3.2, then, tgt: EZ.tgt, k: ezKey() }; chime('high'); setTimeout(() => EZ.on && EZ.cel && chime('ding'), 400); }
+// while the app plays a note, the mic hears the speaker: ignore it, and learn how loud the speaker is in this room
+function ezMute(secs) { EZ.muteUntil = now() + secs; }
 function ezNext() {
   guideOff(); EZ.readyAt = 0; EZ.song = null; EZ.piano = null; $('#easyMenu').hidden = true;
   if (EZ.phase === 'menu') { EZ.phase = 'ready'; return ezRender(); }
@@ -4489,12 +4493,15 @@ function ezTick() {
     const waited = t - EZ.readyAt, heard = S.rawM != null && waited > 1;
     if (k === 'song') { if (waited > 7 || heard) { const n = Object.keys((store.easy || {}).days || {}).length; ezSongStart(EASY_SONGS[n % EASY_SONGS.length]); } }
     else if (k === 'piano') ezStart();
-    else if (waited > (ezWordsOn() ? 9 : 5) || heard) ezStart();
+    else if (waited > (ezWordsOn() ? 12 : 8) || heard) ezStart();
   }
-  const v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
+  let v = ezVoice(EZ.tgt != null ? EZ.tgt : EZ.home);
+  if (t < (EZ.muteUntil || 0)) v = null; // the app is playing the note: that's not the singer
   if (v != null) EZ.trail.push({ t, m: v }); while (EZ.trail.length && EZ.trail[0].t < t - 4) EZ.trail.shift();
   const off = v != null && EZ.tgt != null ? (v - EZ.tgt) * 100 : null, inb = off != null && Math.abs(off) <= ezTol(), near = off != null && !inb && Math.abs(off) <= 2 * ezTol();
   if (EZ.phase === 'run' && v != null) { EZ.voiced++; if (inb) EZ.inTune++; }
+  // a celebration: the bird is home (or the balloon at its cloud, the frog on its pad); hold the moment, then go on
+  if (EZ.cel) { if (t >= EZ.cel.until) { const f = EZ.cel.then; EZ.cel = null; f && f(); } else { $('#easyFace').textContent = '😊'; $('#easyFace').className = 'easy-face good'; ezDraw(null, true); return; } }
   if (EZ.phase === 'run') {
     if (k === 'hello') {
       if (v != null) EZ.hello.push(S.rawM);
@@ -4503,13 +4510,13 @@ function ezTick() {
     }
     if ((k === 'match' || k === 'updown' || k === 'grow') && EZ.tgt != null) {
       if (v != null) EZ.sungT = (EZ.sungT || 0) + 0.04;
-      if (inb) { EZ.inBand += 0.04; guideLevel(0.35); } else { if (near) EZ.inBand += 0.012; guideLevel(1); }
-      const need = k === 'match' ? 2 : k === 'grow' ? 3 : 1, rounds = k === 'match' ? 3 : k === 'grow' ? 3 : EZ.seq.length;
+      if (inb) { EZ.inBand += 0.04; EZ.lastIn = t; } else if (near) EZ.inBand += 0.012;
+      if (t - EZ.lastPrompt > 6 && t - (EZ.lastIn || 0) > 2) ezPrompt(); // a reminder of the note, never over good singing
+      const need = k === 'match' ? 3 : k === 'grow' ? 4 : 2.5, rounds = k === 'match' ? 3 : k === 'grow' ? 3 : 3;
       const nextTarget = () => { const h = ezHome(); return k === 'match' ? h + [0, 2, 4][EZ.round] : k === 'grow' ? h + [0, 2, 0][EZ.round] : EZ.seq[EZ.round]; };
-      if (EZ.inBand >= need || EZ.sungT > 15) {
-        if (EZ.inBand >= need) { ezStar(); if (k === 'grow') EZ.flowers++; }
-        EZ.round++; if (EZ.round >= rounds) ezWon(); else ezSetTarget(nextTarget());
-      }
+      const advance = () => { EZ.round++; if (EZ.round >= rounds) ezWon(2500); else ezSetTarget(nextTarget()); };
+      if (EZ.inBand >= need) { ezStar(); if (k === 'grow') EZ.flowers++; ezCelebrate(advance); }
+      else if (EZ.sungT > 30) advance(); // after a long try, move along gently
     }
     if (k === 'echo' && EZ.echo) {
       const e = EZ.echo, et = t - e.t0;
@@ -4521,7 +4528,7 @@ function ezTick() {
         if (e.got.length >= 8 || et > 2.4 * (e.i + 1)) {
           if (e.got.length >= 8) ezStar();
           e.i++; e.got = []; e.t0 = t - 2.4 * e.i;
-          if (e.i >= e.notes.length) { e.round++; if (e.round >= 3) ezWon(); else { const h = ezHome(); e.notes = [[h + 2, h], [h, h + 2, h + 4]][e.round - 1]; ezEchoPlay(); } }
+          if (e.i >= e.notes.length) { e.round++; ezCelebrate(() => { if (e.round >= 3) ezWon(2500); else { const h = ezHome(); e.notes = [[h + 2, h], [h, h + 2, h + 4]][e.round - 1]; ezEchoPlay(); } }); }
         }
       }
     }
@@ -4562,6 +4569,18 @@ function ezDraw(v, inb) {
     return;
   }
   if (k0 === 'piano' && EZ.piano && !EZ.song) return; // the keyboard takes the stage
+  if (EZ.cel) {
+    const ce = EZ.cel, tg = ce.tgt != null ? ce.tgt : mid, el2 = t - ce.at, bounce = Math.abs(Math.sin(el2 * 6)) * 14 * d;
+    ezLanes(x, Y, mid, span, w, d, tg);
+    x.fillStyle = C.pure; x.globalAlpha = 0.45; x.fillRect(EZ.lw - 8 * d, Y(tg + 0.5), w - EZ.lw + 8 * d, Y(tg - 0.5) - Y(tg + 0.5)); x.globalAlpha = 1;
+    const gx = ce.k === 'echo' ? w * 0.8 : ce.k === 'grow' ? w * 0.55 : w * 0.72;
+    if (ce.k === 'match') { emoji('🪺', gx, Y(tg), big * 1.2); emoji('🐦', gx, Y(tg) - big * 0.55, big * 1.2); emoji('🐣🐣', gx, Y(tg) + big * 0.8 - bounce, big * 0.7); }
+    else if (ce.k === 'updown') { emoji('☁️', gx, Y(tg), big * 1.5); emoji('🎈', gx, Y(tg) - big * 0.6 - bounce, big * 1.2); emoji('🌈', gx - big * 1.6, Y(tg) - big * 0.2, big); }
+    else if (ce.k === 'echo') { emoji('🪷', gx, Y(tg), big * 1.6); emoji('🐸', gx, Y(tg) - big * 0.6 - bounce, big * 1.6); }
+    else if (ce.k === 'grow') { for (let j = 0; j < 3; j++) emoji(j < EZ.flowers ? '🌻' : '🌱', w * (0.35 + j * 0.2), h * 0.78 - (j < EZ.flowers ? big * 0.6 : 0) - (j === EZ.flowers - 1 ? bounce : 0), j < EZ.flowers ? big * 1.4 : big * 0.6); }
+    for (let j = 0; j < 6; j++) { const ph = ((el2 * 0.5 + j / 6) % 1); emoji(j % 2 ? '❤️' : '⭐', gx + (j - 2.5) * big * 0.5, Y(tg) - big - ph * big * 2, big * 0.5, 1 - ph); }
+    return;
+  }
   ezLanes(x, Y, mid, span, w, d, EZ.tgt);
   if (EZ.tgt != null) {
     const tol = ezTol() / 100, y1 = Y(EZ.tgt + tol), y2 = Y(EZ.tgt - tol);

@@ -700,7 +700,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const tip = await page.evaluate(() => !$('#easyTip').hidden && /gold band/.test($('#easyTip').textContent));
     // a singer who follows whatever the target asks for
     await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; V.m = EZ.tgt != null ? EZ.tgt : 50; }, 20); });
-    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 200000 });
+    await page.waitForFunction(() => EZ.phase === 'done', null, { timeout: 400000 });
     const routine = await page.evaluate(() => ({ stars: EZ.stars, day: store.easy.days[today()], done: !!document.querySelector('.ez-done') }));
     expect(open.screen === 'easy' && /Home,Games,Again,Next,Helpers/.test(open.bar) && open.steps === 5 && open.fits && open.first === 'match' && open.card && tip && routine.stars >= 10 && routine.day.best >= 60 && routine.done, JSON.stringify({ open, tip, routine }));
     // the games menu, and two of the new games
@@ -736,10 +736,26 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.evaluate(() => { store.settings = { easyMode: true }; save(); $('#t-easy').click(); easyOpen(['match']); });
     await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run'; if (EZ.tgt != null) V.m = EZ.tgt + 1; }, 20); });
     await page.click('#easyCard .ec-go');
-    const targets = []; for (let k = 0; k < 90 && (await page.evaluate(() => EZ.phase)) === 'run'; k++) { const tg = await page.evaluate(() => EZ.tgt); if (tg != null && !targets.includes(tg)) targets.push(tg); await page.waitForTimeout(500); }
+    const targets = []; for (let k = 0; k < 240 && (await page.evaluate(() => EZ.phase)) === 'run'; k++) { const tg = await page.evaluate(() => EZ.tgt); if (tg != null && !targets.includes(tg)) targets.push(tg); await page.waitForTimeout(500); }
     const r = await page.evaluate(() => ({ phase: EZ.phase, stars: EZ.stars }));
     const steps = targets.slice(1).map((m, i) => m - targets[i]);
     expect(r.stars >= 3 && steps.every(x => x === 2), JSON.stringify({ r, targets, steps }));
+  });
+
+  await test('First Notes: the app never counts its own note as singing; arrivals are celebrated before the next round', async page => {
+    await voice(page);
+    // the speaker's sound leaks into the mic, and nobody sings
+    await page.evaluate(() => { store.settings = { easyMode: true }; save(); toneVol.connect(analyser); $('#t-easy').click(); easyOpen(['updown']); });
+    await page.click('#easyCard .ec-go');
+    await page.waitForTimeout(12000);
+    const silent = await page.evaluate(() => ({ stars: EZ.stars, round: EZ.round, phase: EZ.phase }));
+    // now a singer, louder than the speaker, on the note
+    await page.evaluate(() => { setInterval(() => { V.on = EZ.phase === 'run' && !EZ.cel; if (EZ.tgt != null) V.m = EZ.tgt; }, 20); });
+    await page.waitForFunction(() => !!EZ.cel, null, { timeout: 30000 });
+    const cel = await page.evaluate(() => ({ stars: EZ.stars, round: EZ.round, k: EZ.cel.k }));
+    await page.waitForTimeout(1500);
+    const still = await page.evaluate(() => ({ cel: !!EZ.cel, round: EZ.round }));
+    expect(silent.stars === 0 && silent.round === 0 && silent.phase === 'run' && cel.stars === 1 && cel.round === 0 && cel.k === 'updown' && still.cel && still.round === 0, JSON.stringify({ silent, cel, still }));
   });
 
   await test('reference notes last at least 1.5 seconds', async page => {
