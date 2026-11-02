@@ -850,7 +850,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const an = await page.evaluate(() => { const a = PRO.an; return { notes: a.notes.map(n => n.midi).join(), flat: a.notes[6].c, tune: a.tune, bpm: a.beat.bpm, feel: a.beat.feel, vib: a.notes.filter(n => n.vib).length, slide: a.notes[10].on - a.notes[10].c, sum: a.sum,
       stats: [...document.querySelectorAll('.pro-stat')].map(c => c.dataset.stat).join() }; });
     // tap the flat note's bar
-    const box = await page.evaluate(() => { const cv = $('#proRoll'), r = cv.getBoundingClientRect(), g = proGeom(cv), n = PRO.an.notes[6]; PRO.view = n.t0 - 1; proDraw();
+    const box = await page.evaluate(() => { const cv = $('#proRoll'); cv.scrollIntoView({ block: 'center' }); const r = cv.getBoundingClientRect(), g = proGeom(cv), n = PRO.an.notes[6]; PRO.view = n.t0 - 1; proDraw();
       return { x: r.left + 46 + (n.t0 + 0.2 - PRO.view) * 90, y: r.top + g.top + (g.hi - n.midi) * g.row + g.row / 2 }; });
     await page.mouse.click(box.x, box.y);
     const info = await page.evaluate(() => ({ sel: PRO.sel, text: $('#proInfo').textContent }));
@@ -1045,6 +1045,28 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const r = await page.evaluate(async () => { openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue - Josh Woodward', 'file'); await new Promise(r => setTimeout(r, 150));
       return { info: store.proInfo['Crazy Glue - Josh Woodward'], key: PRO.an.key, w0: store.proWords['pro:Crazy Glue - Josh Woodward'][0], credit: ($('[data-card="karaoke"] .kr-credit') || {}).textContent, staff: [...document.querySelectorAll('#lsMusic svg .lyr')].slice(0, 2).map(t => t.textContent).join(' ') }; });
     expect(r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gravity/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
+  });
+
+  await test('Main graph: words on the bars and the lyric line while it plays (even if details were saved before without words); a touch that turns into a page scroll never stops it following; Sing along next to Play', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const name = 'Crazy Glue - Josh Woodward';
+    await page.evaluate(async name => { store.proInfo = { [name]: { key: 'C major', bpm: null, swing: false, lyrics: null } }; store.proWords = { ['pro:' + name]: {} }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), name, 'file'); }, name);
+    await page.waitForTimeout(150);
+    const before = await page.evaluate(name => ({ lyrics: !!store.proInfo[name].lyrics, keptKey: store.proInfo[name].key, words: PRO.an.notes.filter(n => n.word).length, n: PRO.an.notes.length, sing: !!$('[data-act="singalong"]'), lyric: !!$('#proLyric') }), name);
+    // a finger lands on the graph and the page scrolls: the browser cancels the pointer (no pointerup)
+    await page.evaluate(() => { const cv = $('#proRoll'); cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: 200, clientY: 100, pointerId: 7, bubbles: true })); cv.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 7, bubbles: true })); });
+    await page.click('#proPlay'); await page.waitForTimeout(2500);
+    const mid = await page.evaluate(() => ({ span: rollSpan(PRO), off: PRO.off, view: PRO.view, drag: PRO.drag, now: $('#proLyric .kr-now').textContent, lit: !!$('#proLyric .kr-on') }));
+    // and the stuck case without a cancel at all: it lets go by itself
+    await page.evaluate(() => { const cv = $('#proRoll'); cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: 200, clientY: 100, pointerId: 8, bubbles: true })); });
+    await page.waitForTimeout(1500);
+    const later = await page.evaluate(() => ({ off: PRO.off, view: PRO.view, drag: !!PRO.drag }));
+    await page.click('#proPlay');
+    await page.click('[data-act="singalong"]'); await page.waitForTimeout(300);
+    const sing = await page.evaluate(() => ({ on: KR.on, words: KR.notes.filter(n => n.word).length })); await page.evaluate(() => krStop());
+    expect(before.lyrics && before.keptKey === 'C major' && before.words >= before.n * 0.6 && before.sing && before.lyric && mid.off > 1.5 && Math.abs(mid.view - Math.max(0, mid.off - mid.span * 0.3)) < 0.2 && mid.drag === null && /There’s|gra/.test(mid.now) && mid.lit
+      && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20, JSON.stringify({ before, mid, later, sing }));
   });
 
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {

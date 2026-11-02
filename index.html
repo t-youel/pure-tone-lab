@@ -481,6 +481,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .kr-lyrics { text-align: center; display: grid; gap: 4px; min-height: 3.6em; }
 .kr-now { font: 700 1.35rem/1.35 var(--display); } .kr-now span { all: unset; } .kr-now .kr-on { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; } .kr-now .kr-done { color: var(--muted); }
 .kr-next { color: var(--muted); font-size: .98rem; min-height: 1.2em; }
+.pro-lyrics { padding: 4px 0; }
 .kr-roll { display: grid; gap: 6px; } .kr-roll .pro-roll { height: min(320px, 42vh); }
 .kr-sum { display: grid; gap: 8px; } .kr-sum p { margin: 0; }
 .kr-lines { display: grid; gap: 4px; } .kr-line { display: grid; grid-template-columns: 4.5em 1fr 2.5em auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; border-left: 4px solid var(--line); background: var(--surface); }
@@ -971,7 +972,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · words on the bars</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · words on the main graph</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5601,12 +5602,13 @@ I am cozy and I don’t gonna wiggle loose
 I don’t gonna wiggle loose` }];
 // a song we know gets its key, tempo, swing and words filled in, unless you've already given your own
 function proAutoInfo(name) {
-  const known = KNOWN_SONGS.find(k => k.match.test(name)); if (!known || (store.proInfo && store.proInfo[name])) return known || null;
-  (store.proInfo ||= {})[name] = { key: known.key, bpm: known.bpm, swing: known.swing, lyrics: known.lyrics, auto: true }; dirty = true; save(); return known;
+  const known = KNOWN_SONGS.find(k => k.match.test(name)); if (!known) return null;
+  const cur = (store.proInfo ||= {})[name] || {};
+  store.proInfo[name] = Object.assign({ key: known.key, bpm: known.bpm, swing: known.swing, auto: true }, cur, { lyrics: cur.lyrics || known.lyrics }); dirty = true; save(); return known;
 }
 function proPlaceWords(an) {
   const info = proInfo(an.name); if (!info.lyrics) return; const w = ((store.proWords ||= {})['pro:' + an.name] ||= {});
-  if (Object.keys(w).length) return; const ls = proSplitLyrics(info.lyrics); proLines(an).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); dirty = true; save();
+  if (Object.values(w).some(v => v && v.trim())) return; const ls = proSplitLyrics(info.lyrics); proLines(an).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); dirty = true; save();
 }
 async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
@@ -5864,7 +5866,15 @@ async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
 }
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
+  proWordsToNotes(an); PRO.fitAll = true; PRO.bigWords = true;
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
+  // the words above the graph while it plays, and Sing along right next to Play
+  const lyr = el('div', 'kr-lyrics pro-lyrics'); lyr.id = 'proLyric'; lyr.innerHTML = '<div class="kr-now">&nbsp;</div><div class="kr-next">&nbsp;</div>';
+  out.querySelector('.pro-roll-wrap').before(lyr); PRO.onTick = t => lyricShow(lyr, an, t); setTimeout(() => lyricShow(lyr, an, 0.01), 0);
+  const sing = el('button', 'primary', '🎤 Sing along'); sing.dataset.act = 'singalong';
+  sing.onclick = () => { const k = Math.max(0, (an._lines || []).findIndex(l => l.t1 >= PRO.off)); rollStop(PRO); const kc = document.querySelector('[data-card="karaoke"]'); if (kc) kc.scrollIntoView({ block: 'start' }); const fs = $('#krFrom'); if (fs) fs.value = k; krStart(k); };
+  out.querySelector('.pro-head').appendChild(sing);
+  out.appendChild(karaokeCard(an));
   if (an.kind === 'file') {
     const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst';
     if (an.isolated) { const d = PRO.iso.removedDb; ib.append(el('p', '', '🎻 His voice is separated from the band: ' + (d >= 20 ? 'almost all' : d >= 10 ? 'most' : 'some') + ' of the band was taken out. The notes are measured on his voice alone.' + (d < 10 ? ' If it still looks busy, check the instrumental is from the same recording.' : ''))); }
@@ -5875,7 +5885,6 @@ function proRender() {
     }
     out.appendChild(ib);
   }
-  out.appendChild(karaokeCard(an));
   out.appendChild(learnCard(an));
   out.appendChild(proInfoCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
@@ -5919,12 +5928,13 @@ function rollPlay(R) {
   R.src = src; R.t0 = ac.currentTime - R.off; R.playing = true; R.play.textContent = '❚❚ Pause';
   src.onended = () => { if (R.src === src) { R.off = Math.min(R.an.dur, ac.currentTime - R.t0); rollStop(R); rollDraw(R); } };
   const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0);
-  const loop = () => { if (!R.playing) return; const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; } R.off = t; const sp = rollSpan(R); if (!R.drag && (t > R.view + sp * 0.75 || t < R.view)) R.view = Math.max(0, t - sp * 0.25); rollDraw(R); R.raf = requestAnimationFrame(loop); };
+  const loop = () => { if (!R.playing) return; const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; } R.off = t; const sp = rollSpan(R); if (R.drag && !R.drag.moved && performance.now() - R.drag.at > 600) R.drag = null; if (!R.drag) R.view = Math.max(0, t - sp * 0.3); if (R.onTick) R.onTick(t); rollDraw(R); R.raf = requestAnimationFrame(loop); };
   loop();
 }
 function rollBind(R) {
   const cv = R.cv;
-  cv.onpointerdown = e => { R.drag = { x: e.clientX, v: R.view, moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} };
+  cv.onpointerdown = e => { R.drag = { x: e.clientX, v: R.view, moved: false, at: performance.now() }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} };
+  cv.onpointercancel = cv.onlostpointercapture = () => { R.drag = null; };
   cv.onpointermove = e => { if (!R.drag) return; const dx = e.clientX - R.drag.x; if (Math.abs(dx) > 4) R.drag.moved = true; if (R.drag.moved) { R.view = Math.max(0, Math.min(R.an.dur - 1, R.drag.v - dx / ROLL_PX)); rollDraw(R); } };
   cv.onpointerup = e => {
     const d = R.drag; R.drag = null; if (!d || d.moved) return;
@@ -6153,6 +6163,23 @@ function proInfoCard(an) {
   c.appendChild(go);
   return c;
 }
+
+// each note of the analysed song carries its word (the line's words over its notes, in order)
+function proWordsToNotes(an) {
+  if (!an) return; an.notes.forEach(n => { n.word = ''; }); const lines = proLines(an), w = (store.proWords || {})['pro:' + an.name] || {};
+  lines.forEach((l, k) => { const toks = (w[k] || '').split(/\s+|(?<=-)/).filter(Boolean); l.idx.forEach((i, j) => { if (toks[j]) an.notes[i].word = toks[j]; }); });
+  an._lines = lines;
+}
+// the line being sung, big, with the current word lit; the next line under it
+function lyricShow(box, an, t) {
+  if (!box) return; const lines = an._lines || proLines(an), w = (store.proWords || {})['pro:' + an.name] || {}, esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1)), li = lines.findIndex(l => t >= l.t0 - 0.8 && t <= l.t1 + 0.4), nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
+  const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next');
+  if (li >= 0) { const toks = (w[li] || '').split(/\s+|(?<=-)/).filter(Boolean), at = lines[li].idx.indexOf(n);
+    now.innerHTML = toks.length ? toks.map((x, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(x) + '</span>' + (/-$/.test(x) ? '' : ' ')).join('') : '<span class="muted">♪ line ' + (li + 1) + '</span>'; }
+  else now.innerHTML = '<span class="muted">♪</span>';
+  next.textContent = nli >= 0 && nli < lines.length ? (w[nli] || '') : '';
+}
 // ---------- Sing the whole song: karaoke on the moving graph ----------
 // The whole song plays (or just the band, or guide notes the mic ignores), his learned notes scroll past as bars with
 // his voice in purple, the words show above with the current word lit, and your voice is drawn live. At the end every
@@ -6357,7 +6384,7 @@ function lsMusic(curPos) {
   const wr = el('div', 'ls-words'); const has = !!lsWords(LS.k);
   const tog = el('button', 'small', has ? '✎ Edit the words' : '✎ Add the words'); tog.dataset.act = 'words';
   const inp = el('input'); inp.type = 'text'; inp.placeholder = 'Type the words of this line, e.g. "I’m let-ting go of you"'; inp.value = lsWords(LS.k); inp.hidden = true; inp.className = 'ls-wordin';
-  const saveW = () => { ((store.proWords ||= {})[lsKey()] ||= {})[LS.k] = inp.value.trim(); dirty = true; save(); lsMusic(); };
+  const saveW = () => { ((store.proWords ||= {})[lsKey()] ||= {})[LS.k] = inp.value.trim(); dirty = true; save(); lsMusic(); proWordsToNotes(PRO.an); rollDraw(PRO); };
   inp.onkeydown = e => { if (e.key === 'Enter') saveW(); }; inp.onblur = saveW;
   tog.onclick = () => { inp.hidden = false; inp.focus(); tog.hidden = true; };
   wr.append(tog, inp, el('span', 'muted ls-wordhint', has ? '' : 'I can’t hear the words in a recording, but you can type them once and they’ll show under the notes. Use a hyphen to split a word over two notes.'));
