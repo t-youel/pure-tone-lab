@@ -505,6 +505,12 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
 .pro-pos { width: 100%; accent-color: #3b3fb5; }
+.pro-info-card summary { cursor: pointer; font-weight: 700; }
+.pro-info-card { display: grid; gap: 8px; } .pro-info-card p { margin: 6px 0 0; }
+.pi-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pi-row select, .pi-row input[type=number] { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.pi-row input[type=number] { width: 9em; }
+#piWords { width: 100%; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-sizing: border-box; }
 .pro-passes { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border: 1px solid var(--line); }
 .pp-step { display: grid; grid-template-columns: 1.8em 1fr; column-gap: 8px; }
 .pp-step .muted { grid-column: 2; font-size: .88rem; line-height: 1.4; }
@@ -928,7 +934,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · simpler coached lesson</p>
+  <p class="fine build" id="buildTag">Build 2026-11-02 · song details and words</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5508,14 +5514,15 @@ async function proLoad(blob, name, kind) {
   proStop(); await ensureAudio();
   const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
   let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
-  PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1;
-  const an = await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; });
+  PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1; PRO.name = name; PRO.kind = kind;
+  const an = await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; }, proInfo(name));
   an.name = name; an.kind = kind; PRO.an = an;
   if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
   proRender();
 }
 function medArr(a) { if (!a.length) return 0; const s2 = [...a].sort((x, y) => x - y); return s2[s2.length >> 1]; }
-async function proAnalyze(buf, onProg) {
+const proInfo = name => ((store.proInfo || {})[name]) || {};
+async function proAnalyze(buf, onProg, info = {}) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
     if (filt === 'bass') { const off = new OfflineAudioContext(1, Math.ceil(4000 * dur), 4000), src = off.createBufferSource(); src.buffer = buf; let n2 = src; for (const [t, f] of [['highpass', 45], ['lowpass', 200], ['lowpass', 200]]) { const b = off.createBiquadFilter(); b.type = t; b.frequency.value = f; n2.connect(b); n2 = b; } n2.connect(off.destination); src.start(); return (await off.startRendering()).getChannelData(0); }
@@ -5622,6 +5629,7 @@ async function proAnalyze(buf, onProg) {
   const pc = new Array(12).fill(0); for (const n of notes) pc[((n.midi % 12) + 12) % 12] += n.t1 - n.t0;
   const corr = (prof, k) => { const a = pc, b = prof.map((_, j) => prof[(j - k + 12) % 12]), ma = mean(a), mb = mean(b); let sab = 0, saa = 0, sbb = 0; for (let j = 0; j < 12; j++) { sab += (a[j] - ma) * (b[j] - mb); saa += (a[j] - ma) ** 2; sbb += (b[j] - mb) ** 2; } return sab / Math.sqrt(saa * sbb || 1); };
   let key = { k: 0, minor: false, r: -2 }; for (let k = 0; k < 12; k++) { const a = corr(KK_MAJ, k), b = corr(KK_MIN, k); if (a > key.r) key = { k, minor: false, r: a }; if (b > key.r) key = { k, minor: true, r: b }; }
+  if (info.key) { const [kn, mode] = info.key.split(' '), k = KEY_NAMES.indexOf(kn); if (k >= 0) key = { k, minor: mode === 'minor', r: 1, given: true }; }
   // ---- second pass (2): check each bar against the song's key ----
   // Without sheet music a bar is the nearest note to what was sung. If that lands on an out-of-key note the song barely
   // uses, or the voice sits well away from it, the singer almost certainly missed the in-key note beside it: move the bar there.
@@ -5640,7 +5648,7 @@ async function proAnalyze(buf, onProg) {
   let beat = null;
   if (dur >= 8) {
     const fps = SR / HOP, ac0 = mean(oc.map(v => v * v)) || 1; let bestL = 0, bestV = -1, vals = {};
-    for (let L = Math.floor(fps * 60 / 180); L <= Math.ceil(fps * 60 / 60); L++) { let a2 = 0; for (let i = L; i < oc.length; i++) a2 += oc[i] * oc[i - L]; a2 /= (oc.length - L); const w = Math.exp(-0.5 * (Math.log2((L / fps) / 0.6) / 0.9) ** 2); vals[L] = a2; if (a2 * w > bestV) { bestV = a2 * w; bestL = L; } }
+    for (let L = Math.floor(fps * 60 / 180); L <= Math.ceil(fps * 60 / 60); L++) { let a2 = 0; for (let i = L; i < oc.length; i++) a2 += oc[i] * oc[i - L]; a2 /= (oc.length - L); const w = info.bpm ? Math.exp(-0.5 * (Math.log2((L / fps) / (60 / info.bpm)) / 0.06) ** 2) : Math.exp(-0.5 * (Math.log2((L / fps) / 0.6) / 0.9) ** 2); vals[L] = a2; if (a2 * w > bestV) { bestV = a2 * w; bestL = L; } }
     const conf = vals[bestL] / ac0, period = bestL / fps;
     let ph = 0, phV = -1; for (let f = 0; f < bestL; f++) { let s3 = 0; for (let i = f; i < ons.length; i += bestL) s3 += ons[i]; if (s3 > phV) { phV = s3; ph = f; } }
     const grid = period / 2, phase = ph / fps + N / 2 / SR;
@@ -5672,8 +5680,9 @@ async function proAnalyze(buf, onProg) {
   }
   // the rhythm: each bar's intended start and length, on a sixteenth-note grid, when the beat is clear
   const gridify = () => {
-    if (!beat || beat.conf < 0.12) { notes.forEach(n => { n.b0 = n.t0; n.b1 = n.t1; n.dt = null; }); learn.grid = false; return; }
-    const st = beat.period / 4; learn.grid = true;
+    if (!beat || beat.conf < (info.bpm ? 0.05 : 0.12)) { notes.forEach(n => { n.b0 = n.t0; n.b1 = n.t1; n.dt = null; }); learn.grid = false; return; }
+    // a swung song moves in triplets: the off-beat eighth lands two thirds of the way through the beat
+    const st = beat.period / (info.swing ? 3 : 4); learn.grid = true;
     for (const n of notes) {
       const q0 = beat.phase + Math.round((n.t0 - beat.phase) / st) * st, d = n.t0 - q0;
       if (Math.abs(d) > st * 0.45) { n.b0 = n.t0; n.b1 = n.t1; n.dt = null; continue; }
@@ -5748,19 +5757,19 @@ async function proAnalyze(buf, onProg) {
   }
   // (c) tempo and beat from the notes themselves: a straight-line fit of note starts to their grid positions
   if (beat && learn.grid) {
-    const st = beat.period / 4, pts = notes.filter(n => n.dt != null && Math.abs(n.dt) < st * 300).map(n => [Math.round((n.b0 - beat.phase) / st), n.t0]);
+    const st = beat.period / (info.swing ? 3 : 4), pts = notes.filter(n => n.dt != null && Math.abs(n.dt) < st * 300).map(n => [Math.round((n.b0 - beat.phase) / st), n.t0]);
     if (pts.length >= 8) {
       const mx = mean(pts.map(q => q[0])), my = mean(pts.map(q => q[1])); let sxy = 0, sxx = 0; for (const [q, t] of pts) { sxy += (q - mx) * (t - my); sxx += (q - mx) ** 2; }
       const st2 = sxx ? sxy / sxx : st;
       if (st2 > st * 0.95 && st2 < st * 1.05) {
         // keep the singer's average feel: the phase follows the band's beat, so re-fit only the step and anchor the grid where it was
-        beat.period = st2 * 4; beat.bpm = Math.round(600 / beat.period) / 10; fine.bpm = beat.bpm;
+        beat.period = st2 * (info.swing ? 3 : 4); beat.bpm = Math.round(600 / beat.period) / 10; fine.bpm = beat.bpm;
         const ph = my - mx * st2 - mean(notes.filter(n => n.dt != null).map(n => n.dt / 1000)); beat.phase = ((ph % beat.period) + beat.period) % beat.period; gridify();
       }
     }
   }
   const sum = score();
-  const passes = { learn: { notes: notes.length, key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), bpm: beat ? beat.bpm : null, phrases: learn.phrases, grid: learn.grid, filled: pass2.filled },
+  const passes = { learn: { given: !!(info.key || info.bpm), notes: notes.length, key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), bpm: beat ? beat.bpm : null, phrases: learn.phrases, grid: learn.grid, filled: pass2.filled },
     check: { acc20: sum2.acc20, misses: sum2.misses, differs: sum2.differs, snapped: pass2.snapped }, fine: Object.assign(fine, { acc20: sum.acc20, bias: sum.bias }) };
   const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
   const vlo = notes.length ? Math.min(...notes.map(n => n.midi)) : 48, vhi = notes.length ? Math.max(...notes.map(n => n.midi)) : 72;
@@ -5771,9 +5780,10 @@ function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
   out.appendChild(learnCard(an));
+  out.appendChild(proInfoCard(an));
   const P = an.passes, how = el('div', 'pro-passes'); how.dataset.card = 'how';
   const step = (n, title, txt) => { const d = el('div', 'pp-step'); d.dataset.pass = n; d.append(el('span', 'pp-n', String(n)), el('b', '', title), el('span', 'muted', txt)); how.appendChild(d); };
-  step(1, 'Learned the song', P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
+  step(1, 'Learned the song', (P.learn.given ? 'Using your song details. ' : '') + P.learn.notes + ' notes in ' + P.learn.key + (P.learn.bpm ? ', ' + P.learn.bpm + ' bpm' : '') + '. ' + (P.learn.phrases ? 'Found ' + P.learn.phrases + ' repeated stretches of melody and used them to learn the tune. ' : 'No repeated lines found, so the tune is learned from the key. ') + (P.learn.grid ? 'Bars follow the beat: their length is the note’s intended length.' : 'The beat isn’t clear, so bars follow the singing.') + (P.learn.filled ? ' Found ' + P.learn.filled + ' short or half-hidden note' + (P.learn.filled > 1 ? 's' : '') + '.' : ''));
   step(2, 'Checked every note', P.check.acc20 + '% of the singing within 20¢. ' + (P.check.misses ? P.check.misses + ' note' + (P.check.misses > 1 ? 's' : '') + ' missed the learned tune (shown in red). ' : 'No notes missed the learned tune. ') + (P.check.differs ? P.check.differs + ' sung differently from the other times the line came round, on purpose it seems (dashed purple).' : ''));
   step(3, 'Fine-tuned', (P.fine.tuneSrc === 'band' ? 'Tuned to the band’s bass' + (P.fine.shift ? ' (moved everything ' + (P.fine.shift > 0 ? '+' : '') + P.fine.shift + '¢)' : '') + '. ' : 'No clear bass, so tuned to the singer. ') + (P.fine.remeasured ? 'Re-measured ' + P.fine.remeasured + ' notes more precisely. ' : '') + 'True Tone now ' + P.fine.acc20 + '%.');
   how.appendChild(el('p', 'muted pp-note', 'Without sheet music the tune is learned from the singing itself, so a note missed by a whole step the same way every time can’t be caught.'));
@@ -5966,6 +5976,43 @@ function proCompare(an) {
   return c;
 }
 
+
+// ---------- Song details you can give: key, tempo, swing, and the words ----------
+// When you know them (from the artist's page, a songbook, a chord sheet), the app trusts them instead of guessing.
+function proSplitLyrics(text) {
+  // keep real line breaks; for a pasted paragraph, start a new line at a capital letter after a lower-case word ("…orbit There's…")
+  const lines = text.replace(/\r/g, '').split(/\n+/).flatMap(l => l.replace(/([a-z,.!?'’])\s+(?=(?!I\b|I'|I’)[A-Z])/g, '$1\n').split('\n'));
+  return lines.map(l => l.replace(/^\((.*)\)$/, '').trim()).filter(Boolean);
+}
+function proInfoCard(an) {
+  const name = an.name, info = proInfo(name), c = el('details', 'card pro-info-card'); c.dataset.card = 'info';
+  c.appendChild(el('summary', '', '🎼 Song details' + (info.key || info.bpm || info.lyrics ? ' ✓' : ' (optional: key, tempo, words)')));
+  c.appendChild(el('p', 'muted', 'If you know them, from the artist’s page or a chord sheet, the app uses them instead of guessing. The key decides which notes count as missed, and the tempo lines the bars up with the beat.'));
+  const row = el('div', 'pi-row');
+  const ks = el('select'); ks.id = 'piKey'; ks.appendChild(el('option', '', 'Key: work it out')); ks.firstChild.value = '';
+  for (const m of ['major', 'minor']) for (const k of KEY_NAMES) { const o = el('option', '', k + ' ' + m); o.value = k + ' ' + m; if (info.key === o.value) o.selected = true; ks.appendChild(o); }
+  const bpm = el('input'); bpm.type = 'number'; bpm.min = 40; bpm.max = 220; bpm.placeholder = 'Tempo (bpm)'; bpm.id = 'piBpm'; if (info.bpm) bpm.value = info.bpm;
+  const sw = el('label', 'guide-tog'), swc = el('input'); swc.type = 'checkbox'; swc.id = 'piSwing'; swc.checked = !!info.swing; sw.append(swc, document.createTextNode(' Swing feel'));
+  row.append(ks, bpm, sw); c.appendChild(row);
+  const ta = el('textarea'); ta.id = 'piWords'; ta.rows = 5; ta.placeholder = 'Paste the song’s words here. Each line of words goes with a line of the lesson, in order.'; ta.value = info.lyrics || '';
+  c.append(el('span', 'label', 'The words'), ta);
+  const go = el('button', 'primary', 'Save and check the song again'); go.dataset.act = 'apply';
+  go.onclick = async () => {
+    const ni = { key: ks.value || null, bpm: +bpm.value || null, swing: swc.checked, lyrics: ta.value.trim() || null };
+    (store.proInfo ||= {})[name] = ni;
+    // the words, spread over the lesson's lines in order (each line can still be edited on its own)
+    if (ni.lyrics) { const ls = proSplitLyrics(ni.lyrics), w = ((store.proWords ||= {})['pro:' + name] = {}); proLines(an).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); }
+    dirty = true; save();
+    if (!PRO.buf) return; const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Checking the song again with your details…'); out.appendChild(msg);
+    const a2 = await proAnalyze(PRO.buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3') + '… ' + Math.round(f * 100) + '%'; }, ni);
+    a2.name = name; a2.kind = PRO.kind; PRO.an = a2;
+    // the lines can shift a little with a new tempo; place the words again
+    if (ni.lyrics) { const ls = proSplitLyrics(ni.lyrics), w = (store.proWords['pro:' + name] = {}); proLines(a2).forEach((_, k) => { if (ls[k]) w[k] = ls[k]; }); save(); }
+    proRender(); toast('Updated with your song details');
+  };
+  c.appendChild(go);
+  return c;
+}
 // ---------- Learn to sing it: a coached lesson, line by line ----------
 // Each line climbs a ladder (listen → hum along slowly → sing it back on your own → style). When a try isn't right the
 // coach diagnoses the main problem and picks a different tool, escalating if the same problem repeats: lock in one note

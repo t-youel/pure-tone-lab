@@ -954,6 +954,21 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && words.lyr === 'Hap- py birth- day' && /birth-day/.test(words.saved), JSON.stringify({ ui, busy1, afterSkip, inHum, afterHear, again, stopped, moved, words }));
   });
 
+  await test('Song details: the key and tempo you give are used instead of guesses; pasted words are split into lines and shown under each line of the lesson', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue test', 'file'); });
+    const before = await page.evaluate(() => PRO.an.key);
+    await page.click('[data-card="info"] summary');
+    await page.selectOption('#piKey', 'C major'); await page.fill('#piBpm', '100');
+    await page.fill('#piWords', "There’s no gravity that sucked me in your orbit There’s no magnet that was in your heart The one restriction was the friction that was keeping us A little too far apart\n(whistling interlude)");
+    await page.click('[data-card="info"] [data-act="apply"]');
+    await page.waitForFunction(() => PRO.an && PRO.an.passes && $('#lsMusic svg'), null, { timeout: 20000 }); await page.waitForTimeout(200);
+    const after = await page.evaluate(() => ({ key: PRO.an.key, bpm: PRO.an.beat.bpm, given: PRO.an.passes.learn.given, saved: store.proInfo['Crazy Glue test'], w0: store.proWords['pro:Crazy Glue test'][0], w1: store.proWords['pro:Crazy Glue test'][1],
+      lyr: [...document.querySelectorAll('#lsMusic svg .lyr')].map(t => t.textContent).slice(0, 3).join(' '), pass1: $('.pp-step[data-pass="1"]').textContent, open: $('[data-card="info"] summary').textContent }));
+    expect(before !== 'C major' && after.key === 'C major' && Math.abs(after.bpm - 100) <= 1 && after.given && after.saved.key === 'C major' && after.saved.bpm === 100
+      && after.w0 === 'There’s no gravity that sucked me in your orbit' && after.w1 === 'There’s no magnet that was in your heart' && after.lyr === 'There’s no gravity' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
+  });
+
   await test('The coach picks a different tool for each problem: siren for a missed jump, backchaining for many misses, clicks for timing, slow guide when stuck', async page => {
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     const r = await page.evaluate(async () => {
