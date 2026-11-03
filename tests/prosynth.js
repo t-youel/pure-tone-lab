@@ -23,7 +23,10 @@ window.makeProSong = async function (opts = {}) {
     const o = off.createOscillator(); o.setPeriodicWave(off.createPeriodicWave(new Float32Array([0, 1, .5, .35, .2, .12, .08]), new Float32Array(7)));
     if (slide) { o.frequency.setValueAtTime(f * Math.pow(2, -1.5 / 12), t); o.frequency.linearRampToValueAtTime(f, t + 0.18); } else o.frequency.setValueAtTime(f, t);
     if (vib) { const l = off.createOscillator(), lg = off.createGain(); l.frequency.value = 5.5; lg.gain.value = f * 0.02; l.connect(lg); lg.connect(o.frequency); l.start(t + 0.35); l.stop(t + d); }
-    const g = off.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.04); g.gain.setValueAtTime(0.4, t + d - 0.05); g.gain.linearRampToValueAtTime(0, t + d);
+    const g = off.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.04);
+    // two syllables on one held note: a short consonant dip in the middle ("gra·vi")
+    if (opts.dips && b >= 2) { const mid = t + d / 2; g.gain.setValueAtTime(0.4, mid - 0.05); g.gain.linearRampToValueAtTime(0.02, mid); g.gain.linearRampToValueAtTime(0.4, mid + 0.06); }
+    g.gain.setValueAtTime(0.4, t + d - 0.05); g.gain.linearRampToValueAtTime(0, t + d);
     o.connect(g); g.connect(vox); o.start(t); o.stop(t + d + 0.02); t += b * beat;
   }
   // optional bass guitar: low root notes, two beats each, an octave and more below the voice

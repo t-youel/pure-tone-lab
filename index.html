@@ -979,7 +979,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · words wait for his voice</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · lip sync</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5616,7 +5616,7 @@ function proAutoInfo(name) {
 // ---- putting the words on the music ----
 // Syllables: a rough count (vowel groups, a silent final e) and a rough split ("gravity" → gra-vi-ty), enough to give
 // each sung note its syllable.
-const syllCount = w => { const x = w.toLowerCase().replace(/['\u2019](s|re|ll|ve|d|m|t)$/, '').replace(/[^a-z]/g, ''); if (!x) return 0; let g = (x.match(/[aeiouy]+/g) || []).length; if (/[^aeiou]e$/.test(x) && g > 1 && !/[^aeiou]le$/.test(x)) g--; if (/[^aeiou]ely$/.test(x) && g > 1) g--; return Math.max(1, g); };
+const syllCount = w => { const x = w.toLowerCase().replace(/['\u2019](s|re|ll|ve|d|m|t)$/, '').replace(/[^a-z]/g, ''); if (!x) return 0; let g = (x.match(/[aeiouy]+/g) || []).length; if (/[^aeiou]e$/.test(x) && g > 1 && !/[^aeiou]le$/.test(x)) g--; if (/[^aeiou]ely$/.test(x) && g > 1) g--; if (/[^aeioutd]ed$/.test(x) && g > 1) g--; return Math.max(1, g); };
 function syllSplit(w) {
   const m = w.match(/^([^A-Za-z]*)([A-Za-z'’]+)([^A-Za-z]*)$/); if (!m) return [w];
   const [, pre, core, post] = m, n = syllCount(core); if (n < 2) return [w];
@@ -5646,15 +5646,59 @@ function wordsOffset(an, ls) {
   for (let o = vs; o <= Math.min(vs + 3, L.length - 1); o++) { const m = Math.min(6, ls.length, L.length - o); if (m < 1) break; let c = 0; for (let j = 0; j < m; j++) c += Math.abs(L[j + o].idx.length - sy[j]) / Math.max(4, sy[j]); c = c / m + 0.12 * (o - vs); if (c < best.c) best = { o, c }; }
   return best.o;
 }
-function proPlaceWords(an, o) {
-  const info = proInfo(an.name); if (!info.lyrics) return; const key = 'pro:' + an.name, auto = (store.proWordsAuto ||= {});
-  const cur = (store.proWords ||= {})[key] || {}; if (o == null && Object.values(cur).some(v => v && v.trim()) && !auto[an.name] && !info.auto) return; // words you typed yourself stay
-  const ls = proSplitLyrics(info.lyrics); if (o == null) o = wordsOffset(an, ls); // only a placement you confirmed (👆 or nudged) is kept; anything else is worked out again
-  const w = {}; proLines(an).forEach((_, k) => { const j = k - o; if (j >= 0 && ls[j]) w[k] = ls[j]; });
-  store.proWords[key] = w; auto[an.name] = true; info.wordsAt = o; (store.proInfo ||= {})[an.name] = info; dirty = true; save();
+// ---- lip sync: the words' syllables matched to his sung syllables, across the whole song ----
+// Every new sung syllable is a new note or a short dip in loudness where a consonant cuts the vowel ("gra·vi·ty"), so his
+// notes are split at those dips into syllable-sized sounds. The words' syllables are then lined up with those sounds,
+// all at once, by the cheapest path: each word-syllable sits on one sound; plucked (instrument) sounds are cheap to
+// skip; a new line of words prefers to start after a pause; a held note can carry a syllable over several sounds.
+function proSegments(an) {
+  const out = [], E = an.env, h = an.envHop || 0.02;
+  an.notes.forEach((n, ni) => {
+    const i0 = Math.round(n.t0 / h), i1 = Math.round(n.t1 / h), cuts = [];
+    if (E && i1 - i0 >= 10) { const med = medArr(Array.from(E.slice(i0, i1 + 1))); let run = 0; for (let i = i0 + 3; i <= i1 - 3; i++) { if (E[i] < med * 0.45) run++; else { if (run >= 2) cuts.push(i - Math.ceil(run / 2)); run = 0; } } }
+    let a = n.t0; for (const c of cuts) { out.push({ t0: a, t1: c * h, ni, voc: n.voc ?? 0.5 }); a = c * h; } out.push({ t0: a, t1: n.t1, ni, voc: n.voc ?? 0.5 });
+  });
+  out.forEach((s2, k) => { s2.gap = k ? s2.t0 - out[k - 1].t1 : 9; });
+  // judge each sound by its whole phrase: a single plucked note can sound voice-like, a whole riff can't
+  const lineVoc = {}; proLines(an).forEach(l => { const v = mean(l.idx.map(i => an.notes[i].voc ?? 0.5)); l.idx.forEach(i => { lineVoc[i] = v; }); });
+  out.forEach(s2 => { s2.voc = lineVoc[s2.ni] ?? s2.voc; }); return out;
+}
+function alignLyrics(an, ls, fromT) {
+  const syl = [];
+  ls.forEach((ln, li) => ln.split(/\s+/).filter(Boolean).forEach((w, wi) => { const parts = /-/.test(w) ? w.split('-').filter(Boolean) : syllSplit(w); parts.forEach((p, pi) => syl.push({ li, txt: p + (pi < parts.length - 1 ? '-' : ''), ls: wi === 0 && pi === 0 })); }));
+  const seg = proSegments(an).filter(x => fromT == null || x.t0 >= fromT - 0.15), A = syl.length, B = seg.length, W = B + 1;
+  const D = new Float32Array((A + 1) * W).fill(1e9), P = new Uint8Array((A + 1) * W); D[0] = 0;
+  // when you pinned the start, the first syllable goes right there: skipping sounds before it is expensive
+  const skipB = (j, i) => fromT != null && i === 0 ? 5 : seg[j].voc < 0.5 ? 0.1 : 0.7, match = (i, j) => (syl[i].ls && i > 0 && seg[j].gap < 0.2 ? 0.5 : 0) + (!syl[i].ls && seg[j].gap > 0.7 ? 0.5 : 0) + (seg[j].voc < 0.5 ? 3 : 0); // words on a plucked sound only if you pinned them there
+  for (let i = 0; i <= A; i++) for (let j = 0; j <= B; j++) {
+    if (!i && !j) continue; let best = 1e9, mv = 0; const at = i * W + j;
+    if (i && j) { const v = D[(i - 1) * W + j - 1] + match(i - 1, j - 1); if (v < best) { best = v; mv = 1; } }   // syllable i-1 on sound j-1
+    if (i && j && seg[j - 1].gap < 0.3) { const v = D[i * W + j - 1] + 0.45; if (v < best) { best = v; mv = 2; } } // sound j-1 holds syllable i-1 on
+    if (j) { const v = D[i * W + j - 1] + skipB(j - 1, i); if (v < best) { best = v; mv = 3; } }                     // sound j-1 has no words
+    if (i) { const v = D[(i - 1) * W + j] + (fromT != null && j === 0 ? 5 : 0.9 + 1.2 * (1 - (i - 1) / A)); if (v < best) { best = v; mv = 4; } } // syllable i-1 not heard (dearer early on: the words start at the beginning)
+    D[at] = best; P[at] = mv;
+  }
+  const first = new Array(A).fill(-1), last = new Array(A).fill(-1); let i = A, j = B;
+  while (i > 0 || j > 0) { const mv = P[i * W + j]; if (mv === 1) { first[i - 1] = j - 1; if (last[i - 1] < 0) last[i - 1] = j - 1; i--; j--; } else if (mv === 2) { if (last[i - 1] < 0) last[i - 1] = j - 1; j--; } else if (mv === 3) j--; else if (mv === 4) i--; else break; }
+  // each note gets its syllables; each word-syllable gets a time (unheard ones in between their neighbours)
+  const noteWords = {}, times = syl.map((_, k) => first[k] >= 0 ? [seg[first[k]].t0, seg[last[k]].t1] : null);
+  for (let k = 0; k < A; k++) if (!times[k]) { let p2 = k - 1; while (p2 >= 0 && !times[p2]) p2--; let n2 = k + 1; while (n2 < A && !times[n2]) n2++; const t0 = p2 >= 0 ? times[p2][1] : n2 < A ? times[n2][0] - 0.3 : 0, t1 = n2 < A ? times[n2][0] : t0 + 0.3; times[k] = [t0 + (t1 - t0) * 0.3, t0 + (t1 - t0) * 0.7]; }
+  syl.forEach((y, k) => { if (first[k] < 0) return; const ni = seg[first[k]].ni; noteWords[ni] = noteWords[ni] ? (noteWords[ni] + (/-$/.test(noteWords[ni]) ? '' : ' ') + y.txt) : y.txt; });
+  const lyr = ls.map((_, li) => ({ li, toks: [] })); syl.forEach((y, k) => lyr[y.li].toks.push({ txt: y.txt, t0: times[k][0], t1: times[k][1] }));
+  lyr.forEach(l => { l.t0 = l.toks.length ? l.toks[0].t0 : 0; l.t1 = l.toks.length ? l.toks[l.toks.length - 1].t1 : 0; });
+  return { noteWords, lyr: lyr.filter(l => l.toks.length), heard: first.filter(x => x >= 0).length, total: A };
+}
+function proPlaceWords(an) {
+  const info = proInfo(an.name); if (!info.lyrics) return; const key = 'pro:' + an.name;
+  const ls = proSplitLyrics(info.lyrics), fromT = info.wordsOk && info.wordsFrom != null ? info.wordsFrom : null;
+  const al = alignLyrics(an, ls, fromT); an._al = al;
+  // each detected line's words, for the line picker
+  const L = proLines(an), w = {}; L.forEach((l, k) => { const txt = l.idx.map(i => al.noteWords[i] || '').filter(Boolean).join(' ').replace(/- /g, '-'); if (txt) w[k] = txt; });
+  (store.proWords ||= {})[key] = w; (store.proWordsAuto ||= {})[an.name] = true;
+  info.wordsAt = Math.max(0, L.findIndex(l => l.idx.some(i => al.noteWords[i]))); (store.proInfo ||= {})[an.name] = info; dirty = true; save();
 }
 // move all the words a line earlier or later, or start them at a given line
-function proShiftWords(an, o) { const info = proInfo(an.name), L = proLines(an); info.wordsAtManual = true; info.wordsOk = true; info.wordsAt = Math.max(0, o); if (L[info.wordsAt]) info.wordsFrom = L[info.wordsAt].t0; proPlaceWords(an, info.wordsAt); const b = $('[data-act="singing-now"]'); if (b) b.remove(); proWordsToNotes(an); if (ST.show) an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), an, PRO.off + 0.01); stNav(); }
+function proShiftWords(an, o) { const info = proInfo(an.name), L = proLines(an); info.wordsAtManual = true; info.wordsOk = true; o = Math.max(0, Math.min(L.length - 1, o)); if (L[o]) info.wordsFrom = L[o].t0; proPlaceWords(an); const b = $('[data-act="singing-now"]'); if (b) b.remove(); proWordsToNotes(an); if (ST.show) an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), an, PRO.off + 0.01); stNav(); }
 async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
@@ -5917,7 +5961,7 @@ async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const trace = []; for (let i = 0; i < frames; i++) trace.push(am[i]);
   const vlo = notes.length ? Math.min(...notes.map(n => n.midi)) : 48, vhi = notes.length ? Math.max(...notes.map(n => n.midi)) : 72;
   for (let i = 0; i < trace.length; i++) if (trace[i] != null && (trace[i] < vlo - 3 || trace[i] > vhi + 3)) trace[i] = null;
-  return { pass2, passes, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: fine.tuneSrc === 'band' ? fine.bandTune : Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
+  return { env: rmsA, envHop: HOP / SR, pass2, passes, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: fine.tuneSrc === 'band' ? fine.bandTune : Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
   const an = PRO.an, out = $('#proOut'); out.textContent = '';
@@ -6228,24 +6272,25 @@ function proInfoCard(an) {
 
 // each note of the analysed song carries its word (the line's words over its notes, in order)
 function proWordsToNotes(an) {
-  if (!an) return; an.notes.forEach(n => { n.word = ''; }); const lines = proLines(an), w = (store.proWords || {})['pro:' + an.name] || {};
-  an._tok = {}; lines.forEach((l, k) => { const toks = wordsToTokens(w[k] || '', l.idx.length); an._tok[k] = toks; l.idx.forEach((i, j) => { if (toks[j]) an.notes[i].word = toks[j]; }); });
+  if (!an) return; an.notes.forEach(n => { n.word = ''; }); const lines = proLines(an), key = 'pro:' + an.name;
+  if (an._al) an.notes.forEach((n, i) => { n.word = an._al.noteWords[i] || ''; });
+  else { const w = (store.proWords || {})[key] || {}; lines.forEach((l, k) => { const toks = wordsToTokens(w[k] || '', l.idx.length); l.idx.forEach((i, j) => { if (toks[j]) an.notes[i].word = toks[j]; }); }); }
+  const ed = (store.proWordsEdit || {})[key] || {};
+  for (const k in ed) { const l = lines[k]; if (!l) continue; const toks = wordsToTokens(ed[k] || '', l.idx.length); l.idx.forEach((i, j) => { an.notes[i].word = toks[j] || ''; }); }
   an._lines = lines;
 }
 // the line being sung, big, with the current word lit; the next line under it
 function lyricShow(box, an, t) {
-  if (!box) return; const lines = an._lines || proLines(an), w = (store.proWords || {})['pro:' + an.name] || {}, esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  // the line being sung now; in a gap, the one coming up (or the one just finished)
-  const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1)); let li = lines.findIndex(l => t >= l.t0 && t <= l.t1); if (li < 0) li = lines.findIndex(l => t >= l.t0 - 0.8 && t < l.t0); if (li < 0) li = lines.findIndex(l => t > l.t1 && t <= l.t1 + 0.4);
-  const nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
-  const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next');
-  if (li >= 0 && !(w[li] || '').trim()) li = -1;
-  if (li >= 0) { const toks = (an._tok && an._tok[li]) || wordsToTokens(w[li] || '', lines[li].idx.length), at = lines[li].idx.indexOf(n);
-    now.innerHTML = toks.length ? toks.map((x, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(x) + '</span>' + (/-$/.test(x) ? '' : ' ')).join('') : '<span class="muted">♪</span>'; }
-  else now.innerHTML = '<span class="muted">♪</span>';
-  const firstW = lines.findIndex((_, k) => w[k] && w[k].trim());
-  if (firstW >= 0 && t < lines[firstW].t0 - 0.8) now.innerHTML = '<span class="muted">♪ Intro: the words start when he sings' + (box.dataset.hint ? '. Tap 👆 when his voice comes in.' : '') + '</span>';
-  next.textContent = nli >= 0 && nli < lines.length && lines[nli].t0 - t < 3 ? (w[nli] || '') : '';
+  if (!box) return; const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next'), esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const L = an._al ? an._al.lyr : null;
+  if (!L || !L.length) { now.innerHTML = '<span class="muted">♪</span>'; next.textContent = ''; return; }
+  let li = L.findIndex(l => t >= l.t0 && t <= l.t1); if (li < 0) li = L.findIndex(l => t >= l.t0 - 0.8 && t < l.t0); if (li < 0) li = L.findIndex(l => t > l.t1 && t <= l.t1 + 0.4);
+  if (t < L[0].t0 - 0.8) now.innerHTML = '<span class="muted">♪ Intro: the words start when he sings' + (box.dataset.hint ? '. Tap 👆 when his voice comes in.' : '') + '</span>';
+  else if (li < 0) now.innerHTML = '<span class="muted">♪</span>';
+  else { const toks = L[li].toks; let at = -1; toks.forEach((x, j) => { if (t >= x.t0) at = j; });
+    now.innerHTML = toks.map((x, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(x.txt) + '</span>' + (/-$/.test(x.txt) ? '' : ' ')).join(''); }
+  const nli = li >= 0 ? li + 1 : L.findIndex(l => l.t0 > t), nl = L[nli];
+  next.textContent = nl && nl.t0 - t < 3 ? nl.toks.map(x => x.txt + (/-$/.test(x.txt) ? '' : ' ')).join('').trim() : '';
 }
 // ---------- 🎵 Practise this song: one place to listen, take your turn, or sing along, line by line ----------
 // Everything happens on the main graph, with the real recording and the words: ▶ Listen to a line (or the whole song);
@@ -6299,7 +6344,7 @@ function stNav() {
   // the words for this line, if they need fixing: typed once, kept with the song
   const ed = el('button', 'small st-whole', '✎ Words'); ed.dataset.act = 'words'; ed.hidden = ST.whole;
   const inp = el('input'); inp.type = 'text'; inp.className = 'ls-wordin st-wordin'; inp.hidden = true; inp.value = w; inp.placeholder = 'The words of this line, e.g. "There’s no gra-vi-ty"';
-  const saveW = () => { ((store.proWords ||= {})['pro:' + PRO.an.name] ||= {})[ST.k] = inp.value.trim(); (store.proWordsAuto ||= {})[PRO.an.name] = false; const inf = proInfo(PRO.an.name); inf.auto = false; dirty = true; save(); proWordsToNotes(PRO.an); if (ST.show) PRO.an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), PRO.an, stLines()[ST.k].t0 + 0.01); stNav(); };
+  const saveW = () => { ((store.proWordsEdit ||= {})['pro:' + PRO.an.name] ||= {})[ST.k] = inp.value.trim(); ((store.proWords ||= {})['pro:' + PRO.an.name] ||= {})[ST.k] = inp.value.trim(); dirty = true; save(); proWordsToNotes(PRO.an); if (ST.show) PRO.an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), PRO.an, stLines()[ST.k].t0 + 0.01); stNav(); };
   inp.onkeydown = e => { if (e.key === 'Enter') saveW(); }; inp.onblur = saveW; ed.onclick = () => { inp.hidden = false; ed.hidden = true; inp.focus(); };
   const tools = el('div', 'row st-tools'); tools.append(wh, ed);
   if (proInfo(PRO.an.name).lyrics) {

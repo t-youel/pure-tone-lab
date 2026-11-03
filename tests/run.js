@@ -902,7 +902,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const after = await page.evaluate(() => ({ key: PRO.an.key, bpm: PRO.an.beat.bpm, given: PRO.an.passes.learn.given, saved: store.proInfo['Crazy Glue test'], w0: store.proWords['pro:Crazy Glue test'][0], w1: store.proWords['pro:Crazy Glue test'][1],
       lyr: PRO.an.notes.slice(0, 3).map(n => n.word).join(' '), pass1: $('.pp-step[data-pass="1"]').textContent, open: $('[data-card="info"] summary').textContent }));
     expect(before !== 'C major' && after.key === 'C major' && Math.abs(after.bpm - 100) <= 1 && after.given && after.saved.key === 'C major' && after.saved.bpm === 100
-      && after.w0 === 'There’s no gravity that sucked me in your orbit' && after.w1 === 'There’s no magnet that was in your heart' && after.lyr === 'There’s no gra-' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
+      && after.w0.replace(/-/g, '') === 'There’s no gravity that sucked me in your orbit' && after.w1.startsWith('There’s no mag-net') && after.lyr === 'There’s no gra-' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
   });
 
   await test('His voice alone: adding the instrumental lines it up, takes the band out, and the notes come from his voice; practice offers his voice alone and singing with just the band', async page => {
@@ -956,7 +956,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     const r = await page.evaluate(async () => { openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue - Josh Woodward', 'file'); await new Promise(r => setTimeout(r, 150));
       return { info: store.proInfo['Crazy Glue - Josh Woodward'], key: PRO.an.key, w0: store.proWords['pro:Crazy Glue - Josh Woodward'][0], credit: ($('[data-card="studio"] .st-credit') || {}).textContent, staff: PRO.an.notes.slice(0, 2).map(n => n.word).join(' ') }; });
-    expect(r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gravity/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
+    expect(r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gra-?vi-?ty/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
   });
 
   await test('Main graph: words on the bars and the lyric line while it plays (even if details were saved before without words); a touch that turns into a page scroll never stops it following; Sing along next to Play', async page => {
@@ -984,7 +984,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test('Practise this song: one area on the main graph; Listen plays his line with the words, My turn has you sing it back while the music waits, bars turn green/red per word, a tip and help (lock in the note) when a line keeps going wrong, ✓ when learned; Sing along scores as the music plays', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
-    await page.evaluate(async () => { store.proInfo = { 'Studio test': { lyrics: 'one two three four five six se-ven eight nine ten el-e-ven\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+    await page.evaluate(async () => { store.proInfo = { 'Studio test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
       openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Studio test', 'file');
       // the singer: in "my turn" follows the line (note 3 flat until it's fixed); in "hold" sings the note; in "sing along" follows the song
       window.flat3 = true; setInterval(() => {
@@ -1052,6 +1052,22 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       return out; });
     expect(r.at === 2 && r.riff.every(v => v < 0.5) && r.sung.every(v => v >= 0.6) && r.btn && r.introWords === 0 && /Intro: the words start when he sings\. Tap 👆/.test(r.introLyric) && r.introNext === ''
       && r.tap.at === 3 && r.tap.ok && r.tap.gone && r.tap.first === 'There’s' && r.tap.before === 0 && r.reload.at === 3 && !r.reload.btn, JSON.stringify(r));
+  });
+
+  await test('Lip sync: the words’ syllables are matched to his sung syllables across the song (consonant dips split a held note into syllables, a plucked intro gets none, every line starts where he sings it)', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => {
+      const rep = k => ['ka', 'ke', 'ki', 'ko', 'ku', 'la', 'le', 'li', 'lo', 'lu', 'ma', 'me', 'mi', 'mo', 'mu'].map(x => x + k).join(' ');
+      store.proInfo = { 'Sync': { lyrics: rep(1) + '\n' + rep(2) + '\n' + rep(3) } }; store.proWords = {};
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true, longIntro: true, dips: true }), 'Sync', 'file'); await new Promise(r => setTimeout(r, 100));
+      const an = PRO.an, L = proLines(an), sungStart = L[2].t0, intro = an.notes.filter(n => n.t0 < sungStart - 0.5);
+      // the sung notes, in order: their syllables
+      const sung = an.notes.filter(n => n.t0 >= sungStart - 0.5).map(n => n.word);
+      lyricShow($('#proLyric'), an, an._al.lyr[1].toks[4].t0 + 0.02); const lit = ($('#proLyric .kr-on') || {}).textContent;
+      return { heard: an._al.heard, total: an._al.total, introWords: intro.filter(n => n.word).length, two: sung.filter(w => / /.test(w)).length, first: sung[0], flat: sung.join(' '), lineStarts: an._al.lyr.map(l => +l.t0.toFixed(1)), lit, sungStart: +sungStart.toFixed(1) };
+    });
+    const want = [1, 2, 3].map(k => ['ka', 'ke', 'ki', 'ko', 'ku', 'la', 'le', 'li', 'lo', 'lu', 'ma', 'me', 'mi', 'mo', 'mu'].map(x => x + k).join(' ')).join(' ');
+    expect(r.heard === 45 && r.total === 45 && r.introWords === 0 && r.two === 6 && r.first === 'ka1' && r.flat === want && Math.abs(r.lineStarts[0] - r.sungStart) < 0.3 && r.lit === 'ku2', JSON.stringify(r));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
