@@ -482,6 +482,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .kr-now { font: 700 1.35rem/1.35 var(--display); } .kr-now span { all: unset; } .kr-now .kr-on { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; } .kr-now .kr-done { color: var(--muted); }
 .kr-next { color: var(--muted); font-size: .98rem; min-height: 1.2em; }
 .pro-lyrics { padding: 4px 0; }
+.diag { position: fixed; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 90; background: #2b1d1d; color: #ffd9d3; font: 12px/1.35 ui-monospace, monospace; padding: 6px 10px; border-radius: 8px; overflow-wrap: anywhere; }
 .pro-now { background: #f0973a; color: #fff; border-color: #f0973a; font-weight: 700; }
 .st-card { display: grid; gap: 10px; border: 2px solid var(--accent); } .st-card h3, .st-card p { margin: 0; }
 .st-btns { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 8px; } .st-btns button { min-height: 50px; font-size: 1.02rem; }
@@ -980,7 +981,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · words only where he sings</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · graph never freezes</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6033,9 +6034,20 @@ function rollPlay(R) {
   const ao = R.off + (R.audioOff || 0);
   if (ao >= 0) src.start(0, ao); else src.start(ac.currentTime - ao, 0);
   R.src = src; R.t0 = ac.currentTime - R.off; R.playing = true; R.play.textContent = '❚❚ Pause';
-  src.onended = () => { if (R.src === src) { R.off = Math.min(R.an.dur, ac.currentTime - R.t0); rollStop(R); rollDraw(R); } };
+  src.onended = () => { if (R.src === src) { const at = ac.currentTime - R.t0; if (at < R.an.dur - 1) diag('The music stopped at ' + fmt(at) + ' before the end (sound ' + ac.state + ')'); R.off = Math.min(R.an.dur, at); rollStop(R); rollDraw(R); } };
   const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0);
-  const loop = () => { if (!R.playing) return; const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; } R.off = t; const sp = rollSpan(R); if (R.drag && !R.drag.moved && performance.now() - R.drag.at > 600) R.drag = null; if (!R.drag) R.view = Math.max(0, t - sp * 0.3); if (R.onTick) R.onTick(t); rollDraw(R); R.raf = requestAnimationFrame(loop); };
+  // the graph's loop never dies: the next frame is booked first, and any error is caught and shown, not fatal
+  let lastCt = -1, lastWall = performance.now();
+  const loop = () => { if (!R.playing) return; R.raf = requestAnimationFrame(loop);
+    try {
+      const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; }
+      // the device paused the sound (the clock stopped): say so and try to carry on
+      if (ac.currentTime !== lastCt) { lastCt = ac.currentTime; lastWall = performance.now(); } else if (performance.now() - lastWall > 1500) { lastWall = performance.now(); diag('The device paused the sound (' + ac.state + '). Trying to carry on…'); ac.resume().catch(() => {}); }
+      R.off = t; const sp = rollSpan(R); if (R.drag && !R.drag.moved && performance.now() - R.drag.at > 600) R.drag = null; if (!R.drag) R.view = Math.max(0, t - sp * 0.3);
+      if (R.onTick) { try { R.onTick(t); } catch (e) { diag(e, 'words'); } }
+      rollDraw(R);
+    } catch (e) { diag(e, 'graph'); }
+  };
   loop();
 }
 function rollBind(R) {
@@ -6376,9 +6388,8 @@ function stPlay(a, b, o = {}) {
     const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag), b - from + 0.4); LS.src = src;
     const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0), lyr = $('#proLyric');
     const iv = setInterval(() => {
-      const t = from + (ac.currentTime - t0) - lat; PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t);
-      if (o.capture) o.capture(t);
-      rollDraw(PRO); if (t > b + 0.3) { clearInterval(iv); fin(true); }
+      const t = from + (ac.currentTime - t0) - lat; if (t > b + 0.3) { clearInterval(iv); fin(true); return; }
+      try { PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t); if (o.capture) o.capture(t); rollDraw(PRO); } catch (e) { diag(e, 'practice'); }
     }, 20);
     LS.pending.push(() => clearInterval(iv));
   });
@@ -7564,6 +7575,17 @@ pruneClips().catch(() => {});
 // Keep the screen awake while you're singing: during a session, with the mic on, or while a song plays.
 // The lock lets go when you're done, and is taken again if you leave the app and come back.
 const WAKE = { lock: null, busy: false };
+// ⚠ what went wrong, on screen for a while (so a screenshot shows the cause), at most once every few seconds per message
+const DIAG = { last: {}, el: null };
+function diag(e, where) {
+  const msg = typeof e === 'string' ? e : (where ? '[' + where + '] ' : '') + (e && e.message || String(e)) + (e && e.stack ? ' @ ' + String(e.stack).split('\n').slice(0, 2).join(' / ').replace(/https?:\/\/[^\s)]+\//g, '').slice(0, 160) : '');
+  const nowT = Date.now(); if (DIAG.last[msg] && nowT - DIAG.last[msg] < 4000) return; DIAG.last[msg] = nowT;
+  try { console.warn('diag', msg); } catch (x) {}
+  let b = DIAG.el; if (!b) { b = DIAG.el = document.createElement('div'); b.id = 'diag'; b.className = 'diag'; document.body.appendChild(b); }
+  b.textContent = '⚠ ' + msg + ' (build ' + (($('#buildTag') || {}).textContent || '').replace(/^Build\s*/, '') + ')'; b.hidden = false; clearTimeout(b._t); b._t = setTimeout(() => { b.hidden = true; }, 15000);
+}
+window.addEventListener('error', e => diag(e.error || (e.message + ' (line ' + e.lineno + ')'), 'page'));
+window.addEventListener('unhandledrejection', e => diag(e.reason || 'a task failed', 'task'));
 // Is the app playing a song or a line right now? On iPad, starting a video takes the sound away from the app and pauses
 // its audio (the graph's clock stops with it), so the screen-on video must never start while a song is playing.
 function songPlaying() { try { return !!(PRO.playing || ST.busy || LS.phase === 'turn' || LS.src || KR.on || bandTake || TAKE.playing || clipAudio); } catch (e) { return false; } }

@@ -1075,6 +1075,16 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && r.iso.notes >= 39 && r.iso.introWords === 0 && r.iso.first === 'There’s' && r.iso.firstAt > 14 && /Intro: the words start when he sings/.test(r.iso.introMsg), JSON.stringify(r));
   });
 
+  await test('The graph never freezes: an error while drawing the words is caught, the song and graph keep going, and the cause is shown on screen', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Diag', 'file');
+      const real = lyricShow; let n = 0; window.lyricShow = (...a) => { if (++n === 30) throw new Error('test failure in the words'); return real(...a); }; PRO.onTick = t => lyricShow($('#proLyric'), PRO.an, t); });
+    await page.click('#proPlay'); await page.waitForTimeout(2500);
+    const r = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, diag: ($('#diag') || {}).textContent }));
+    await page.waitForTimeout(1000); const later = await page.evaluate(() => PRO.off); await page.click('#proPlay');
+    expect(r.playing && r.off > 2 && later > r.off + 0.7 && /test failure in the words/.test(r.diag) && /build/.test(r.diag), JSON.stringify({ r, later }));
+  });
+
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });
