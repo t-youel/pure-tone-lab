@@ -1268,6 +1268,8 @@ let refUntil = 0; // ignore analysis while a reference tone plays
 async function ensureAudio() {
   if (!ac) {
     ac = new (window.AudioContext || window.webkitAudioContext)();
+    // if iOS pauses the app's sound (a call, another app, a video), carry on as soon as it lets us
+    ac.addEventListener('statechange', () => { if (ac.state !== 'running' && ac.state !== 'closed' && songPlaying()) ac.resume().catch(() => {}); });
     analyser = ac.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
     timeBuf = new Float32Array(analyser.fftSize);
     freqDb = new Float32Array(analyser.frequencyBinCount);
@@ -6026,7 +6028,7 @@ function rollMount(R, out, o) {
 }
 const rollSpan = R => R.cv ? Math.max(2, (R.cv.clientWidth - ROLL_L) / ROLL_PX) : 8;
 function rollPlay(R) {
-  if (!R.buf) return; rollStop(R);
+  if (!R.buf) return; rollStop(R); wakeVideoOff();
   const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = R.buf; g.gain.value = R.gain || 0.9; src.connect(g); g.connect(ac.destination);
   if (R.off >= R.an.dur - 0.05) R.off = 0;
   const ao = R.off + (R.audioOff || 0);
@@ -6368,6 +6370,7 @@ function stHalt() { lsStop(); rollStop(PRO); ST.setBusy && ST.setBusy(false); }
 const stRange = () => { const l = stLines()[ST.k]; return ST.whole ? [0, PRO.an.dur] : [l.t0, l.t1]; };
 // play the recording between a and b with the playhead and the words; your voice can be captured at the same time
 function stPlay(a, b, o = {}) {
+  wakeVideoOff();
   const buf = o.band && PRO.inst ? PRO.inst : ST.alone && PRO.vox ? PRO.vox : PRO.mix || PRO.buf, lag = buf === PRO.inst ? (PRO.instLag || 0) : 0, gain = buf === PRO.vox ? 2 : 0.9;
   return lsWait(fin => {
     const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = buf; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
@@ -7562,11 +7565,15 @@ pruneClips().catch(() => {});
 // Keep the screen awake while you're singing: during a session, with the mic on, or while a song plays.
 // The lock lets go when you're done, and is taken again if you leave the app and come back.
 const WAKE = { lock: null, busy: false };
+// Is the app playing a song or a line right now? On iPad, starting a video takes the sound away from the app and pauses
+// its audio (the graph's clock stops with it), so the screen-on video must never start while a song is playing.
+function songPlaying() { try { return !!(PRO.playing || ST.busy || LS.phase === 'turn' || LS.src || KR.on || bandTake || TAKE.playing || clipAudio); } catch (e) { return false; } }
+function wakeVideoOff() { const v = $('#keepAwake'); if (v && !v.paused) try { v.pause(); } catch (e) {} }
 async function keepAwake() {
   const want = document.visibilityState === 'visible' && (SES.on || mode === 'mic' || !!playback || EZ.on);
   // fallback for browsers without the wake lock (some in-app browsers): a tiny silent video playing keeps the screen on
   const vid = $('#keepAwake');
-  if (vid) { try { if (want && vid.paused) { vid.muted = false; vid.play().catch(() => {}); } else if (!want && !vid.paused) vid.pause(); } catch (e) {} }
+  if (vid) { try { if (songPlaying()) { if (!vid.paused) vid.pause(); } else if (want && vid.paused) { vid.muted = false; vid.play().catch(() => {}); } else if (!want && !vid.paused) vid.pause(); } catch (e) {} }
   if (!('wakeLock' in navigator) || WAKE.busy) return;
   try {
     if (want && !WAKE.lock) { WAKE.busy = true; WAKE.lock = await navigator.wakeLock.request('screen'); WAKE.lock.addEventListener('release', () => { WAKE.lock = null; }); }
@@ -7576,9 +7583,9 @@ async function keepAwake() {
 setInterval(keepAwake, 2000);
 document.addEventListener('visibilitychange', keepAwake);
 // iPad Safari only grants the lock in response to a tap, so each tap renews it
-document.addEventListener('pointerdown', () => { const v = $('#keepAwake'); if ((SES.on || mode === 'mic' || playback || EZ.on) && v && v.paused) { try { v.muted = false; v.play().catch(() => {}); } catch (e) {} } if (!WAKE.lock) keepAwake(); }, true);
+document.addEventListener('pointerdown', () => { const v = $('#keepAwake'); if ((SES.on || mode === 'mic' || playback || EZ.on) && v && v.paused && !songPlaying()) { try { v.muted = false; v.play().catch(() => {}); } catch (e) {} } if (!WAKE.lock) keepAwake(); }, true);
 // iPhones ignore muted or looping video for keeping the screen on, so the video plays with its (silent) sound and restarts itself
-$('#keepAwake').addEventListener('ended', e => { const v = e.target; if (SES.on || mode === 'mic' || playback || EZ.on) { v.currentTime = 0; v.play().catch(() => {}); } });
+$('#keepAwake').addEventListener('ended', e => { const v = e.target; if ((SES.on || mode === 'mic' || playback || EZ.on) && !songPlaying()) { v.currentTime = 0; v.play().catch(() => {}); } });
 function renderWakeBtn() {
   const b = $('#btnWake'); if (!b) return;
   const want = SES.on || mode === 'mic' || !!playback || EZ.on, v = $('#keepAwake'), on = !!WAKE.lock || (v && !v.paused);

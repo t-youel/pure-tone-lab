@@ -1070,6 +1070,25 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.heard === 45 && r.total === 45 && r.introWords === 0 && r.two === 6 && r.first === 'ka1' && r.flat === want && Math.abs(r.lineStarts[0] - r.sungStart) < 0.3 && r.lit === 'ku2', JSON.stringify(r));
   });
 
+  await test('Songs keep playing: the screen-on video never starts while a song plays (on iPad it would pause the app’s sound), and if the sound is paused anyway it resumes by itself', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { await startMic(); openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Keep playing', 'file'); });
+    await page.waitForTimeout(200);
+    const before = await page.evaluate(async () => { await keepAwake(); return { mic: mode, vidPlaying: !$('#keepAwake').paused }; });
+    await page.click('#proPlay'); await page.waitForTimeout(300);
+    // the 2-second screen-on check and a tap happen while the song plays
+    await page.evaluate(async () => { await keepAwake(); document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+    await page.waitForTimeout(2600);
+    const mid = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, vid: !$('#keepAwake').paused }));
+    // the sound gets paused (as iOS does when something else takes it): it comes back by itself and the song carries on
+    await page.evaluate(() => ac.suspend()); await page.waitForTimeout(800);
+    const after = await page.evaluate(() => ({ state: ac.state, playing: PRO.playing, off: PRO.off }));
+    await page.waitForTimeout(1200); const later = await page.evaluate(() => PRO.off);
+    await page.click('#proPlay');
+    expect(before.mic === 'mic' && mid.playing && !mid.vid && mid.off > 2.4 && after.state === 'running' && after.playing && later > after.off + 0.8, JSON.stringify({ before, mid, after, later }));
+  });
+
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });
