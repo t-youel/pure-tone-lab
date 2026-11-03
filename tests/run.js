@@ -977,10 +977,15 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.waitForTimeout(1500);
     const later = await page.evaluate(() => ({ off: PRO.off, view: PRO.view, drag: !!PRO.drag }));
     await page.click('#proPlay');
+    const atSing = await page.evaluate(() => PRO.off);
     await page.click('[data-act="singalong"]'); await page.waitForTimeout(300);
-    const sing = await page.evaluate(() => ({ on: ST.busy, words: ST.show.notes.filter(n => n.word).length })); await page.evaluate(() => stHalt());
+    const sing = await page.evaluate(() => ({ on: ST.busy, words: ST.show.notes.filter(n => n.word).length, whole: ST.whole, range: stRange(), dur: PRO.an.dur }));
+    // it keeps going past the end of the line it started on, to the end of the song
+    const L = await page.evaluate(() => stLines().map(l => [l.t0, l.t1])), k0 = Math.max(0, L.findIndex(l => l[1] >= atSing));
+    await page.waitForFunction(t => PRO.off > t, L[Math.min(L.length - 1, k0 + 1)][1] + 0.3, { timeout: 60000 }); sing.past = await page.evaluate(() => ({ off: PRO.off, busy: ST.busy }));
+    await page.evaluate(() => stHalt());
     expect(before.lyrics && before.keptKey === 'C major' && before.words >= before.n * 0.6 && before.sing && before.lyric && mid.off > 1.5 && Math.abs(mid.view - Math.max(0, mid.off - mid.span * 0.3)) < 0.2 && mid.drag === null && /There’s|gra/.test(mid.now) && mid.lit
-      && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20, JSON.stringify({ before, mid, later, sing }));
+      && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20 && sing.whole && Math.abs(sing.range[1] - sing.dur) < 0.01 && sing.past.busy, JSON.stringify({ before, mid, later, sing }));
   });
 
   await test('Practise this song: one area on the main graph; Listen plays his line with the words, My turn has you sing it back while the music waits, bars turn green/red per word, a tip and help (lock in the note) when a line keeps going wrong, ✓ when learned; Sing along scores as the music plays', async page => {
