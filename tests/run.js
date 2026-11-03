@@ -1054,7 +1054,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(before.mic === 'mic' && mid.playing && !mid.vid && mid.off > 2.4 && after.state === 'running' && after.playing && later > after.off + 0.8, JSON.stringify({ before, mid, after, later }));
   });
 
-  await test('Words only where he sings: from a full mix no words are guessed (a clear message instead, the instrumental offered first); with the instrumental the intro gets none and the first word lands on his first sung note; a start you set yourself also works', async page => {
+  await test('Words only where he sings: from a full mix no words are guessed (a clear message instead, the instrumental offered first); with the instrumental the intro gets none and the first word lands on his first sung note; no tap-to-sync buttons anywhere', async page => {
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     const r = await page.evaluate(async () => {
       store.proInfo = { 'Riff test': { lyrics: 'There’s no gravity that sucked me in your orbit\nThere’s no magnet that was in your heart today\nThe one restriction was the friction keeping us\nA little too far apart' } }; store.proWords = {};
@@ -1062,16 +1062,13 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       const L = stLines(), an = PRO.an, out = {};
       lyricShow($('#proLyric'), an, L[2].t0 + 0.5);
       out.mix = { words: an.notes.filter(n => n.word).length, msg: $('#proLyric .kr-now').textContent, strong: !!$('.pro-inst-strong'), guessBtn: !!$('[data-act="singing-now"]') };
-      // you set the start yourself (at line 3): the words follow from there
-      PRO.off = L[2].t0 + 0.1; $('#stNav [data-act="w-here"]').click(); await new Promise(r => setTimeout(r, 50));
-      out.pinned = { first: an.notes[L[2].idx[0]].word, intro: L[0].idx.concat(L[1].idx).filter(i => an.notes[i].word).length };
+      out.tap = document.querySelectorAll('[data-act="w-here"], [data-act="w-earlier"], [data-act="w-later"], [data-act="singing-now"]').length;
       // the instrumental: his voice alone, so the words land on his singing
-      store.proInfo['Riff test'].wordsOk = false; store.proInfo['Riff test'].wordsFrom = null;
       await proLoad(await makeProSong({ repeat: true, longIntro: true }), 'Riff test', 'file'); await proAddInstrumental(await makeProSong({ repeat: true, longIntro: true, noVoice: true })); await new Promise(r => setTimeout(r, 150));
       const a2 = PRO.an, sung = a2.notes.filter(n => n.word);
       lyricShow($('#proLyric'), a2, 3); out.iso = { notes: a2.notes.length, introWords: a2.notes.filter(n => n.t0 < 14 && n.word).length, first: sung[0] && sung[0].word, firstAt: sung[0] && +sung[0].t0.toFixed(1), introMsg: $('#proLyric .kr-now').textContent };
       return out; });
-    expect(r.mix.words === 0 && /add the instrumental/.test(r.mix.msg) && r.mix.strong && !r.mix.guessBtn && r.pinned.first === 'There’s' && r.pinned.intro === 0
+    expect(r.mix.words === 0 && /add the instrumental/.test(r.mix.msg) && r.mix.strong && !r.mix.guessBtn && r.tap === 0
       && r.iso.notes >= 39 && r.iso.introWords === 0 && r.iso.first === 'There’s' && r.iso.firstAt > 14 && /Intro: the words start when he sings/.test(r.iso.introMsg), JSON.stringify(r));
   });
 
