@@ -957,7 +957,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · controls at the top</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · Sing this line</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6453,14 +6453,14 @@ function studioCard(an) {
   const mk = (act, txt, cls, fn) => { const b = el('button', cls, txt); b.dataset.act = act; b.onclick = fn; btns.appendChild(b); return b; };
   mk('listen', '▶ Listen', '', () => stListen());
   mk('turn', '🎤 My turn', 'primary', () => stTurn());
-  mk('along', '🎧 Sing along', '', () => stAlong());
+  mk('along', '🎧 Sing this line', '', () => stAlong());   // named by what it does (stNav keeps it right), so it isn't confused with Sing along at the top
   const stop = mk('stop', '■ Stop', 'small', () => { stHalt(); $('#stLive').textContent = 'Stopped.'; }); stop.hidden = true;
   c.appendChild(btns);
   const opts = el('div', 'st-opts');
   if (PRO.vox) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stAlone'; cb.checked = !!ST.alone; cb.onchange = () => { ST.alone = cb.checked; }; l.append(cb, document.createTextNode(' 🎤 Hear his voice alone (no band)')); opts.appendChild(l); }
   if (PRO.inst) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stBand'; cb.checked = !!ST.band; cb.onchange = () => { ST.band = cb.checked; }; l.append(cb, document.createTextNode(' 🎸 Sing along with just the band')); opts.appendChild(l); }
   { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stCoach'; cb.checked = !!(store.settings && store.settings.coach); cb.onchange = () => { (store.settings ||= {}).coach = cb.checked; dirty = true; save(); }; l.append(cb, document.createTextNode(' 🧑‍🏫 Coach me (stops on a weak line)')); opts.appendChild(l); }
-  opts.appendChild(el('span', 'muted st-hint', '🎤 My turn: he sings the line, then you sing or hum it back while the music waits. 🎧 Sing along: the music keeps playing, so wear headphones so the mic hears only you.'));
+  opts.appendChild(el('span', 'muted st-hint', '🎤 My turn: he sings the line, then you sing or hum it back while the music waits. 🎧 Sing this line: sing with him as the music plays (headphones help).'));
   c.appendChild(opts);
   const live = el('p', 'ls-live', ''); live.id = 'stLive'; c.appendChild(live);
   const meter = el('div', 'ls-meter'); meter.id = 'lsMeter'; meter.hidden = true; meter.innerHTML = '<i class="ls-band"></i><i class="ls-dot"></i><span class="ls-note"></span>'; c.appendChild(meter);
@@ -6472,6 +6472,7 @@ function studioCard(an) {
   return c;
 }
 function stNav() {
+  { const ab = $('[data-card="studio"] [data-act="along"]'); if (ab) ab.textContent = ST.whole ? '🎧 Sing the song' : '🎧 Sing this line'; }
   const box = $('#stNav'); if (!box) return; box.textContent = ''; const lines = stLines(), n = lines.length, recs = (store.proLearn || {})['pro:' + PRO.an.name] || {}, learned = lines.filter((_, k) => recs[k] && recs[k].ok).length, r = recs[ST.k] || {};
   const prev = el('button', 'ls-arrow', '‹'); prev.dataset.act = 'prev'; prev.disabled = ST.whole || ST.k === 0; prev.onclick = () => stGo(ST.k - 1);
   const next = el('button', 'ls-arrow', '›'); next.dataset.act = 'next'; next.disabled = ST.whole || ST.k >= n - 1; next.onclick = () => stGo(ST.k + 1);
