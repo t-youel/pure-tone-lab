@@ -902,7 +902,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const after = await page.evaluate(() => ({ key: PRO.an.key, bpm: PRO.an.beat.bpm, given: PRO.an.passes.learn.given, saved: store.proInfo['Crazy Glue test'], w0: store.proWords['pro:Crazy Glue test'][0], w1: store.proWords['pro:Crazy Glue test'][1],
       lyr: PRO.an.notes.slice(0, 3).map(n => n.word).join(' '), pass1: $('.pp-step[data-pass="1"]').textContent, open: $('[data-card="info"] summary').textContent }));
     expect(before !== 'C major' && after.key === 'C major' && Math.abs(after.bpm - 100) <= 1 && after.given && after.saved.key === 'C major' && after.saved.bpm === 100
-      && after.w0 === 'There’s no gravity that sucked me in your orbit' && after.w1 === 'There’s no magnet that was in your heart' && after.lyr === 'There’s no gravity' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
+      && after.w0 === 'There’s no gravity that sucked me in your orbit' && after.w1 === 'There’s no magnet that was in your heart' && after.lyr === 'There’s no gra-' && /Using your song details/.test(after.pass1) && /✓/.test(after.open), JSON.stringify({ before, after }));
   });
 
   await test('His voice alone: adding the instrumental lines it up, takes the band out, and the notes come from his voice; practice offers his voice alone and singing with just the band', async page => {
@@ -1015,6 +1015,24 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && /“birth” \(E4\) was \d+¢ flat|was \d+¢ flat/.test(t1.tip) && !t1.lock && t2.lock && t1.bars.filter(h => h != null && Math.abs(h) > 35).length >= 1 && t1.bars.filter(h => h != null && Math.abs(h) <= 25).length >= 9
       && t3.score >= 85 && /learned/.test(t3.tip) && rec.r.ok && /✓ Line 2/.test(rec.nav) && /1 of 4 lines learned/.test(rec.nav) && rec.next
       && al.k === 2 && al.score >= 80 && al.green >= al.n - 1, JSON.stringify({ ui, go1, listening, stopped, t1, t2, t3, rec, al }));
+  });
+
+  await test('Words in step with the song: an instrumental intro gets no words, the first words land where the singing starts, long words split into syllables (one per note), and the words can be moved earlier, later, or started at a tapped moment', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => {
+      store.proInfo = { 'Intro test': { lyrics: 'There’s no gravity that sucked me in your orbit\nThere’s no magnet that was in your heart today\nThe one restriction was the friction keeping us\nA little too far apart' } };
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true, intro: true }), 'Intro test', 'file'); await new Promise(r => setTimeout(r, 150));
+      const L = stLines(), an = PRO.an, out = { at: store.proInfo['Intro test'].wordsAt, introWords: L[0].idx.concat(L[1].idx).filter(i => an.notes[i].word).length, first: an.notes[L[2].idx[0]].word, grav: L[2].idx.slice(2, 6).map(i => an.notes[i].word).join(' ') };
+      lyricShow($('#proLyric'), an, 2); out.introLyric = $('#proLyric .kr-now').textContent.trim();
+      lyricShow($('#proLyric'), an, L[2].t0 + 0.05); out.sungLyric = $('#proLyric .kr-now').textContent.trim();
+      $('#stNav [data-act="w-later"]').click(); out.later = store.proInfo['Intro test'].wordsAt; out.laterFirst = an.notes[L[3].idx[0]].word;
+      $('#stNav [data-act="w-earlier"]').click(); $('#stNav [data-act="w-earlier"]').click(); out.earlier = store.proInfo['Intro test'].wordsAt;
+      PRO.off = L[2].t0 + 0.2; $('#stNav [data-act="w-here"]').click(); out.here = store.proInfo['Intro test'].wordsAt;
+      // reloading keeps a manual placement
+      await proLoad(await makeProSong({ repeat: true, intro: true }), 'Intro test', 'file'); out.kept = store.proInfo['Intro test'].wordsAt;
+      return out; });
+    expect(r.at === 2 && r.introWords === 0 && r.first === 'There’s' && r.grav === 'gra- vi- ty that' && r.introLyric === '♪' && /^There’s no gra-vi-ty/.test(r.sungLyric)
+      && r.later === 3 && r.laterFirst === 'There’s' && r.earlier === 1 && r.here === 2 && r.kept === 2, JSON.stringify(r));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

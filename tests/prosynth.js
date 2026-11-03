@@ -7,10 +7,13 @@ window.makeProSong = async function (opts = {}) {
   // the tune three times; the third time one note is missed (G sung 70 cents flat) and one is changed on purpose (B instead of D, dead centre)
   if (opts.repeat) { const one = mel.map(n => n.slice()), three = one.map(n => n.slice()); three[4] = [67, 2, -70, 1]; three[1] = [59, 1, 0]; mel = one.concat(one.map(n => n.slice()), three); }
   if (opts.hard) { mel[8] = [64, 1, -60]; mel.splice(3, 0, [67, 0.15, 0]); }
-  const lead = opts.bass ? 3.6 : 1.2, total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
+  const lead = (opts.bass ? 3.6 : 1.2) + (opts.intro ? 7.2 : 0), total = lead + mel.reduce((a, n) => a + n[1], 0) * beat + 1;
   const pad = 0, padN = Math.round((opts.pad || 0) * SR); const off = new OfflineAudioContext(2, Math.ceil(SR * total), SR);
   const bus = off.createGain(); bus.gain.value = (opts.level || 1) * 0.6; bus.connect(off.destination); const dest = bus;
   const vox = off.createGain(); vox.gain.value = opts.noVoice ? 0 : 0.5; vox.connect(dest);
+  // an instrumental intro: two short melodic phrases (like a guitar riff) before the singing starts
+  if (opts.intro) for (const [st, ph] of [[1.0, [64, 67, 69, 67, 64]], [4.6, [62, 65, 67, 65, 62]]]) ph.forEach((m, i) => { const f = 440 * Math.pow(2, (m + tune - 69) / 12), tt = st + i * 0.5, o = off.createOscillator(), g = off.createGain();
+    o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.35, tt + 0.02); g.gain.exponentialRampToValueAtTime(0.05, tt + 0.45); o.connect(g); g.connect(dest); o.start(tt); o.stop(tt + 0.47); });
   let t = lead + pad;
   for (const [m, b, c, vib, slide] of mel) {
     const f = 440 * Math.pow(2, (m + tune + (c + (opts.voiceBias || 0)) / 100 - 69) / 12), d = b * beat * 0.9;

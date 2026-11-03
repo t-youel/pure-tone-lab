@@ -101,6 +101,7 @@ Everything happens on the main graph, with the real recording and the words (the
 - ▶ Listen: his line (or the whole song) with the playhead and the words.
 - 🎤 My turn: he sings the line, two soft clicks, then you sing or hum it back while the music waits, so the mic hears only you. Your voice is drawn over his bars as you sing.
 - 🎧 Sing along: the music keeps playing (headphones on) and every line you pass is scored; with the instrumental, sing along with just the band; with his voice separated, hear his voice alone.
+- Words in step: the words start where the singing starts (each lyric line's syllable count is matched against the detected lines' note counts, skipping an instrumental intro, which shows ♪); long words are split into syllables so each note gets one (gra-vi-ty); ‹ Words earlier, 👆 Words start here (tap when he starts singing) and Words later › fix it by hand, and that choice is kept. Words typed for a line are never re-placed.
 - ■ Stop and ↻ Again at any time. After a try: a score, each word's bar green/gold/red, one tip (the word that was off and how he sings it, timing, a cue), and help when a line keeps going wrong (🎯 Lock in the note on a live meter, 🎤 hear his voice alone, hum it first). ✓ when a line is learned (80+, every note within 35¢), kept between visits, with progress for the song.
 
 ## Your take, note by note
