@@ -1085,6 +1085,19 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(r.playing && r.off > 2 && later > r.off + 0.7 && /test failure in the words/.test(r.diag) && /build/.test(r.diag), JSON.stringify({ r, later }));
   });
 
+  await test('Prepared song (the real Crazy Glue recording): recognised by name and length, his own notes (not the guitar), no words in the intro, each line starting when he sings it, the interlude without words', async page => {
+    const b64 = require('fs').readFileSync(require('path').join(__dirname, '..', 'songs', 'Crazy Glue - Josh Woodward.mp3')).toString('base64');
+    const r = await page.evaluate(async b64 => {
+      const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+      store.proInfo = {}; store.proWords = {}; openLab('pro'); await proLoad(new Blob([u], { type: 'audio/mpeg' }), 'Crazy Glue - Josh Woodward', 'file'); await new Promise(r => setTimeout(r, 150));
+      const an = PRO.an, at = t => { lyricShow($('#proLyric'), an, t); return { line: $('#proLyric .kr-now').textContent.trim(), lit: (($('#proLyric .kr-on') || {}).textContent || '') }; };
+      return { prepared: an.prepared, lo: an.lo, hi: an.hi, n: an.notes.length, words: an.notes.filter(n => n.word).length, intro: an.notes.filter(n => n.t0 < 14.5).length,
+        a: at(10), b: at(15.1), c: at(29.7), d: at(125), e: at(138), sync: !!$('[data-act="w-earlier"]'), credit: ($('.st-credit') || {}).textContent };
+    }, b64);
+    expect(r.prepared && r.lo >= 46 && r.hi <= 71 && r.n > 250 && r.words === r.n && r.intro === 0 && /Intro/.test(r.a.line) && /^There’s no gra-vi-ty/.test(r.b.line) && r.b.lit === 'There’s'
+      && /^Why fight it/.test(r.c.line) && r.c.lit === 'Why' && r.d.line === '♪' && /^I ne-ver knew/.test(r.e.line) && !r.sync && /Prepared/.test(r.credit), JSON.stringify(r));
+  });
+
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });
