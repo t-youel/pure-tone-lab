@@ -988,6 +988,34 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20 && sing.whole && Math.abs(sing.range[1] - sing.dur) < 0.01 && sing.past.busy, JSON.stringify({ before, mid, later, sing }));
   });
 
+  await test('Sing along without headphones, and coach mode: the song leaking from the speaker into the mic draws nothing while you are silent; your own voice still counts; Sing along plays to the end; with Coach me on, a weak line stops the song with its score, a tip and a retry, then Back to the song carries on', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.proInfo = { 'Leak test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; store.settings = Object.assign(store.settings || {}, { coach: false }); save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Leak test', 'file', await makeProSong({ repeat: true, noVoice: true }));
+      // the iPad speaker: whatever plays also reaches the mic, a bit quieter
+      const orig = AudioBufferSourceNode.prototype.start; AudioBufferSourceNode.prototype.start = function (...a) { if (this.buffer && this.buffer.duration > 10) { const g = ac.createGain(); g.gain.value = 0.15; this.connect(g); g.connect(analyser); } return orig.apply(this, a); };
+      window.sing = 'off'; setInterval(() => { if (!ST.busy || sing === 'off') { V.on = false; return; } const t = PRO.off, n = PRO.an.notes.find(x => t >= x.b0 && t <= x.b1 - 0.04); V.on = !!n; if (n) V.m = n.midi + (sing === 'wrong' ? 3 : 0); }, 15); });
+    await page.waitForTimeout(150);
+    const count = () => page.evaluate(() => ST.user.filter(v => v != null).length);
+    // silent, the song through the speaker: the whole song plays and nothing of 'yours' is drawn
+    await page.click('[data-act="singalong"]');
+    await page.waitForFunction(() => !ST.busy, null, { timeout: 90000 });
+    const silent = await page.evaluate(() => ({ drawn: ST.user.filter(v => v != null).length, end: PRO.off, dur: PRO.an.dur, leak: ST.leak, warned: ST.leakWarned }));
+    // singing along, same speaker: your voice is drawn
+    await page.evaluate(() => { sing = 'right'; PRO.off = 0; }); await page.click('[data-act="singalong"]'); await page.waitForTimeout(9000);
+    const singing = { drawn: await count() }; await page.evaluate(() => stHalt());
+    // coach me on, singing off: the song stops on the first weak line, with help and a way back into the song
+    await page.evaluate(() => { store.settings.coach = true; $('#stCoach').checked = true; sing = 'wrong'; PRO.off = 0; }); await page.click('[data-act="singalong"]');
+    await page.waitForFunction(() => $('[data-act="resume"]'), null, { timeout: 60000 });
+    const coach = await page.evaluate(() => ({ busy: ST.busy, k: ST.k, text: $('#stRes').textContent, again: !!$('#stRes [data-act="again"]'), resume: $('[data-act="resume"]').textContent }));
+    await page.evaluate(() => { sing = 'right'; }); await page.click('[data-act="resume"]'); await page.waitForTimeout(1500);
+    const back = await page.evaluate(() => ({ busy: ST.busy, whole: ST.whole, off: PRO.off })); await page.evaluate(() => stHalt());
+    expect(silent.drawn === 0 && silent.end > silent.dur - 1 && silent.leak > 0 && silent.warned && singing.drawn > 100
+      && !coach.busy && coach.k === 0 && /fix line 1/.test(coach.text) && /\d+ \/ 100/.test(coach.text) && coach.again && /Back to the song \(line 2\)/.test(coach.resume)
+      && back.busy && back.whole && back.off > 3, JSON.stringify({ silent, singing, coach, back }));
+  });
+
   await test('Practise this song: one area on the main graph; Listen plays his line with the words, My turn has you sing it back while the music waits, bars turn green/red per word, a tip and help (lock in the note) when a line keeps going wrong, ✓ when learned; Sing along scores as the music plays', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });

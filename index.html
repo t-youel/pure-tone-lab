@@ -951,7 +951,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · Sing along plays to the end</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · coach mode</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6061,7 +6061,9 @@ function proRender() {
   out.querySelector('.pro-roll-wrap').before(lyr); PRO.onTick = t => lyricShow(lyr, an, t); setTimeout(() => lyricShow(lyr, an, 0.01), 0);
   const sing = el('button', 'primary', '🎤 Sing along'); sing.dataset.act = 'singalong';
   // Sing along next to Play: the rest of the song, from where you are (a couple of seconds before the line), to the end
-  sing.onclick = () => { const L = an._lines || [], k = Math.max(0, L.findIndex(l => l.t1 >= PRO.off)), from = PRO.off > 1 && L[k] ? Math.max(0, L[k].t0 - 2) : 0; rollStop(PRO); ST.whole = true; stGo(k); ST.from = from; const g = out.querySelector('.pro-roll-wrap'); if (g) g.scrollIntoView({ block: 'nearest' }); stAlong(); };
+  sing.onclick = () => { const L = an._lines || [], k = Math.max(0, L.findIndex(l => l.t1 >= PRO.off)), from = PRO.off > 1 && L[k] ? Math.max(0, L[k].t0 - 2) : 0; rollStop(PRO); ST.whole = true; stGo(k); ST.from = from; ST.resumeK = null;
+    // keep the words and the graph in view without jumping: scroll only if either is off screen, and then put the words at the top
+    const ly = $('#proLyric'), gw = out.querySelector('.pro-roll-wrap'); if (ly && gw) { const a = ly.getBoundingClientRect(), b = gw.getBoundingClientRect(); if (a.top < 0 || b.bottom > innerHeight) ly.scrollIntoView({ block: 'start' }); } stAlong(); };
   out.querySelector('.pro-head').appendChild(sing);
 
   ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
@@ -6433,6 +6435,7 @@ function studioCard(an) {
   const opts = el('div', 'st-opts');
   if (PRO.vox) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stAlone'; cb.checked = !!ST.alone; cb.onchange = () => { ST.alone = cb.checked; }; l.append(cb, document.createTextNode(' 🎤 Hear his voice alone (no band)')); opts.appendChild(l); }
   if (PRO.inst) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stBand'; cb.checked = !!ST.band; cb.onchange = () => { ST.band = cb.checked; }; l.append(cb, document.createTextNode(' 🎸 Sing along with just the band')); opts.appendChild(l); }
+  { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stCoach'; cb.checked = !!(store.settings && store.settings.coach); cb.onchange = () => { (store.settings ||= {}).coach = cb.checked; dirty = true; save(); }; l.append(cb, document.createTextNode(' 🧑‍🏫 Coach me: stop on a line that needs work, with a tip and a retry')); opts.appendChild(l); }
   opts.appendChild(el('span', 'muted st-hint', '🎤 My turn: he sings the line, then you sing or hum it back while the music waits. 🎧 Sing along: the music keeps playing, so wear headphones so the mic hears only you.'));
   c.appendChild(opts);
   const live = el('p', 'ls-live', ''); live.id = 'stLive'; c.appendChild(live);
@@ -6475,18 +6478,39 @@ function stPlay(a, b, o = {}) {
   const buf = o.band && PRO.inst ? PRO.inst : ST.alone && PRO.vox ? PRO.vox : PRO.mix || PRO.buf, lag = buf === PRO.inst ? (PRO.instLag || 0) : 0, gain = buf === PRO.vox ? 2 : 0.9;
   return lsWait(fin => {
     const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = buf; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
+    const tap = ac.createAnalyser(); tap.fftSize = 2048; g.connect(tap); ST.tap = tap; ST.tapBuf = new Float32Array(tap.fftSize); ST.playHist = [];
     const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag), b - from + 0.4); LS.src = src;
     const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0), lyr = $('#proLyric');
     const iv = setInterval(() => {
       const t = from + (ac.currentTime - t0) - lat; if (t > b + 0.3) { clearInterval(iv); fin(true); return; }
-      try { PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t); if (o.capture) o.capture(t); rollDraw(PRO); } catch (e) { diag(e, 'practice'); }
+      try { PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t); if (o.capture) { stPlayLevel(); o.capture(t); } rollDraw(PRO); } catch (e) { diag(e, 'practice'); }
     }, 20);
     LS.pending.push(() => clearInterval(iv));
   });
 }
 // your voice into the song's timeline (folded to his note's octave, so any octave counts)
+// The song from the speaker leaks into the mic, and the mic would 'hear' his tune while you're silent. So: measure how
+// loud the song plays (a tap on the playback) and how much of it reaches the mic when nobody sings (the music-only
+// moments: before a line, between lines), and count the mic only when it's clearly louder than that leak.
+function stPlayLevel() {
+  if (!ST.tap) return; ST.tap.getFloatTimeDomainData(ST.tapBuf); let e = 0; for (let i = 0; i < ST.tapBuf.length; i += 2) e += ST.tapBuf[i] * ST.tapBuf[i];
+  const r = Math.sqrt(e / (ST.tapBuf.length / 2)), h = ST.playHist; h.push(r); if (h.length > 10) h.shift(); ST.playRms = Math.max(...h); // the last 0.2 s: the speaker and room delay
+}
+function stBleed() {
+  // the leak is what the mic hears in its quieter moments relative to the song (you breathe, wait, or haven't started):
+  // the low quarter of the last 6 seconds; it falls at once and only creeps up, so a long sung phrase can't raise it
+  const pr = ST.playRms || 0; if (pr < 1e-4 || S.rms == null) return (ST.leak ?? 0) * pr;
+  const mh = (ST.micHist ||= []); mh.push(S.rms); if (mh.length > 10) mh.shift(); // the mic over the same 0.2 s as the song
+  const q = (ST.leakQ ||= []); q.push(Math.max(...mh) / pr); if (q.length > 300) q.shift();
+  if (q.length >= 25) { const srt = q.slice().sort((x, y) => x - y), est = srt[Math.floor(srt.length * 0.25)]; ST.leak = ST.leak == null || est < ST.leak ? est : ST.leak + (est - ST.leak) * 0.001; }
+  return (ST.leak ?? 0) * pr;
+}
 function stCapture(t) {
-  const an = PRO.an, k = Math.round((t - an.t0f) / an.hop); if (k < 0 || k >= ST.user.length || !S.voiced || S.midi == null) return;
+  const an = PRO.an, k = Math.round((t - an.t0f) / an.hop), leak = stBleed();
+  if (leak > 0.003 && !ST.leakWarned) { ST.leakWarned = true; const lv = $('#stLive'); if (lv) lv.textContent = '🎧 I can hear the song through your mic; headphones help. I only count your voice when it’s louder than the song.'; }
+  if (k < 0 || k >= ST.user.length || !S.voiced || S.midi == null) return;
+  if ((ST.playRms || 0) > 1e-4 && ST.leak == null) return;   // the first half second: still measuring the leak
+  if (S.rms < 2.5 * leak) return;   // only the song leaking in: not you
   const n = an.notes.find(x => t >= (x.b0 ?? x.t0) - 0.1 && t <= (x.b1 ?? x.t1) + 0.1), tg = n ? n.midi : null;
   ST.user[k] = tg != null ? tg + ((((S.midi - tg) % 12) + 18) % 12) - 6 : S.midi;
 }
@@ -6516,11 +6540,21 @@ async function stAlong() {
   stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
   const [a, b] = stRange(), lines = stLines().filter(l => l.t0 >= a - 0.01 && l.t1 <= b + 0.01); ST.from = 0; lines.forEach(stClearLine);
   $('#stLive').textContent = '🎧 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '…';
-  const scored = new Set();
-  const done = await stPlay(a, b, { lead: ST.whole ? 0 : 1.5, band: ST.band, capture: t => { stCapture(t); for (const l of lines) if (!scored.has(l) && t > l.t1 + 0.3) { scored.add(l); stMark(l); } } });
+  const scored = new Set(), coach = ST.whole && !!(store.settings && store.settings.coach); ST.leakQ = []; ST.micHist = []; ST.leak = null; ST.leakWarned = false;
+  const heard = l => { let n = 0; for (let i = Math.max(0, Math.floor((l.t0 - PRO.an.t0f) / PRO.an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 - PRO.an.t0f) / PRO.an.hop)); i++) if (ST.user[i] != null) n++; return n; };
+  const done = await stPlay(a, b, { lead: ST.whole ? 0 : 1.5, band: ST.band, capture: t => { stCapture(t); for (const l of lines) if (!scored.has(l) && t > l.t1 + 0.3) { scored.add(l); const R = stMark(l), lk = stLines().indexOf(l), sang = heard(l) >= 10;
+    if (!ST.whole || !sang) continue;
+    if (coach && R.score < 60) { setTimeout(() => stCoachStop(lk), 0); return; }   // coach: stop here, help with this line, then back into the song
+    $('#stLive').textContent = (R.score >= 85 ? '✓ ' + cue('good') + ' ' : R.score >= 60 ? '✓ ' : '') + 'Line ' + (lk + 1) + ': ' + R.score + (coach ? '' : R.score < 60 ? ' · keep going, we’ll look at it after' : ''); } } });
   if (LS.gen !== g && !done) return;
   ST.setBusy(false); for (const l of lines) if (!scored.has(l)) stMark(l);
   if (ST.whole) stSongSummary(lines); else stScore(stLines()[ST.k], 'along');
+}
+// coach mode: the song stops on a line that needs work: its score, one tip and a retry, then back into the song
+function stCoachStop(k) {
+  stHalt(); const L = stLines(); ST.whole = false; ST.resumeK = Math.min(L.length - 1, k + 1); ST.k = k; stNav();
+  stScore(L[k], 'along'); const res = $('#stRes'); if (res) res.prepend(el('p', 'ls-tip', '🧑‍🏫 Let’s fix line ' + (k + 1) + ' before we go on.'));
+  const sc = document.querySelector('[data-card="studio"]'); if (sc) { const r = sc.getBoundingClientRect(); if (r.top > innerHeight * 0.6 || r.bottom < 0) $('#stRes').scrollIntoView({ block: 'center' }); }
 }
 function stClearLine(l) { if (!ST.show) stShowReset(); const an = PRO.an; for (let i = Math.max(0, Math.floor((l.t0 - 0.5 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 + 0.6 - an.t0f) / an.hop)); i++) ST.user[i] = null; l.idx.forEach(i => { delete ST.show.notes[i].hit; ST.show.notes[i].c = 0; }); }
 // how a line went: per note (any octave), timing, starts, vibrato; marks each bar
@@ -6554,6 +6588,8 @@ function stScore(l, how) {
   if (!R.ok && ST.fails[k] >= 2 && PRO.vox && !ST.alone) { const h = el('button', 'small', '🎤 Hear his voice alone'); h.onclick = () => { ST.alone = true; const cb = $('#stAlone'); if (cb) cb.checked = true; stListen(); }; row.appendChild(h); }
   if (!R.ok && ST.fails[k] >= 3) res.appendChild(el('p', 'muted', 'Tip: listen twice before your turn, and hum it first; words can wait until the tune feels easy.'));
   if (R.ok && k < stLines().length - 1) { const nx = el('button', 'primary', 'Next line →'); nx.dataset.act = 'nextline'; nx.onclick = () => stGo(k + 1); row.prepend(nx); }
+  if (ST.resumeK != null) { const L = stLines(), rk = ST.resumeK, b2 = el('button', R.ok ? 'primary' : 'small', '▶ Back to the song (line ' + (rk + 1) + ')'); b2.dataset.act = 'resume';
+    b2.onclick = () => { ST.resumeK = null; ST.whole = true; stGo(rk); ST.from = Math.max(0, L[rk].t0 - 2); stAlong(); }; row.prepend(b2); }
   res.appendChild(row); stNav();
 }
 async function stLock(p) {
