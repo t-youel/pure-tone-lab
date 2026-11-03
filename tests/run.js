@@ -917,7 +917,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
         card: $('[data-card="inst"]').textContent, pass1: $('.pp-step[data-pass="1"]').textContent, alone: !!$('#stAlone'), band: !!$('#stBand') };
     });
     expect(Math.abs(r.lag + 0.37) < 0.002 && Math.abs(r.gain - 1.18) < 0.05 && r.removed >= 15 && r.inst === 0 && r.before.inst >= 3 && r.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && r.flat <= -35 && r.flat >= -45
-      && /almost all of the band/.test(r.card) && /his voice alone/.test(r.pass1) && r.alone && r.band, JSON.stringify(r));
+      && /separated from the band \((almost all|most) of the band taken out\)/.test(r.card) && /his voice alone/.test(r.pass1) && r.alone && r.band, JSON.stringify(r));
   });
 
   await test('Find your singing home: talk, then a ladder of notes up and down from the talking voice; the comfortable zone and sweet spot sit several notes above it and set the key for songs', async page => {
