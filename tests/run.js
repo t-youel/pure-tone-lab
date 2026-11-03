@@ -880,7 +880,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       PRO.view = 3; rollDraw(PRO); const g = rollGeom(PRO);
       return { inst: a.inst.length, instLow: a.inst.every(n => n.midi < 50), voiceNotes: a.notes.filter(n => voice.includes(n.midi)).length, other: a.notes.filter(n => !voice.includes(n.midi)).length, row: g.row, legend: /instrument/.test($('.pro-legend').textContent) }; });
     await page.evaluate(() => { store.settings.proTol = null; });
-    expect(intro.shown && !intro.file && intro.lib.length === 4 && /Crazy Glue.*Notes and words/.test(intro.lib[0]) && /words coming/.test(intro.lib[1]) && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
+    expect(intro.shown && !intro.file && intro.lib.length === 4 && /Crazy Glue.*Notes and words/.test(intro.lib[0]) && /words coming/.test(intro.lib[3]) && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
       && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
       && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
       && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp)
@@ -1107,11 +1107,22 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       await page.click('#proLib .lib-song[data-song="Crazy Glue"]');
       await page.waitForFunction(() => PRO.an && PRO.an.name === 'Crazy Glue' && $('[data-card="studio"]'), null, { timeout: 120000 });
       const cg = await page.evaluate(() => { lyricShow($('#proLyric'), PRO.an, 15.1); return { prepared: PRO.an.prepared, lag: PRO.iso && PRO.iso.lag, removed: PRO.iso && PRO.iso.removedDb, band: !!$('#stBand'), alone: !!$('#stAlone'), lit: ($('#proLyric .kr-on') || {}).textContent, inst: ($('[data-card="inst"]') || {}).textContent }; });
-      await page.click('#proLib .lib-song[data-song="Afterglow"]');
-      await page.waitForFunction(() => PRO.an && PRO.an.name === 'Afterglow' && $('[data-card="studio"]'), null, { timeout: 600000, polling: 1000 });
+      // the prepared ones: the words come in when he sings, and stay away from the intro and the solos
+      const prep = {};
+      for (const [sn, times] of [['Afterglow', [2, 5.2, 43.5, 101.5, 199]], ['Coffee', [10, 15.4, 100, 145, 165]]]) {
+        await page.click('#proLib .lib-song[data-song="' + sn + '"]');
+        await page.waitForFunction(n => PRO.an && PRO.an.name === n && $('[data-card="studio"]'), sn, { timeout: 120000 });
+        prep[sn] = await page.evaluate(times => ({ prepared: PRO.an.prepared, n: PRO.an.notes.length, words: PRO.an.notes.filter(n => n.word).length, lo: PRO.an.lo, hi: PRO.an.hi,
+          at: times.map(t => { lyricShow($('#proLyric'), PRO.an, t); return (($('#proLyric .kr-on') || {}).textContent || '') + '|' + $('#proLyric .kr-now').textContent.trim().slice(0, 24); }) }), times);
+      }
+      await page.click('#proLib .lib-song[data-song="I\'m Letting Go"]');
+      await page.waitForFunction(() => PRO.an && PRO.an.name === 'I’m Letting Go' && $('[data-card="studio"]'), null, { timeout: 600000, polling: 1000 });
       const ag = await page.evaluate(() => { lyricShow($('#proLyric'), PRO.an, 30); return { isolated: PRO.an.isolated, notes: PRO.an.notes.length, lo: PRO.an.lo, hi: PRO.an.hi, words: PRO.an.notes.filter(n => n.word).length, msg: $('#proLyric .kr-now').textContent, credit: ($('.st-credit') || {}).textContent, band: !!$('#stBand') }; });
       expect(lib.songs.join() === 'Crazy Glue,Afterglow,Coffee,I’m Letting Go' && lib.file === 0 && cg.prepared && cg.lag === 0 && cg.removed >= 10 && cg.band && cg.alone && cg.lit === 'There’s' && /separated/.test(cg.inst)
-        && ag.isolated && ag.notes > 50 && ag.words === 0 && /words for this song are coming/.test(ag.msg) && /Afterglow.*CC BY/.test(ag.credit) && ag.band && !page.errors.length, JSON.stringify({ lib, cg, ag, errors: page.errors }));
+        && ag.isolated && ag.notes > 50 && ag.words === 0 && /words for this song are coming/.test(ag.msg) && /Letting Go.*CC BY/.test(ag.credit) && ag.band
+        && prep.Afterglow.prepared && prep.Afterglow.words === prep.Afterglow.n && prep.Afterglow.n > 200 && /Intro/.test(prep.Afterglow.at[0]) && /^Rain-?\|/.test(prep.Afterglow.at[1]) && /And it’s all I know/.test(prep.Afterglow.at[2]) && /You’re the af/.test(prep.Afterglow.at[3]) && /Then light me up/.test(prep.Afterglow.at[4])
+        && prep.Coffee.prepared && prep.Coffee.words === prep.Coffee.n && /Intro/.test(prep.Coffee.at[0]) && /^A\|A cup of cof/.test(prep.Coffee.at[1]) && /\|♪/.test(prep.Coffee.at[2]) && /My life is ground/.test(prep.Coffee.at[3]) && /\|♪/.test(prep.Coffee.at[4])
+        && !page.errors.length, JSON.stringify({ lib, cg, prep, ag, errors: page.errors }));
     } finally { srv.close(); }
   });
 

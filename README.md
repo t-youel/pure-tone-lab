@@ -100,7 +100,8 @@ Every song in the app comes with its official instrumental, so his voice is alwa
 Learn from the pros opens on the songs that come with the app (in `songs/`, by Josh Woodward, CC BY): Crazy Glue, Afterglow, Coffee and I'm Letting Go. There is no file picking. Tapping a song downloads it with its official instrumental, and his voice is taken out of the band right away:
 - Frequency by frequency, not sample by sample: two MP3s of the same mix never match wave for wave, but they match in how loud each frequency is at each moment. The offset between the two is the one that leaves the least behind; each frequency's level is matched; the instrumental's loudness is taken from the song's, and the song's own phases turn the rest back into sound.
 - Octave slips are corrected: a note more than 7 semitones from the notes around it moves an octave toward them, with its stretch of the voice line.
-- Crazy Glue is prepared (notes and every word timed and checked). The other three show his notes; their words come once they're prepared the same way.
+- Crazy Glue, Afterglow and Coffee are prepared: notes and every word timed on his voice alone. I'm Letting Go shows his notes; its words come once its structure is confirmed.
+- How a song is prepared (`tools/`): `prepare_song.py` separates his voice and lists his sung phrases; the line starts (`*.spans.json`) come from evidence (his phrases and breaths, the bar grid, the chorus melody repeating); `time_words.py` lays each syllable (`syllables.py`) on the sung syllables in each line (dips in his voice and changes of note, the line's last syllable held) and reports any line where fewer syllables are heard than the words have; `build_prep.py` makes one bar per syllable from his pitch line. Stretches that can't be matched to the lyrics (Coffee's ending after the last chorus) get no words.
 
 ### Practise this song (one area, under the main graph)
 
