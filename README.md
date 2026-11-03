@@ -84,7 +84,7 @@ Lab → Singer's daily workout (about 10 minutes), four scored parts on the same
 
 ## Learn from the pros
 
-Lab → Learn from the pros (open from day one). Load a song file you own, or one of your own takes. Everything is analysed on the device: the voice's pitch every 20 ms (from the mid channel, filtered to the voice band), adjusted for the recording's own tuning, split into notes. The graph shows each note as a bar the length it lasts and the voice as a line, with notes more than 25¢ off outlined; tap a bar for that note, drag to move, play along with a moving playhead. Measures: True Tone (% within 20¢, average cents off), flat or sharp lean, vibrato (share of long notes, rate, width), steadiness, note starts (slides), beat (bpm, distance from the beat, feel), key and range, recording tuning. "Save as a pro benchmark" keeps the numbers; "Score my singing like the pros" gives full marks within the pros' typical distance from the note (15–35¢, never stricter than the usual ±15¢). Your own takes are compared with your saved pros.
+Lab → Learn from the pros (open from day one). Pick one of the songs in the app (below), or one of your own takes. Everything is analysed on the device: the voice's pitch every 20 ms (from the mid channel, filtered to the voice band), adjusted for the recording's own tuning, split into notes. The graph shows each note as a bar the length it lasts and the voice as a line, with notes more than 25¢ off outlined; tap a bar for that note, drag to move, play along with a moving playhead. Measures: True Tone (% within 20¢, average cents off), flat or sharp lean, vibrato (share of long notes, rate, width), steadiness, note starts (slides), beat (bpm, distance from the beat, feel), key and range, recording tuning. "Save as a pro benchmark" keeps the numbers; "Score my singing like the pros" gives full marks within the pros' typical distance from the note (15–35¢, never stricter than the usual ±15¢). Your own takes are compared with your saved pros.
 
 Three passes:
 1. **Learn the song**: notes, key, tempo and beat; short or half-hidden notes found from fainter readings; off-key bars the voice sits well away from are moved back into the key; repeated lines (6 notes matching in at least 5) vote on the tune, so bars are the learned melody; bars take their intended start and length from a sixteenth-note grid when the beat is clear.
@@ -93,7 +93,14 @@ Three passes:
 
 ### His voice alone (the instrumental)
 
-If the artist offers an instrumental of the same recording, 🎻 Add the instrumental: the two files are lined up (loudness envelopes for the rough offset, then the waveforms to the sample), their level is matched second by second below 100 Hz (kick and bass only, so the voice can't skew it), and the instrumental is subtracted, leaving the voice. Pitch is then measured on the voice alone (beat and bass tuning still come from the full song). In the lesson: 🎤 Hear his voice alone, and 🎧 Sing with the band (headphones on) plays the instrumental from the same moment of the song under you.
+Every song in the app comes with its official instrumental, so his voice is always separated before the notes are measured (see The songs in the app). Pitch is measured on the voice alone (beat and bass tuning still come from the full song). In practice: 🎤 Hear his voice alone, and 🎧 Sing with the band (headphones on) plays the instrumental from the same moment of the song under you.
+
+### The songs in the app
+
+Learn from the pros opens on the songs that come with the app (in `songs/`, by Josh Woodward, CC BY): Crazy Glue, Afterglow, Coffee and I'm Letting Go. There is no file picking. Tapping a song downloads it with its official instrumental, and his voice is taken out of the band right away:
+- Frequency by frequency, not sample by sample: two MP3s of the same mix never match wave for wave, but they match in how loud each frequency is at each moment. The offset between the two is the one that leaves the least behind; each frequency's level is matched; the instrumental's loudness is taken from the song's, and the song's own phases turn the rest back into sound.
+- Octave slips are corrected: a note more than 7 semitones from the notes around it moves an octave toward them, with its stretch of the voice line.
+- Crazy Glue is prepared (notes and every word timed and checked). The other three show his notes; their words come once they're prepared the same way.
 
 ### Practise this song (one area, under the main graph)
 

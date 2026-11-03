@@ -845,7 +845,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await setLevel(page, 10);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     await page.evaluate(() => openLab('pro'));
-    const intro = await page.evaluate(() => ({ shown: !$('#proBox').hidden, file: !!$('#proFile') }));
+    const intro = await page.evaluate(() => ({ shown: !$('#proBox').hidden, file: !!$('#proFile'), lib: [...document.querySelectorAll('#proLib .lib-song')].map(b => b.textContent) }));
     await page.evaluate(async () => { await proLoad(await makeProSong(), 'Test singer', 'file'); });
     const an = await page.evaluate(() => { const a = PRO.an; return { notes: a.notes.map(n => n.midi).join(), flat: a.notes[6].c, tune: a.tune, bpm: a.beat.bpm, feel: a.beat.feel, vib: a.notes.filter(n => n.vib).length, slide: a.notes[10].on - a.notes[10].c, sum: a.sum,
       stats: [...document.querySelectorAll('.pro-stat')].map(c => c.dataset.stat).join() }; });
@@ -880,7 +880,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       PRO.view = 3; rollDraw(PRO); const g = rollGeom(PRO);
       return { inst: a.inst.length, instLow: a.inst.every(n => n.midi < 50), voiceNotes: a.notes.filter(n => voice.includes(n.midi)).length, other: a.notes.filter(n => !voice.includes(n.midi)).length, row: g.row, legend: /instrument/.test($('.pro-legend').textContent) }; });
     await page.evaluate(() => { store.settings.proTol = null; });
-    expect(intro.shown && intro.file && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
+    expect(intro.shown && !intro.file && intro.lib.length === 4 && /Crazy Glue.*Notes and words/.test(intro.lib[0]) && /words coming/.test(intro.lib[1]) && an.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && an.flat <= -33 && an.flat >= -46 && an.tune >= 5 && an.tune <= 14 && Math.abs(an.bpm - 100) <= 2 && Math.abs(an.feel) <= 45
       && an.vib === 3 && an.slide <= -40 && an.sum.acc20 >= 85 && an.stats === 'true,lean,vib,steady,starts,beat,key,tune'
       && info.sel === 6 && /G4 .* flat/.test(info.text) && play.playing && play.off > 0.3 && /Pause/.test(play.label)
       && before < 1 && cal.refs === 2 && cal.tol === 30 && cal.acc === 1 && /Your pros/.test(cmp)
@@ -892,7 +892,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
   await test('Song details: the key and tempo you give are used instead of guesses; pasted words are split into lines and put on the bars', async page => {
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
-    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue test', 'file'); await proAddInstrumental(await makeProSong({ repeat: true, noVoice: true })); });
+    await page.evaluate(async () => { store.profile = { low: 52, high: 70, natural: 60, type: 'Tenor', zlo: 55, zhi: 67 }; openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue test', 'file', await makeProSong({ repeat: true, noVoice: true })); });
     const before = await page.evaluate(() => PRO.an.key);
     await page.click('[data-card="info"] summary');
     await page.selectOption('#piKey', 'C major'); await page.fill('#piBpm', '100');
@@ -910,13 +910,13 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const r = await page.evaluate(async () => {
       store.profile = { low: 40, high: 60, natural: 50, type: 'Baritone', zlo: 43, zhi: 57 }; openLab('pro');
       await proLoad(await makeProSong({ bass: true }), 'With band', 'file'); const before = { notes: PRO.an.notes.length, inst: PRO.an.inst.length };
-      await proAddInstrumental(await makeProSong({ bass: true, noVoice: true, pad: 0.37, level: 0.85 }));
+      await proLoad(await makeProSong({ bass: true }), 'With band', 'file', await makeProSong({ bass: true, noVoice: true, pad: 0.37, level: 0.85 }));
       await new Promise(r => setTimeout(r, 100));
       const a = PRO.an;
       return { before, lag: PRO.iso.lag, gain: PRO.iso.gain, removed: PRO.iso.removedDb, notes: a.notes.map(n => n.midi).filter(m => m >= 60).join(), flat: (a.notes.find(n => n.c < -25) || {}).c, inst: a.inst.length,
         card: $('[data-card="inst"]').textContent, pass1: $('.pp-step[data-pass="1"]').textContent, alone: !!$('#stAlone'), band: !!$('#stBand') };
     });
-    expect(Math.abs(r.lag + 0.37) < 0.002 && Math.abs(r.gain - 1.18) < 0.05 && r.removed >= 20 && r.inst === 0 && r.before.inst >= 3 && r.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && r.flat <= -35 && r.flat >= -45
+    expect(Math.abs(r.lag + 0.37) < 0.002 && Math.abs(r.gain - 1.18) < 0.05 && r.removed >= 15 && r.inst === 0 && r.before.inst >= 3 && r.notes === '60,62,64,65,67,69,67,65,64,62,60,64,67' && r.flat <= -35 && r.flat >= -45
       && /almost all of the band/.test(r.card) && /his voice alone/.test(r.pass1) && r.alone && r.band, JSON.stringify(r));
   });
 
@@ -956,16 +956,16 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     const r = await page.evaluate(async () => { openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue - Josh Woodward', 'file'); await new Promise(r => setTimeout(r, 150));
       const mix = { words: PRO.an.notes.filter(n => n.word).length, msg: $('#proLyric .kr-now').textContent, strong: !!$('.pro-inst-strong') };
-      await proAddInstrumental(await makeProSong({ repeat: true, noVoice: true })); await new Promise(r => setTimeout(r, 150));
+      await proLoad(await makeProSong({ repeat: true }), 'Crazy Glue - Josh Woodward', 'file', await makeProSong({ repeat: true, noVoice: true })); await new Promise(r => setTimeout(r, 150));
       return { mix, info: store.proInfo['Crazy Glue - Josh Woodward'], key: PRO.an.key, w0: store.proWords['pro:Crazy Glue - Josh Woodward'][0], credit: ($('[data-card="studio"] .st-credit') || {}).textContent, staff: PRO.an.notes.slice(0, 2).map(n => n.word).join(' ') }; });
-    expect(r.mix.words === 0 && /add the instrumental/.test(r.mix.msg) && r.mix.strong && r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gra-?vi-?ty/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
+    expect(r.mix.words === 0 && /No words here/.test(r.mix.msg) && !r.mix.strong && r.info.key === 'E♭ major' && r.info.bpm === 134 && r.info.swing && r.key === 'E♭ major' && /^There’s no gra-?vi-?ty/.test(r.w0) && /Josh Woodward, CC BY/.test(r.credit) && r.staff === 'There’s no', JSON.stringify({ key: r.key, w0: r.w0, credit: r.credit, staff: r.staff }));
   });
 
   await test('Main graph: words on the bars and the lyric line while it plays (even if details were saved before without words); a touch that turns into a page scroll never stops it following; Sing along next to Play', async page => {
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     const name = 'Crazy Glue - Josh Woodward';
     await page.evaluate(async name => { store.proInfo = { [name]: { key: 'C major', bpm: null, swing: false, lyrics: null } }; store.proWords = { ['pro:' + name]: {} }; save();
-      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), name, 'file'); await proAddInstrumental(await makeProSong({ repeat: true, noVoice: true })); }, name);
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), name, 'file', await makeProSong({ repeat: true, noVoice: true })); }, name);
     await page.waitForTimeout(150);
     const before = await page.evaluate(name => ({ lyrics: !!store.proInfo[name].lyrics, keptKey: store.proInfo[name].key, words: PRO.an.notes.filter(n => n.word).length, n: PRO.an.notes.length, sing: !!$('[data-act="singalong"]'), lyric: !!$('#proLyric') }), name);
     // a finger lands on the graph and the page scrolls: the browser cancels the pointer (no pointerup)
@@ -987,7 +987,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
     await page.evaluate(async () => { store.proInfo = { 'Studio test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
-      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Studio test', 'file'); await proAddInstrumental(await makeProSong({ repeat: true, noVoice: true }));
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Studio test', 'file', await makeProSong({ repeat: true, noVoice: true }));
       // the singer: in "my turn" follows the line (note 3 flat until it's fixed); in "hold" sings the note; in "sing along" follows the song
       window.flat3 = true; setInterval(() => {
         if (LS.phase === 'turn' && LS.cap && LS.cap.hold != null) { V.on = ac.currentTime >= LS.start; V.m = LS.cap.hold; return; }
@@ -1024,7 +1024,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const r = await page.evaluate(async () => {
       const rep = k => ['ka', 'ke', 'ki', 'ko', 'ku', 'la', 'le', 'li', 'lo', 'lu', 'ma', 'me', 'mi', 'mo', 'mu'].map(x => x + k).join(' ');
       store.proInfo = { 'Sync': { lyrics: rep(1) + '\n' + rep(2) + '\n' + rep(3) } }; store.proWords = {};
-      openLab('pro'); await proLoad(await makeProSong({ repeat: true, longIntro: true, dips: true }), 'Sync', 'file'); await proAddInstrumental(await makeProSong({ repeat: true, longIntro: true, dips: true, noVoice: true })); await new Promise(r => setTimeout(r, 100));
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true, longIntro: true, dips: true }), 'Sync', 'file', await makeProSong({ repeat: true, longIntro: true, dips: true, noVoice: true })); await new Promise(r => setTimeout(r, 100));
       const an = PRO.an, sungStart = 14.6, intro = an.notes.filter(n => n.t0 < 14);
       // the sung notes, in order: their syllables
       const sung = an.notes.filter(n => n.t0 >= 14 && n.word).map(n => n.word);
@@ -1064,11 +1064,11 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       out.mix = { words: an.notes.filter(n => n.word).length, msg: $('#proLyric .kr-now').textContent, strong: !!$('.pro-inst-strong'), guessBtn: !!$('[data-act="singing-now"]') };
       out.tap = document.querySelectorAll('[data-act="w-here"], [data-act="w-earlier"], [data-act="w-later"], [data-act="singing-now"]').length;
       // the instrumental: his voice alone, so the words land on his singing
-      await proLoad(await makeProSong({ repeat: true, longIntro: true }), 'Riff test', 'file'); await proAddInstrumental(await makeProSong({ repeat: true, longIntro: true, noVoice: true })); await new Promise(r => setTimeout(r, 150));
+      await proLoad(await makeProSong({ repeat: true, longIntro: true }), 'Riff test', 'file', await makeProSong({ repeat: true, longIntro: true, noVoice: true })); await new Promise(r => setTimeout(r, 150));
       const a2 = PRO.an, sung = a2.notes.filter(n => n.word);
       lyricShow($('#proLyric'), a2, 3); out.iso = { notes: a2.notes.length, introWords: a2.notes.filter(n => n.t0 < 14 && n.word).length, first: sung[0] && sung[0].word, firstAt: sung[0] && +sung[0].t0.toFixed(1), introMsg: $('#proLyric .kr-now').textContent };
       return out; });
-    expect(r.mix.words === 0 && /add the instrumental/.test(r.mix.msg) && r.mix.strong && !r.mix.guessBtn && r.tap === 0
+    expect(r.mix.words === 0 && /No words here/.test(r.mix.msg) && !r.mix.guessBtn && r.tap === 0
       && r.iso.notes >= 39 && r.iso.introWords === 0 && r.iso.first === 'There’s' && r.iso.firstAt > 14 && /Intro: the words start when he sings/.test(r.iso.introMsg), JSON.stringify(r));
   });
 
@@ -1093,6 +1093,26 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     }, b64);
     expect(r.prepared && r.lo >= 46 && r.hi <= 71 && r.n > 250 && r.words === r.n && r.intro === 0 && /Intro/.test(r.a.line) && /^There’s no gra-vi-ty/.test(r.b.line) && r.b.lit === 'There’s'
       && /^Why fight it/.test(r.c.line) && r.c.lit === 'Why' && r.d.line === '♪' && /^I ne-ver knew/.test(r.e.line) && !r.sync && /Prepared/.test(r.credit), JSON.stringify(r));
+  });
+
+  await test('Song library: the songs in the app (no file picking); tapping one downloads the song and its instrumental, takes the band out, and shows his notes (Crazy Glue with its words, the others notes only for now)', async page => {
+    const http = require('http'), fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
+    const srv = http.createServer((q, res) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(root) || !fs.existsSync(f)) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'content-type': /\.mp3$/.test(f) ? 'audio/mpeg' : 'text/html', 'content-length': fs.statSync(f).size }); fs.createReadStream(f).pipe(res); });
+    await new Promise(r => srv.listen(0, r));
+    try {
+      await page.goto('http://localhost:' + srv.address().port + '/index.html'); await page.waitForTimeout(300);
+      await setLevel(page, 10); await page.evaluate(() => openLab('pro'));
+      const lib = await page.evaluate(() => ({ songs: [...document.querySelectorAll('#proLib .lib-song b')].map(b => b.textContent), file: document.querySelectorAll('#proBox input[type=file]').length }));
+      await page.click('#proLib .lib-song[data-song="Crazy Glue"]');
+      await page.waitForFunction(() => PRO.an && PRO.an.name === 'Crazy Glue' && $('[data-card="studio"]'), null, { timeout: 120000 });
+      const cg = await page.evaluate(() => { lyricShow($('#proLyric'), PRO.an, 15.1); return { prepared: PRO.an.prepared, lag: PRO.iso && PRO.iso.lag, removed: PRO.iso && PRO.iso.removedDb, band: !!$('#stBand'), alone: !!$('#stAlone'), lit: ($('#proLyric .kr-on') || {}).textContent, inst: ($('[data-card="inst"]') || {}).textContent }; });
+      await page.click('#proLib .lib-song[data-song="Afterglow"]');
+      await page.waitForFunction(() => PRO.an && PRO.an.name === 'Afterglow' && $('[data-card="studio"]'), null, { timeout: 600000, polling: 1000 });
+      const ag = await page.evaluate(() => { lyricShow($('#proLyric'), PRO.an, 30); return { isolated: PRO.an.isolated, notes: PRO.an.notes.length, lo: PRO.an.lo, hi: PRO.an.hi, words: PRO.an.notes.filter(n => n.word).length, msg: $('#proLyric .kr-now').textContent, credit: ($('.st-credit') || {}).textContent, band: !!$('#stBand') }; });
+      expect(lib.songs.join() === 'Crazy Glue,Afterglow,Coffee,I’m Letting Go' && lib.file === 0 && cg.prepared && cg.lag === 0 && cg.removed >= 10 && cg.band && cg.alone && cg.lit === 'There’s' && /separated/.test(cg.inst)
+        && ag.isolated && ag.notes > 50 && ag.words === 0 && /words for this song are coming/.test(ag.msg) && /Afterglow.*CC BY/.test(ag.credit) && ag.band && !page.errors.length, JSON.stringify({ lib, cg, ag, errors: page.errors }));
+    } finally { srv.close(); }
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

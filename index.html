@@ -522,6 +522,10 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-roll-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .pro-roll { display: block; width: 100%; height: min(420px, 55vh); touch-action: pan-y; cursor: grab; }
 .pro-pos { width: 100%; accent-color: #3b3fb5; }
+.lib-list { display: grid; gap: 8px; margin: 10px 0; }
+.lib-song { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: inherit; font: inherit; cursor: pointer; }
+.lib-song .lib-ic { grid-row: span 2; font-size: 1.5em; } .lib-song b { font-size: 1.05em; } .lib-song .muted { grid-column: 2; font-size: .9em; }
+.lib-song .lib-tag { grid-column: 3; grid-row: 1 / span 2; font-size: .8em; padding: 3px 8px; border-radius: 99px; background: var(--line); white-space: nowrap; } .lib-song .lib-tag.ok { background: color-mix(in srgb, #3aa76d 20%, var(--surface)); }
 .pro-inst-strong { border: 2px solid #f0973a !important; background: color-mix(in srgb, #f0973a 8%, var(--surface)); }
 .pro-inst { display: grid; gap: 6px; justify-items: start; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line); } .pro-inst p { margin: 0; }
 .pro-info-card summary { cursor: pointer; font-weight: 700; }
@@ -947,7 +951,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · cleanup</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · song library</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5466,40 +5470,86 @@ const PRO = { buf: null, an: null, src: null, gain: null, t0: 0, off: 0, view: 0
 const KEY_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
 function proStop() { rollStop(PRO); lsStop(); if (ST.setBusy) ST.setBusy(false); }
+// The songs that come with the app: each with its official instrumental, so his voice is always heard alone
+const SONG_LIB = [
+  { title: 'Crazy Glue', artist: 'Josh Woodward', file: 'Crazy Glue' },
+  { title: 'Afterglow', artist: 'Josh Woodward', file: 'Afterglow' },
+  { title: 'Coffee', artist: 'Josh Woodward', file: 'Coffee' },
+  { title: 'I’m Letting Go', artist: 'Josh Woodward', file: "I'm Letting Go" },
+];
+const libUrl = (s2, inst) => 'songs/' + encodeURIComponent(s2.file + (inst ? ' (Instrumental)' : '') + ' - ' + s2.artist + '.mp3');
 function proStart() {
   const box = $('#proBox'); box.textContent = ''; PRO.an = null; PRO.buf = null;
   const intro = el('div', 'pro-intro');
-  intro.append(el('p', '', 'Pick a song by a singer you love. You’ll see every note as a bar the length the note should last, and their voice as a line, so you can see how close they stay to the True Tone, where they slide, and how they use vibrato and the beat.'));
-  const row = el('div', 'row');
-  const fl = el('label', 'btn primary', '📁 A song from your device'); fl.tabIndex = 0;
-  const fi = el('input'); fi.type = 'file'; fi.hidden = true; fi.id = 'proFile';
-  fi.onchange = () => { const f = fi.files[0]; if (f) proLoad(f, f.name.replace(/\.[^.]+$/, ''), 'file'); fi.value = ''; };
-  fl.appendChild(fi); fl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } };
-  row.appendChild(fl);
+  intro.append(el('p', '', 'Pick a song. You’ll see every note as a bar the length it lasts, his voice as a line, and the words on the notes as he sings them. Then listen, sing it back line by line, or sing along with the band.'));
+  const list = el('div', 'lib-list'); list.id = 'proLib';
+  for (const s2 of SONG_LIB) {
+    const known = KNOWN_SONGS.find(k => k.match.test(s2.title)), words = !!(known && known.lyrics);
+    const b = el('button', 'lib-song'); b.dataset.song = s2.file;
+    b.append(el('span', 'lib-ic', '🎵'), el('b', '', s2.title), el('span', 'muted', s2.artist), el('span', 'lib-tag' + (words ? ' ok' : ''), words ? 'Notes and words' : 'Notes · words coming'));
+    b.onclick = () => proLoadLib(s2); list.appendChild(b);
+  }
+  intro.appendChild(list);
   const clips = [...(store.clips || [])].sort((a, b) => b.at - a.at).slice(0, 6);
   if (clips.length) {
-    const sel = el('select'); sel.id = 'proClip'; sel.appendChild(el('option', '', '🎤 One of my recordings…')); sel.firstChild.value = '';
+    const row = el('div', 'row'), sel = el('select'); sel.id = 'proClip'; sel.appendChild(el('option', '', '🎤 Or look at one of my recordings…')); sel.firstChild.value = '';
     for (const c of clips) { const o = el('option', '', ((SONGS.find(x => x.id === c.song) || {}).name || 'Take') + ' · ' + new Date(c.at).toLocaleDateString() + (c.checkup === 'start' ? ' · first day' : '')); o.value = c.id; sel.appendChild(o); }
     sel.onchange = async () => { const c = clips.find(x => x.id === sel.value); if (!c) return; let blob = null; try { blob = await idbDo('readonly', s2 => s2.get(clipKey(c.id))); } catch (e) {} if (blob) proLoad(blob, 'My take: ' + ((SONGS.find(x => x.id === c.song) || {}).name || 'song'), 'mine'); else toast('That recording is no longer on this device.'); };
-    row.appendChild(sel);
+    row.appendChild(sel); intro.appendChild(row);
   }
-  intro.append(row, el('p', 'muted small-print', 'Use a song file you own (MP3, M4A, WAV, AAC). Songs inside Apple Music or Spotify are locked and can’t be opened. The song stays on this device: nothing is uploaded. Works best when the voice is clear and up front; a vocals-only (a cappella) track is ideal.'));
+  intro.appendChild(el('p', 'muted small-print', 'Songs by Josh Woodward, free to use under CC BY (joshwoodward.com).'));
   box.append(intro, el('div', 'pro-out'));
   box.lastChild.id = 'proOut';
   proRefsCard(box);
 }
-async function proLoad(blob, name, kind) {
+// fetch a file with progress
+async function libFetch(url, onProg) {
+  const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status);
+  const total = +r.headers.get('content-length') || 0; if (!r.body || !total) return r.blob();
+  const rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onProg(got / total); }
+  return new Blob(parts, { type: 'audio/mpeg' });
+}
+// a song from the app: the song and its instrumental together
+async function proLoadLib(s2) {
+  proStop(); await ensureAudio();
+  const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Getting ' + s2.title + '…'); out.appendChild(msg); out.scrollIntoView({ block: 'nearest' });
+  const prog = { a: 0, b: 0 }, show = () => { msg.textContent = 'Getting ' + s2.title + ' and its instrumental… ' + Math.round(50 * (prog.a + prog.b)) + '%'; };
+  let mix, inst;
+  try { [mix, inst] = await Promise.all([libFetch(libUrl(s2), f => { prog.a = f; show(); }), libFetch(libUrl(s2, true), f => { prog.b = f; show(); })]); }
+  catch (e) { msg.textContent = 'The song couldn’t be downloaded. Check your connection and try again.'; return; }
+  return proLoad(mix, s2.title, 'lib', inst);
+}
+async function proLoad(blob, name, kind, instBlob) {
   proStop(); await ensureAudio();
   const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the song…'); out.appendChild(msg);
-  let buf; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
+  let buf, ib = null; try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); if (instBlob) ib = await ac.decodeAudioData(await instBlob.arrayBuffer()); } catch (e) { msg.textContent = 'This song couldn’t be opened.'; return; }
   PRO.buf = buf; PRO.off = 0; PRO.view = 0; PRO.sel = -1; PRO.name = name; PRO.kind = kind;
-  PRO.vox = null; PRO.inst = null; PRO.mix = buf; const known = proAutoInfo(name);
+  PRO.vox = null; PRO.inst = null; PRO.iso = null; PRO.mix = buf; const known = proAutoInfo(name);
+  // with its instrumental: take the band out, so his voice is heard alone
+  if (ib) { const iso = await proIsolate(buf, ib, t => { msg.textContent = t + '…'; }); PRO.inst = ib; PRO.vox = iso.vox; PRO.instLag = iso.lag; PRO.iso = iso; }
   // a prepared song (the same recording: name and length match): its measured notes, pitch line and word timing
   const prep = known && known.prep && PREPARED[known.prep];
-  const an = prep && Math.abs(buf.duration - prep.dur) < 1 ? proFromPrep(prep) : await proAnalyze(buf, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + '… ' + Math.round(f * 100) + '%'; }, proInfo(name));
+  const prog = (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + (PRO.vox ? ' from his voice alone' : '') + '… ' + Math.round(f * 100) + '%'; };
+  const an = prep && Math.abs(buf.duration - prep.dur) < 1 ? proFromPrep(prep) : PRO.vox ? await proAnalyze(PRO.vox, prog, proInfo(name), buf) : await proAnalyze(buf, prog, proInfo(name));
+  if (PRO.vox) { an.isolated = true; if (!an.prepared) proFoldOctaves(an); }
   an.name = name; an.kind = kind; PRO.an = an; an.known = known;
   if (an.notes.length < 4) { msg.textContent = 'I couldn’t find a clear singing voice in this recording. A song where the voice is louder than the band works best.'; return; }
   proPlaceWords(an); proRender();
+}
+// Octave slips: pitch tracking sometimes locks onto a voice's lower or upper octave. A note more than 7 semitones from
+// the notes around it (the 8 seconds about it) is moved an octave toward them, its stretch of the voice line with it.
+function proFoldOctaves(an) {
+  const N0 = an.notes, mids = N0.map(n => n.midi); let moved = 0;
+  N0.forEach((n, i) => {
+    const nb = N0.map((m, j) => j !== i && Math.abs(m.t0 - n.t0) < 4 ? mids[j] : null).filter(x => x != null).sort((x, y) => x - y); if (nb.length < 4) return;
+    const med = nb[nb.length >> 1], d = n.midi - med; if (Math.abs(d) <= 7) return;
+    const sh = -12 * Math.round(d / 12) || (d > 0 ? -12 : 12); if (Math.abs(d + sh) >= Math.abs(d)) return;
+    n.midi += sh; moved++;
+    if (an.trace) for (let k = Math.max(0, Math.floor((n.t0 - an.t0f) / an.hop)); k <= Math.min(an.trace.length - 1, Math.ceil((n.t1 - an.t0f) / an.hop)); k++) if (an.trace[k] != null && Math.abs(an.trace[k] - (n.midi - sh)) < 1.5) an.trace[k] += sh;
+  });
+  if (moved) { const ms = N0.map(n => n.midi); an.lo = Math.min(...ms); an.hi = Math.max(...ms); }
+  an.octFixed = moved; return moved;
 }
 function proFromPrep(P) {
   const notes = P.notes.map(([t0, t1, b0, b1, midi, c, on, vr, vw, dt]) => ({ t0, t1, b0, b1, midi, c, on: on ?? c ?? 0, vib: vr ? { rate: vr, width: vw } : null, dt, voc: 1, drift: 0 }));
@@ -5553,7 +5603,10 @@ I never knew
 That you are crazy glue, my darling
 And I’m stuck to you
 I am cozy and I don’t gonna wiggle loose
-I don’t gonna wiggle loose` }];
+I don’t gonna wiggle loose` },
+  { match: /afterglow/i, credit: 'Music: “Afterglow” by Josh Woodward, CC BY, joshwoodward.com' },
+  { match: /coffee/i, credit: 'Music: “Coffee” by Josh Woodward, CC BY, joshwoodward.com' },
+  { match: /letting\s*go/i, credit: 'Music: “I’m Letting Go” by Josh Woodward, CC BY, joshwoodward.com' }];
 // a song we know gets its key, tempo, swing and words filled in, unless you've already given your own
 function proAutoInfo(name) {
   const known = KNOWN_SONGS.find(k => k.match.test(name)); if (!known) return null;
@@ -5952,15 +6005,9 @@ function proRender() {
   out.querySelector('.pro-head').appendChild(sing);
 
   ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
-  if (an.kind === 'file') {
-    const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst';
-    if (an.isolated && PRO.iso) { const d = PRO.iso.removedDb; ib.append(el('p', '', '🎻 His voice is separated from the band: ' + (d >= 20 ? 'almost all' : d >= 10 ? 'most' : 'some') + ' of the band was taken out. The notes are measured on his voice alone.' + (d < 10 ? ' If it still looks busy, check the instrumental is from the same recording.' : ''))); }
-    else {
-      ib.append(el('p', '', an.prepared ? '🎻 Optional: add the instrumental of this song to sing along with just the band.' : an.known ? '🎻 For words that land on his singing, add the instrumental of this song (free on joshwoodward.com, next to the song). I’ll take the band out, so the guitar intro and riffs can’t pick up words, and you can sing with the band.' : '🎻 Have the instrumental of this song? Add it and I’ll take the band out, leaving his voice alone. The notes get much cleaner, and you can sing with the band.'));
-      if ((an.known || an._noWords) && !an.prepared) ib.classList.add('pro-inst-strong');
-      const lab = el('label', 'btn small', '🎻 Add the instrumental'); lab.tabIndex = 0; const fi = el('input'); fi.type = 'file'; fi.hidden = true; fi.id = 'proInstFile';
-      fi.onchange = () => { const f = fi.files[0]; if (f) proAddInstrumental(f); fi.value = ''; }; lab.appendChild(fi); ib.appendChild(lab);
-    }
+  if (an.isolated && PRO.iso) {
+    const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst'; const d = PRO.iso.removedDb;
+    ib.append(el('p', '', '🎻 His voice is separated from the band (' + (d >= 20 ? 'almost all' : d >= 10 ? 'most' : 'some') + ' of the band taken out), so the notes are measured on his voice alone. Sing along with just the band, or hear his voice alone, below.'));
     out.appendChild(ib);
   }
   out.appendChild(proInfoCard(an));
@@ -6146,7 +6193,7 @@ function proStats(an) {
 function proRefsCard(box) {
   const refs = store.proRefs || [], c = el('div', 'card pro-refs'); c.dataset.card = 'prorefs';
   c.appendChild(el('h3', '', '🎧 Your pro benchmarks'));
-  if (!refs.length) c.appendChild(el('p', 'muted', 'Analyse a song by a singer you admire, then tap "Save as a pro benchmark". The app learns how close real singers stay to the note.'));
+  if (!refs.length) c.appendChild(el('p', 'muted', 'Open one of the songs, then tap "Save as a pro benchmark". The app learns how close real singers stay to the note.'));
   else {
     const ul = el('ul', 'pro-ref-list'); for (const r of refs) ul.appendChild(el('li', '', r.name + ': ' + r.acc20 + '% within 20¢, ' + r.avg + '¢ off on average')); c.appendChild(ul);
     const tol = Math.max(15, Math.min(35, Math.round(medArr(refs.map(r => r.avg))))); // never stricter than the usual ±15¢
@@ -6159,7 +6206,7 @@ function proRefsCard(box) {
 }
 function proCompare(an) {
   const c = el('div', 'pro-compare'), refs = store.proRefs || [];
-  if (an.kind === 'file') {
+  if (an.kind !== 'mine') {
     const saved = refs.some(r => r.name === an.name);
     c.appendChild(el('p', '', an.sum.acc20 >= 75 ? 'A strong True Tone: most of this singing sits within 20¢ of the note. Notice the places it slides or drifts on purpose; that’s style, not error.' : 'Even great singers drift. Listen for where they leave the note on purpose (slides, bends, a cry in the voice) and where it’s simply off.'));
     const b = el('button', saved ? 'small' : 'primary', saved ? '✓ Saved as a pro benchmark' : '⭐ Save as a pro benchmark'); b.disabled = saved; b.dataset.act = 'saveref';
@@ -6186,34 +6233,56 @@ async function proIsolate(mixBuf, instBuf, onProg = () => {}) {
   const H = 160, env = x => { const n = Math.floor(x.length / H), e = new Float32Array(n); for (let i = 0; i < n; i++) { let s3 = 0; for (let k = 0; k < H; k += 2) s3 += x[i * H + k] * x[i * H + k]; e[i] = Math.sqrt(s3); } const m = mean(Array.from(e)); for (let i = 0; i < n; i++) e[i] -= m; return e; };
   const ea = env(a), eb = env(b), N = Math.min(ea.length, eb.length, 9000); let best = -Infinity, lagE = 0;
   for (let L = -1000; L <= 1000; L++) { let s3 = 0; for (let i = Math.max(0, L); i < N && i - L < eb.length; i++) s3 += ea[i] * eb[i - L]; if (s3 > best) { best = s3; lagE = L; } }
-  // exact offset from the waveforms, around the rough one, on a loud 6-second stretch
   let w0 = 0, wE = -1; for (let i = 0; i + 600 < ea.length; i += 100) { let e = 0; for (let k = 0; k < 600; k++) e += Math.abs(ea[i + k]); if (e > wE) { wE = e; w0 = i; } }
-  const c0 = w0 * H, cN = Math.min(6 * SR, a.length - c0 - 1); let bestF = -Infinity, lag = lagE * H;
-  for (let L = lagE * H - 240; L <= lagE * H + 240; L++) { let s3 = 0; for (let i = c0; i < c0 + cN; i += 2) { const j = i - L; if (j >= 0 && j < b.length) s3 += a[i] * b[j]; } if (s3 > bestF) { bestF = s3; lag = L; } }
+  let lag = lagE * H;
   onProg('Taking out the band'); await new Promise(r => setTimeout(r, 0));
-  // level match per second (mastering can differ a little), measured below 100 Hz where it's all kick and bass and no voice
-  // (in the voice range his notes share the band's key, which would skew the match), smoothed, then subtract
-  const al = await proMono(mixBuf, SR, 100), bl = await proMono(instBuf, SR, 100);
-  const v = new Float32Array(a.length), blk = SR, gains = [];
-  for (let s0 = 0; s0 < a.length; s0 += blk) { let ab = 0, bb = 0; for (let i = s0; i < Math.min(a.length, s0 + blk); i++) { const j = i - lag; if (j >= 0 && j < b.length) { ab += al[i] * bl[j]; bb += bl[j] * bl[j]; } } gains.push(bb > 1e-7 ? Math.max(0, Math.min(2, ab / bb)) : null); }
-  const okG = gains.filter(g => g != null), gAll = okG.length ? medArr(okG) : 1, gf = gains.map(g => g ?? gAll), gs = gf.map((g, i) => medArr(gf.slice(Math.max(0, i - 2), i + 3)));
-  for (let i = 0; i < a.length; i++) { const j = i - lag, bi = Math.floor(i / blk), f = (i % blk) / blk, g = gs[bi] * (1 - f) + (gs[Math.min(gs.length - 1, bi + 1)] ?? gs[bi]) * f; v[i] = a[i] - (j >= 0 && j < b.length ? g * b[j] : 0); }
-  // how much of the band was removed, measured where only the band plays (below 100 Hz)
-  let ea2 = 0, ev = 0; for (let i = 0; i < a.length; i += 2) { const j = i - lag, bi = Math.floor(i / blk), r = al[i] - (j >= 0 && j < bl.length ? gs[bi] * bl[j] : 0); ea2 += al[i] * al[i]; ev += r * r; }
+  // Subtract frequency by frequency, not sample by sample: two MP3s of the same mix never match wave for wave (the
+  // encoder shifts phases), but they match in how loud each frequency is at each moment. So for each short frame:
+  // his voice = the song's loudness at each frequency minus the instrumental's (level-matched per frequency), using the
+  // song's own phases to turn it back into sound.
+  const NF = 1024, Hh = 256, win = new Float32Array(NF); for (let i = 0; i < NF; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / NF);
+  const nf = Math.max(0, Math.floor((a.length - NF) / Hh)), K = NF / 2 + 1;
+  const fr = (x, off, re, im) => { for (let i = 0; i < NF; i++) { const j = i + off; re[i] = (j >= 0 && j < x.length ? x[j] : 0) * win[i]; im[i] = 0; } fftIn(re, im); };
+  // the exact offset: the one that leaves the least behind when the instrumental's loudness is taken from the song's,
+  // over the loudest 6 seconds (waveform matching can't be trusted between two MP3s)
+  { const r1 = new Float32Array(NF), i1 = new Float32Array(NF), r2 = new Float32Array(NF), i2 = new Float32Array(NF), f0 = Math.floor(w0 * H / Hh), fN = Math.min(nf - f0, Math.floor(6 * SR / Hh));
+    const mA = []; for (let f = f0; f < f0 + fN; f += 2) { fr(a, f * Hh, r1, i1); const m = new Float32Array(K); for (let k = 0; k < K; k++) m[k] = Math.hypot(r1[k], i1[k]); mA.push(m); }
+    const left = L => { let e = 0, q = 0; for (let f = f0; f < f0 + fN; f += 2, q++) { fr(b, f * Hh - L, r2, i2); const m = mA[q]; for (let k = 1; k < K; k++) { const d = m[k] - Math.hypot(r2[k], i2[k]); e += d * d; } } return e; };
+    const c0 = lag; let bestE = Infinity;
+    for (let L = c0 - 480; L <= c0 + 480; L += 16) { const e = left(L); if (e < bestE) { bestE = e; lag = L; } }
+    const c1 = lag; for (let L = c1 - 15; L <= c1 + 15; L += 3) { const e = left(L); if (e < bestE) { bestE = e; lag = L; } }
+    await new Promise(r => setTimeout(r, 0)); }
+  const magM = new Float32Array(nf * K), magI = new Float32Array(nf * K), phR = new Float32Array(nf * K), phI = new Float32Array(nf * K), re = new Float32Array(NF), im = new Float32Array(NF);
+  for (let f = 0; f < nf; f++) {
+    fr(a, f * Hh, re, im); for (let k = 0; k < K; k++) { const m = Math.hypot(re[k], im[k]); magM[f * K + k] = m; phR[f * K + k] = m > 0 ? re[k] / m : 1; phI[f * K + k] = m > 0 ? im[k] / m : 0; }
+    fr(b, f * Hh - lag, re, im); for (let k = 0; k < K; k++) magI[f * K + k] = Math.hypot(re[k], im[k]);
+    if (f % 2000 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  // level per frequency: the typical song/instrumental ratio where the instrumental is loud there (mostly band, little voice)
+  const g = new Float32Array(K), col = new Float32Array(nf);
+  for (let k = 0; k < K; k++) { for (let f = 0; f < nf; f++) col[f] = magI[f * K + k]; const srt = Float32Array.from(col).sort(), th = srt[Math.floor(nf * 0.7)] || 0, rs = [];
+    for (let f = 0; f < nf; f++) if (magI[f * K + k] > th && th > 0) rs.push(magM[f * K + k] / magI[f * K + k]); g[k] = rs.length ? Math.max(0.5, Math.min(2, medArr(rs))) : 1; }
+  const v = new Float32Array(a.length), ws = new Float32Array(a.length), fM = new Float64Array(nf), fV = new Float64Array(nf);
+  for (let f = 0; f < nf; f++) {
+    for (let k = 0; k < K; k++) { const i = f * K + k, mv = Math.max(0, magM[i] - 1.1 * g[k] * magI[i]); re[k] = mv * phR[i]; im[k] = mv * phI[i]; fM[f] += magM[i] * magM[i]; fV[f] += mv * mv; }
+    for (let k = 1; k < NF / 2; k++) { re[NF - k] = re[k]; im[NF - k] = -im[k]; }
+    for (let k = 0; k < NF; k++) im[k] = -im[k]; fftIn(re, im); // inverse by conjugation
+    for (let i = 0; i < NF; i++) { const j = f * Hh + i; if (j < v.length) { v[j] += re[i] / NF * win[i]; ws[j] += win[i] * win[i]; } }
+    if (f % 2000 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  for (let i = 0; i < v.length; i++) v[i] = ws[i] > 1e-3 ? v[i] / ws[i] : 0;
   const vb = ac.createBuffer(1, v.length, SR); vb.copyToChannel(v, 0);
-  return { vox: vb, lag: lag / SR, removedDb: Math.round(10 * Math.log10(ea2 / Math.max(1e-9, ev))), gain: Math.round(medArr(gs) * 100) / 100 };
+  // how much of the band was removed: in the moments where only the band plays (the tenth of loud frames with the least left)
+  const loud = [...fM].sort((x, y) => x - y)[Math.floor(nf * 0.5)] || 0, rat = []; for (let f = 0; f < nf; f++) if (fM[f] >= loud) rat.push(fV[f] / fM[f]); rat.sort((x, y) => x - y);
+  const q = rat.slice(0, Math.max(1, Math.floor(rat.length / 10)));
+  return { vox: vb, lag: lag / SR, removedDb: Math.round(-10 * Math.log10(Math.max(1e-9, mean(q)))), gain: Math.round(medArr(Array.from(g)) * 100) / 100 };
 }
-async function proAddInstrumental(file) {
-  if (!PRO.mix) { toast('Load the full song first, then add its instrumental.'); return; }
-  await ensureAudio(); const out = $('#proOut'); out.textContent = ''; const msg = el('p', 'pro-msg', 'Reading the instrumental…'); out.appendChild(msg);
-  let ib; try { ib = await ac.decodeAudioData(await file.arrayBuffer()); } catch (e) { msg.textContent = 'This file couldn’t be opened. Try an MP3, M4A or WAV file.'; return; }
-  const iso = await proIsolate(PRO.mix, ib, t => { msg.textContent = t + '…'; });
-  PRO.inst = ib; PRO.vox = iso.vox; PRO.instLag = iso.lag; PRO.iso = iso;
-  const an = await proAnalyze(PRO.vox, (f, label) => { msg.textContent = (label || 'Pass 1 of 3: learning the song') + ' from his voice alone… ' + Math.round(f * 100) + '%'; }, proInfo(PRO.name), PRO.mix);
-  an.name = PRO.name; an.kind = PRO.kind; an.isolated = true; PRO.an = an; an.known = KNOWN_SONGS.find(k => k.match.test(PRO.name)) || null;
-  const ww = (store.proWords || {})['pro:' + an.name]; if (ww && proInfo(an.name).auto) { delete store.proWords['pro:' + an.name]; } proPlaceWords(an);
-  if (an.notes.length < 4) { msg.textContent = 'The instrumental didn’t line up with this song. Make sure it’s the instrumental of the same recording.'; return; }
-  proRender(); toast('His voice is separated from the band');
+// in-place radix-2 FFT (length a power of two)
+function fftIn(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let len = 2; len <= n; len <<= 1) { const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) { let cr = 1, ci = 0; for (let k = 0; k < len / 2; k++) { const p = i + k, q = p + len / 2, xr = re[q] * cr - im[q] * ci, xi = re[q] * ci + im[q] * cr; re[q] = re[p] - xr; im[q] = im[p] - xi; re[p] += xr; im[p] += xi; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } } }
 }
 // ---------- Song details you can give: key, tempo, swing, and the words ----------
 // When you know them (from the artist's page, a songbook, a chord sheet), the app trusts them instead of guessing.
@@ -6265,7 +6334,7 @@ function proWordsToNotes(an) {
 function lyricShow(box, an, t) {
   if (!box) return; const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next'), esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const L = an._al ? an._al.lyr : null;
-  if (!L || !L.length) { now.innerHTML = '<span class="muted">' + (an._noWords ? '♪ The words appear once I can hear exactly where he sings: add the instrumental below.' : '♪') + '</span>'; next.textContent = ''; return; }
+  if (!L || !L.length) { now.innerHTML = '<span class="muted">' + (an._noWords ? '♪ No words here: they only show where I can hear exactly where he sings.' : !proInfo(an.name).lyrics && an.kind === 'lib' ? '♪ Notes only for now: the words for this song are coming.' : '♪') + '</span>'; next.textContent = ''; return; }
   let li = L.findIndex(l => t >= l.t0 && t <= l.t1); if (li < 0) li = L.findIndex(l => t >= l.t0 - 0.8 && t < l.t0); if (li < 0) li = L.findIndex(l => t > l.t1 && t <= l.t1 + 0.4);
   if (t < L[0].t0 - 0.8) now.innerHTML = '<span class="muted">♪ Intro: the words start when he sings' + (box.dataset.hint ? '. Tap 👆 when his voice comes in.' : '') + '</span>';
   else if (li < 0) now.innerHTML = '<span class="muted">♪</span>';
