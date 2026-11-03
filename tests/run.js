@@ -988,6 +988,37 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20 && sing.whole && Math.abs(sing.range[1] - sing.dur) < 0.01 && sing.past.busy, JSON.stringify({ before, mid, later, sing }));
   });
 
+  await test('Leaving and coming back: the screen is kept on while a song plays (Play or Sing along); switching away stops the song cleanly and remembers the spot; Play (and Sing along) carries on from there even after the device paused the sound', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => {
+      window.wakeCalls = 0; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => { wakeCalls++; const l = new EventTarget(); l.release = async () => {}; return l; } } });
+      window.vis = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => vis });
+      store.proInfo = { 'Away test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Away test', 'file', await makeProSong({ repeat: true, noVoice: true })); });
+    const away = async () => page.evaluate(async () => { vis = 'hidden'; document.dispatchEvent(new Event('visibilitychange')); await ac.suspend(); });
+    const back = async () => page.evaluate(() => { vis = 'visible'; document.dispatchEvent(new Event('visibilitychange')); });
+    await page.click('#proPlay'); await page.waitForTimeout(3000);
+    const playing = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, wake: wakeCalls, lock: !!WAKE.lock }));
+    await away(); await page.waitForTimeout(1500);
+    const gone = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, state: ac.state, btn: $('#proPlay').textContent }));
+    await back(); await page.waitForTimeout(200);
+    const toastTxt = await page.evaluate(() => $('#toast').textContent);
+    await page.click('#proPlay'); await page.waitForTimeout(1500);
+    const again = await page.evaluate(() => ({ playing: PRO.playing, off: PRO.off, state: ac.state }));
+    await page.click('#proPlay');
+    // the same in sing along
+    await page.click('[data-act="singalong"]'); await page.waitForTimeout(4000);
+    const s1 = await page.evaluate(() => ({ busy: ST.busy, off: PRO.off }));
+    await away(); await page.waitForTimeout(1200);
+    const s2 = await page.evaluate(() => ({ busy: ST.busy, off: PRO.off }));
+    await back(); await page.click('[data-act="singalong"]'); await page.waitForTimeout(2500);
+    const s3 = await page.evaluate(() => ({ busy: ST.busy, off: PRO.off, state: ac.state })); await page.evaluate(() => stHalt());
+    expect(playing.playing && playing.wake >= 1 && playing.lock && !gone.playing && Math.abs(gone.off - playing.off) < 0.6 && /Play/.test(gone.btn) && /Paused at/.test(toastTxt)
+      && again.playing && again.state === 'running' && again.off > gone.off + 0.8
+      && s1.busy && !s2.busy && Math.abs(s2.off - s1.off) < 0.6 && s3.busy && s3.state === 'running' && s3.off > s2.off - 3 && s3.off < s2.off + 4, JSON.stringify({ playing, gone, toastTxt, again, s1, s2, s3 }));
+  });
+
   await test('Sing along without headphones, and coach mode: the song leaking from the speaker into the mic draws nothing while you are silent; your own voice still counts; Sing along plays to the end; with Coach me on, a weak line stops the song with its score, a tip and a retry, then Back to the song carries on', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
