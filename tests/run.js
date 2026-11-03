@@ -1050,6 +1050,34 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && s1.busy && !s2.busy && Math.abs(s2.off - s1.off) < 0.6 && s3.busy && s3.state === 'running' && s3.off > s2.off - 3 && s3.off < s2.off + 4, JSON.stringify({ playing, gone, toastTxt, again, s1, s2, s3 }));
   });
 
+  await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.proInfo = { 'Speed test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Speed test', 'file', await makeProSong({ repeat: true, noVoice: true }));
+      window.sing = 'off'; setInterval(() => {
+        if (LS.phase === 'turn' && LS.cap && LS.cap.line) { const l = LS.cap.line, t = l.t0 + (ac.currentTime - LS.cap.start) * (LS.cap.rate || 1), n = PRO.an.notes.find(x => t >= x.b0 && t <= x.b1 - 0.04); V.on = !!n && sing !== 'off'; if (n) V.m = n.midi; return; }
+        V.on = false; }, 15); });
+    const before = await page.evaluate(() => ({ normalHidden: $('#speedNormal').hidden, val: $('#speedVal').textContent, steps: +$('#speedSlider').max + 1, step: $('#speedSlider').step, mid: $('#speedSlider').value === String(+$('#speedSlider').max / 2) }));
+    await page.evaluate(() => { const s = $('#speedSlider'); s.value = '3'; s.dispatchEvent(new Event('input')); s.dispatchEvent(new Event('change')); });
+    await page.waitForFunction(() => PRO.speed === 0.8 && !PRO.slowing && $('#speedVal').textContent.includes('80%'), null, { timeout: 30000 });
+    const set = await page.evaluate(() => ({ speed: PRO.speed, val: $('#speedVal').textContent, normal: !$('#speedNormal').hidden }));
+    // the same note, measured in the original and in the slowed copy: same pitch
+    const pitch = await page.evaluate(() => { const n = PRO.an.notes.find(x => x.t1 - x.t0 > 0.5) || PRO.an.notes[3], tm = (n.t0 + n.t1) / 2, sl = speedGet(PRO.buf, 0.8);
+      const f0 = (b, t) => { const x = b.getChannelData(0), i0 = Math.floor(t * b.sampleRate), N = 4096, r = L => { let s = 0, e1 = 0, e2 = 0; for (let i = 0; i < N; i += 2) { s += x[i0 + i] * x[i0 + i + L]; e1 += x[i0 + i] ** 2; e2 += x[i0 + i + L] ** 2; } return s / Math.sqrt(e1 * e2 + 1e-12); }; let dip = false; for (let L = 30; L < 1200; L++) { const v = r(L); if (v < 0.3) dip = true; if (dip && v > 0.85 && v >= r(L + 1)) return b.sampleRate / L; } return 0; };
+      const a = f0(PRO.buf, tm), b = f0(sl, tm / 0.8); return { a: Math.round(a), b: Math.round(b), cents: Math.round(1200 * Math.log2(b / a)), lenRatio: +(sl.duration / PRO.buf.duration).toFixed(3) }; });
+    await page.evaluate(() => { PRO.off = 2; }); await page.click('#proPlay'); await page.waitForTimeout(500); const p0 = await page.evaluate(() => PRO.off); await page.waitForTimeout(3000); const p1 = await page.evaluate(() => PRO.off); await page.click('#proPlay');
+    // sing alone at 80%: you sing at that pace, and it's scored as right
+    await page.click('[data-act="coach"]'); await page.evaluate(() => { sing = 'right'; }); await page.click('[data-act="coach-own"]');
+    await page.waitForFunction(() => !ST.busy && $('#proBar #stRes .ls-big'), null, { timeout: 60000 });
+    const own = await page.evaluate(() => +$('#stRes .ls-big').textContent); await page.click('[data-act="coach-done"]');
+    await page.click('#speedNormal'); await page.waitForTimeout(200);
+    const back = await page.evaluate(() => ({ speed: PRO.speed, val: $('#speedVal').textContent, normalHidden: $('#speedNormal').hidden, slider: $('#speedSlider').value }));
+    expect(before.normalHidden && /Normal/.test(before.val) && before.steps === 11 && before.step === '1' && before.mid && set.speed === 0.8 && /80%/.test(set.val) && set.normal
+      && Math.abs(pitch.cents) <= 30 && Math.abs(pitch.lenRatio - 1.25) < 0.02 && Math.abs((p1 - p0) / 3 - 0.8) < 0.08 && own >= 60
+      && back.speed === 1 && /Normal/.test(back.val) && back.normalHidden && back.slider === '5', JSON.stringify({ before, set, pitch, rate: (p1 - p0) / 3, own, back }));
+  });
+
   await test('Coach mode, one line at a time in the main view: Coach turns the bar into the coach (line, Hear him, Sing with him, On my own, Done); the score and one tip show under the words; Again, then Next line when it goes well; Done brings everything back', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });

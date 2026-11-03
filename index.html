@@ -524,6 +524,8 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-bar.coaching .coach-box { display: block; margin-top: 4px; } .pro-bar.coaching .pro-head button, .pro-bar.coaching .pro-transport { display: none; }
 .coach-lbl { flex: 1 1 auto; font-size: .95rem; } .coach-row button { padding: 6px 10px; font-size: .92rem; } .coach-box .ls-live { margin: 2px 0; }
 .coach-box .ls-score { margin: 2px 0 0; } .coach-box .ls-big { font-size: 1.6rem; } .coach-box .ls-tip { margin: 2px 0 4px; font-size: .95rem; } .coach-box .row button { padding: 6px 12px; }
+.speed-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; } .speed-row input[type=range] { flex: 1 1 100px; max-width: 180px; }
+.speed-val { font-size: .88rem; cursor: pointer; white-space: nowrap; } .speed-row.off-normal .speed-val { font-weight: 700; color: #b8641a; } .speed-normal { background: color-mix(in srgb, #f0973a 18%, var(--surface)); }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
 .pro-bar .pro-head { gap: 6px; } .pro-bar .pro-head button { padding: 7px 12px; } .pro-bar .pro-name { flex: 1 1 100%; font-size: 1rem; }
 .pro-bar .pro-transport button { padding: 5px 9px; font-size: .9rem; } .pro-bar .pro-lyrics { margin: 6px 0 0; }
@@ -961,7 +963,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · simple coach</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · speed control</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6063,7 +6065,7 @@ async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   return { env: rmsA, onsets, envHop: HOP / SR, pass2, passes, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: fine.tuneSrc === 'band' ? fine.bandTune : Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
-  const an = PRO.an, out = $('#proOut'); out.textContent = ''; PRO.coach = false;
+  const an = PRO.an, out = $('#proOut'); out.textContent = ''; PRO.coach = false; if (PRO.slowFor !== PRO.buf) { PRO.slow = new Map(); PRO.slowFor = PRO.buf; PRO.speed = 1; }
   proWordsToNotes(an); PRO.fitAll = true; PRO.bigWords = true;
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
   // the words above the graph while it plays, and Sing along right next to Play
@@ -6096,6 +6098,13 @@ function proRender() {
   cm('▶ Hear him', 'coach-hear', () => stListen()); cm('🎤 Sing with him', 'coach-with', () => stAlong(), 'primary'); cm('🎤 Sing alone', 'coach-own', () => stTurn());
   const cbox = el('div', 'coach-box'); cbox.id = 'coachBox';
   bar.insertBefore(cr, lyr); bar.appendChild(cbox);
+  const sr = el('div', 'speed-row'); sr.id = 'speedRow'; const sl = el('input'); sl.type = 'range'; sl.min = '0'; sl.max = String(SPEEDS.length - 1); sl.step = '1'; sl.id = 'speedSlider';
+  sl.setAttribute('aria-label', 'Speed'); sl.setAttribute('list', 'speedTicks'); const dl = el('datalist'); dl.id = 'speedTicks'; SPEEDS.forEach((x, i) => { const o = el('option'); o.value = String(i); dl.appendChild(o); });
+  sl.oninput = () => { const v = $('#speedVal'); if (v) v.textContent = (SPEEDS[+sl.value] === 1 ? 'Normal speed' : Math.round(SPEEDS[+sl.value] * 100) + '%'); };
+  sl.onchange = () => setSpeed(SPEEDS[+sl.value]);
+  const nb = el('button', 'small speed-normal', '↺ Normal'); nb.id = 'speedNormal'; nb.dataset.act = 'speed-normal'; nb.onclick = () => setSpeed(1);
+  const sv = el('span', 'speed-val', ''); sv.id = 'speedVal'; sv.onclick = () => setSpeed(1);
+  sr.append(el('span', 'speed-ic', '🐢'), sl, el('span', 'speed-ic', '🐇'), sv, nb, dl); bar.insertBefore(sr, lyr); speedUI();
   // the Sing along button tells you what it will do: sing along, pause, or resume
   clearInterval(PRO.uiIv); PRO.uiIv = setInterval(() => { if (!sing.isConnected) return clearInterval(PRO.uiIv);
     const t = ST.busy && ST.whole ? '❚❚ Pause' : ST.paused != null ? '▶ Resume singing' : '🎤 Sing along'; if (sing.textContent !== t) sing.textContent = t;
@@ -6126,7 +6135,7 @@ function rollStop(R) { R.playing = false; cancelAnimationFrame(R.raf); if (R.src
 function rollMount(R, out, o) {
   Object.assign(R, { off: 0, view: 0, sel: -1, playing: false, drag: null });
   const head = el('div', 'pro-head'); head.append(el('b', 'pro-name', o.title));
-  const play = el('button', 'primary', '▶ Play'); play.id = o.idp + 'Play'; play.onclick = async () => { if (R.playing) return rollStop(R); await ensureAudio(); rollPlay(R); keepAwake(); wakeCheck(); }; R.play = play;
+  const play = el('button', 'primary', '▶ Play'); play.id = o.idp + 'Play'; play.onclick = async () => { if (R.playing) return rollStop(R); await ensureAudio(); if (R === PRO && PRO.speed !== 1) await speedPrep(R.buf, PRO.speed); rollPlay(R); keepAwake(); wakeCheck(); }; R.play = play;
   if (o.noAudio) { play.disabled = true; play.textContent = o.noAudio; }
   const back = el('button', 'small', '⟲ Start'); back.title = 'From the start'; back.onclick = () => { const was = R.playing; rollStop(R); R.off = 0; R.view = 0; rollDraw(R); if (was) rollPlay(R); };
   head.append(play, back); out.appendChild(head);
@@ -6142,18 +6151,19 @@ function rollMount(R, out, o) {
 const rollSpan = R => R.cv ? Math.max(2, (R.cv.clientWidth - ROLL_L) / ROLL_PX) : 8;
 function rollPlay(R) {
   if (!R.buf) return; rollStop(R); wakeVideoOff();
-  const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = R.buf; g.gain.value = R.gain || 0.9; src.connect(g); g.connect(ac.destination);
+  const r = R === PRO ? PRO.speed || 1 : 1, sb = r !== 1 ? speedGet(R.buf, r) : R.buf; if (!sb) return;   // slowed copies are made beforehand (speedPrep)
+  const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = sb; g.gain.value = R.gain || 0.9; src.connect(g); g.connect(ac.destination);
   if (R.off >= R.an.dur - 0.05) R.off = 0;
   const ao = R.off + (R.audioOff || 0);
-  if (ao >= 0) src.start(0, ao); else src.start(ac.currentTime - ao, 0);
-  R.src = src; R.t0 = ac.currentTime - R.off; R.playing = true; R.play.textContent = '❚❚ Pause';
-  src.onended = () => { if (R.src === src) { const at = ac.currentTime - R.t0; if (at < R.an.dur - 1) diag('The music stopped at ' + fmt(at) + ' before the end (sound ' + ac.state + ')'); R.off = Math.min(R.an.dur, at); rollStop(R); rollDraw(R); } };
+  if (ao >= 0) src.start(0, ao / r); else src.start(ac.currentTime - ao / r, 0);
+  R.src = src; R.t0 = ac.currentTime; R.base = R.off; R.rate = r; R.playing = true; R.play.textContent = '❚❚ Pause';
+  src.onended = () => { if (R.src === src) { const at = R.base + (ac.currentTime - R.t0) * r; if (at < R.an.dur - 1) diag('The music stopped at ' + fmt(at) + ' before the end (sound ' + ac.state + ')'); R.off = Math.min(R.an.dur, at); rollStop(R); rollDraw(R); } };
   const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0);
   // the graph's loop never dies: the next frame is booked first, and any error is caught and shown, not fatal
   let lastCt = -1, lastWall = performance.now();
   const loop = () => { if (!R.playing) return; R.raf = requestAnimationFrame(loop);
     try {
-      const t = ac.currentTime - R.t0 - lat; if (t > R.an.dur + 0.5) { rollStop(R); return; }
+      const t = R.base + (ac.currentTime - R.t0 - lat) * r; if (t > R.an.dur + 0.5) { rollStop(R); return; }
       // the device paused the sound (the clock stopped): say so and try to carry on
       if (ac.currentTime !== lastCt) { lastCt = ac.currentTime; lastWall = performance.now(); } else if (performance.now() - lastWall > 1500) { lastWall = performance.now(); diag('The device paused the sound (' + ac.state + '). Trying to carry on…'); ac.resume().catch(() => {}); }
       R.off = t; const sp = rollSpan(R); if (R.drag && !R.drag.moved && performance.now() - R.drag.at > 600) R.drag = null; if (!R.drag) R.view = Math.max(0, t - sp * 0.3);
@@ -6510,16 +6520,17 @@ function stGo(k) {
 function stHalt() { lsStop(); rollStop(PRO); ST.setBusy && ST.setBusy(false); }
 const stRange = () => { const l = stLines()[ST.k]; return ST.whole ? [ST.from || 0, PRO.an.dur] : [l.t0, l.t1]; };
 // play the recording between a and b with the playhead and the words; your voice can be captured at the same time
-function stPlay(a, b, o = {}) {
+async function stPlay(a, b, o = {}) {
   wakeVideoOff();
   const buf = o.band && PRO.inst ? PRO.inst : ST.alone && PRO.vox ? PRO.vox : PRO.mix || PRO.buf, lag = buf === PRO.inst ? (PRO.instLag || 0) : 0, gain = buf === PRO.vox ? 2 : 0.9;
+  const r = PRO.speed || 1, gen = LS.gen, sb = r !== 1 ? await speedPrep(buf, r) : buf; if (!sb || LS.gen !== gen) return null;
   return lsWait(fin => {
-    const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = buf; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
+    const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = sb; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
     const tap = ac.createAnalyser(); tap.fftSize = 2048; g.connect(tap); ST.tap = tap; ST.tapBuf = new Float32Array(tap.fftSize); ST.playHist = [];
-    const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag), b - from + 0.4); LS.src = src;
+    const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag) / r, (b - from + 0.4) / r); LS.src = src;
     const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0), lyr = $('#proLyric');
     const iv = setInterval(() => {
-      const t = from + (ac.currentTime - t0) - lat; if (t > b + 0.3) { clearInterval(iv); fin(true); return; }
+      const t = from + (ac.currentTime - t0 - lat) * r; if (t > b + 0.3) { clearInterval(iv); fin(true); return; }
       try { PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t); if (o.capture) { stPlayLevel(); o.capture(t); } rollDraw(PRO); } catch (e) { diag(e, 'practice'); }
     }, 20);
     LS.pending.push(() => clearInterval(iv));
@@ -6563,11 +6574,11 @@ async function stTurn() {
   stClearLine(l); live.textContent = '🔊 His line…';
   if (!(await stPlay(l.t0, l.t1, { lead: 0.4 })) || gone()) return;
   // two clicks on the beat, then your turn: the playhead runs over his bars again, silently, and draws you
-  for (let k = 0; k < 2; k++) click(0.15 + k * beat, k === 0);
-  const start = ac.currentTime + 0.15 + 2 * beat, dur = l.t1 - l.t0 + 0.6; LS.phase = 'turn'; LS.cap = { line: l, start }; LS.start = start;
+  const r = PRO.speed || 1; for (let k = 0; k < 2; k++) click(0.15 + k * beat / r, k === 0);
+  const start = ac.currentTime + 0.15 + 2 * beat / r, dur = (l.t1 - l.t0 + 0.6) / r; LS.phase = 'turn'; LS.cap = { line: l, start, rate: r }; LS.start = start;
   const ok = await lsWait(fin => { const iv = setInterval(() => {
-    const tt = ac.currentTime - start; if (tt < 0) { live.textContent = 'Your turn in ' + Math.ceil(-tt / beat) + '…'; return; }
-    const t = l.t0 + tt; stCapture(t); PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow($('#proLyric'), PRO.an, t); rollDraw(PRO);
+    const tt = ac.currentTime - start; if (tt < 0) { live.textContent = 'Your turn in ' + Math.ceil(-tt * r / beat) + '…'; return; }
+    const t = l.t0 + tt * r; stCapture(t); PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow($('#proLyric'), PRO.an, t); rollDraw(PRO);
     live.textContent = '🎤 Sing or hum it now';
     if (tt > dur) { clearInterval(iv); LS.phase = 'idle'; fin(true); } }, 20); LS.pending.push(() => { clearInterval(iv); LS.phase = 'idle'; }); });
   if (!ok || gone()) return; ST.setBusy(false); stScore(l, 'turn');
@@ -6613,6 +6624,58 @@ function proSeek(t, sing) {
   if (ST.paused != null) ST.paused = t;
   if (PRO.playing) { rollStop(PRO); PRO.off = t; rollPlay(PRO); return; }
   PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); rollDraw(PRO); lyricShow($('#proLyric'), PRO.an, t + 0.01);
+}
+// ---------- Speed: slower (or faster) without changing the notes ----------
+// Playing a recording slower lowers its pitch, which would teach the wrong notes. So a slowed copy is made that keeps every
+// note on pitch (WSOLA: overlapping 46 ms slices laid out further apart, each nudged up to ±12 ms to where it lines up best
+// with the one before, so the waveform joins smoothly). Made once per speed and kept. Only set steps, so 97% can't happen.
+const SPEEDS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];   // Normal sits in the middle
+PRO.speed = 1; PRO.slow = new Map();
+const speedKey = (buf, r) => { if (!buf._sid) buf._sid = Math.random().toString(36).slice(2); return buf._sid + '|' + r; };
+function speedGet(buf, r) { return r === 1 ? buf : PRO.slow.get(speedKey(buf, r)) || null; }
+async function speedPrep(buf, r, onProg = speedShowProg) {
+  if (r === 1) return buf; const key = speedKey(buf, r); if (PRO.slow.has(key)) return PRO.slow.get(key);
+  if (PRO.slowing && PRO.slowing.key === key) return PRO.slowing.p;
+  const p = stretch(buf, r, onProg).then(o => { PRO.slow.set(key, o); PRO.slowing = null; onProg(1); return o; }); PRO.slowing = { key, p }; return p;
+}
+async function stretch(buf, r, onProg) {
+  const SR = buf.sampleRate, N = 2048, Hs = 512, Ha = Hs * r, tol = 512, ch = buf.numberOfChannels, len = buf.length;
+  const X = []; for (let c = 0; c < ch; c++) X.push(buf.getChannelData(c));
+  const D = 8, gl = Math.floor(len / D), guide = new Float32Array(gl); for (let i = 0; i < gl; i++) { let v = 0; for (let c = 0; c < ch; c++) v += X[c][i * D]; guide[i] = v; }
+  const outLen = Math.ceil(len / r) + N, out = ac.createBuffer(ch, outLen, SR), Y = []; for (let c = 0; c < ch; c++) Y.push(out.getChannelData(c));
+  const wsum = new Float32Array(outLen), w = new Float32Array(N); for (let i = 0; i < N; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+  const frames = Math.floor((outLen - N) / Hs); let delta = 0;
+  for (let k = 0; k < frames; k++) {
+    const nom = Math.round(k * Ha), at = Math.max(0, Math.min(len - N, nom + delta)), o = k * Hs;
+    if (nom >= len) break;
+    for (let c = 0; c < ch; c++) { const x = X[c], y = Y[c]; for (let i = 0; i < N; i++) y[o + i] += x[at + i] * w[i]; }
+    for (let i = 0; i < N; i++) wsum[o + i] += w[i];
+    // where the next slice should start: the one that best continues this one (natural continuation = at + Hs)
+    const nat = at + Hs, nxt = Math.round((k + 1) * Ha), L = (N / 2) / D; let best = -Infinity, bd = 0;
+    for (let d = -tol; d <= tol; d += D) { const st = nxt + d; if (st < 0 || st + N > len) continue; let sum = 0; const a0 = Math.floor(nat / D), b0 = Math.floor(st / D);
+      for (let i = 0; i < L; i++) sum += guide[a0 + i] * guide[b0 + i]; if (sum > best) { best = sum; bd = d; } }
+    let best2 = -Infinity, bd2 = bd; const x0 = X[0];
+    for (let d = bd - D; d <= bd + D; d++) { const st = nxt + d; if (st < 0 || st + N > len) continue; let sum = 0; for (let i = 0; i < 512; i += 2) sum += x0[nat + i] * x0[st + i]; if (sum > best2) { best2 = sum; bd2 = d; } }
+    delta = bd2;
+    if (k % 800 === 0) { onProg(k / frames); await new Promise(rs => setTimeout(rs, 0)); }
+  }
+  for (let c = 0; c < ch; c++) { const y = Y[c]; for (let i = 0; i < outLen; i++) if (wsum[i] > 1e-3) y[i] /= wsum[i]; }
+  return out;
+}
+function speedShowProg(f) { const e = $('#speedVal'); if (e) e.textContent = f >= 1 ? speedLabel() : 'Slowing… ' + Math.round(f * 100) + '%'; }
+const speedLabel = () => PRO.speed === 1 ? 'Normal speed' : Math.round(PRO.speed * 100) + '% speed';
+// change speed: whatever was playing carries on from the same spot at the new speed
+async function setSpeed(r) {
+  if (r === PRO.speed) return; const was = PRO.playing ? 'play' : ST.busy && ST.whole ? 'along' : ST.busy ? 'line' : null, at = PRO.off;
+  if (was) { rollStop(PRO); stHalt(); }
+  PRO.speed = r; speedUI();
+  if (r !== 1) await speedPrep(PRO.buf, r);
+  if (was === 'play') { PRO.off = at; rollPlay(PRO); } else if (was === 'along') proSeek(at, true);
+  speedUI();
+}
+function speedUI() {
+  const i = SPEEDS.indexOf(PRO.speed), sl = $('#speedSlider'), v = $('#speedVal'), n = $('#speedNormal'), row = $('#speedRow');
+  if (sl) sl.value = String(i); if (v && !PRO.slowing) v.textContent = speedLabel(); if (n) n.hidden = PRO.speed === 1; if (row) row.classList.toggle('off-normal', PRO.speed !== 1);
 }
 function stClearLine(l) { if (!ST.show) stShowReset(); const an = PRO.an; for (let i = Math.max(0, Math.floor((l.t0 - 0.5 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 + 0.6 - an.t0f) / an.hop)); i++) ST.user[i] = null; l.idx.forEach(i => { delete ST.show.notes[i].hit; ST.show.notes[i].c = 0; }); }
 // how a line went: per note (any octave), timing, starts, vibrato; marks each bar
