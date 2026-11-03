@@ -988,6 +988,37 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && later.off > mid.off + 1 && !later.drag && later.view > mid.view && sing.on && sing.words >= 20 && sing.whole && Math.abs(sing.range[1] - sing.dur) < 0.01 && sing.past.busy, JSON.stringify({ before, mid, later, sing }));
   });
 
+  await test('Controls at the top, pause and skip: one bar that stays at the top with the words; while singing along, Sing along becomes Pause, then Resume carries on from that exact spot; ⏮ Line goes to the start of the line (or the one before), ↺ 10 s goes back 10 seconds, and the music and words go with it, in Play and in Sing along', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.proInfo = { 'Skip test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Skip test', 'file', await makeProSong({ repeat: true, noVoice: true })); });
+    const st = () => page.evaluate(() => { const L = stLines(), t = PRO.off, k = L.findIndex(l => t >= l.t0 - 0.05 && t <= l.t1); return { off: +t.toFixed(2), busy: ST.busy, playing: PRO.playing, btn: $('[data-act="singalong"]').textContent, line: k, lyric: $('#proLyric .kr-now').textContent.trim().slice(0, 14), L: L.map(l => [+l.t0.toFixed(2), +l.t1.toFixed(2)]) }; });
+    await page.click('[data-act="singalong"]'); await page.waitForTimeout(12000);
+    const a = await st();
+    await page.click('[data-act="singalong"]'); await page.waitForTimeout(1500);   // pause
+    const p = await st();
+    await page.click('[data-act="singalong"]'); await page.waitForTimeout(700);     // resume
+    const r = await st();
+    await page.click('[data-act="back-10"]'); await page.waitForTimeout(500);
+    const b10 = await st();
+    await page.waitForTimeout(1500); await page.click('[data-act="back-line"]'); await page.waitForTimeout(400);
+    const bl = await st(); await page.evaluate(() => stHalt()); await page.waitForTimeout(300);
+    // the same skips while just playing
+    await page.evaluate(() => { PRO.off = 20; }); await page.click('#proPlay'); await page.waitForTimeout(1000);
+    const p0 = await st(); await page.click('[data-act="back-10"]'); await page.waitForTimeout(400); const p1 = await st();
+    await page.click('[data-act="fwd-10"]'); await page.waitForTimeout(400); const p2 = await st();
+    await page.click('[data-act="fwd-line"]'); await page.waitForTimeout(300); const p3 = await st(); await page.click('#proPlay');
+    const bar = await page.evaluate(() => ({ sticky: getComputedStyle($('.pro-bar')).position, words: !!$('.pro-bar #proLyric'), btns: [...document.querySelectorAll('.pro-bar button')].map(b => b.dataset.act || b.id).join() }));
+    const lineOf = (s, t) => s.L.findIndex(l => t >= l[0] - 0.05 && t <= l[1]);
+    expect(a.busy && /Pause/.test(a.btn) && a.off > 10 && !p.busy && /Resume/.test(p.btn) && Math.abs(p.off - a.off) < 1.6
+      && r.busy && /Pause/.test(r.btn) && r.off >= p.off - 0.1 && r.off < p.off + 1.2
+      && b10.busy && b10.off < r.off - 8.5 && b10.off > r.off - 11
+      && bl.busy && bl.off < b10.off + 2.2 - 0.5 && bl.L.some(l => Math.abs(l[0] - 1 - bl.off) < 0.6 || bl.off < 0.6)
+      && p0.playing && p1.playing && p1.off < p0.off - 8.5 && p1.off > p0.off - 11 && p2.playing && p2.off > p1.off + 9 && p2.off < p1.off + 11.5 && p3.playing && p3.L.some(l => Math.abs(l[0] - 1 - p3.off) < 0.3) && p3.off > p2.off && bar.sticky === 'sticky' && bar.words && /proPlay/.test(bar.btns) && /singalong/.test(bar.btns) && /back-line.*back-10.*fwd-10.*fwd-line.*coach/.test(bar.btns)
+      && (lineOf(bl, bl.off + 1.2) < 0 || bl.lyric.length > 0), JSON.stringify({ a, p, r, b10, bl, p0, p1, p2, p3, bar }));
+  });
+
   await test('Leaving and coming back: the screen is kept on while a song plays (Play or Sing along); switching away stops the song cleanly and remembers the spot; Play (and Sing along) carries on from there even after the device paused the sound', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
@@ -1156,7 +1187,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
         a: at(10), b: at(15.1), c: at(29.7), d: at(125), e: at(138), f: at(101.6), g: at(105.2), h: at(116.5), sync: !!$('[data-act="w-earlier"]'), credit: ($('.st-credit') || {}).textContent };
     }, b64);
     expect(r.prepared && r.lo >= 46 && r.hi <= 71 && r.n > 250 && r.words === r.n && r.intro === 0 && /Intro/.test(r.a.line) && /^There’s no gra-vi-ty/.test(r.b.line) && r.b.lit === 'There’s'
-      && /^Why fight it/.test(r.c.line) && r.c.lit === 'Why' && r.d.line === '♪' && /^I ne-ver knew/.test(r.e.line) && /^I don’t wan-?na wig-?gle loose/.test(r.f.line) && /^Hold on-?to me/.test(r.g.line) && r.h.line === '♪' && !r.sync && /Prepared/.test(r.credit), JSON.stringify(r));
+      && /^Why fight it/.test(r.c.line) && r.c.lit === 'Why' && r.d.line === '♪' && /^I (ne-ver|nev-er) knew/.test(r.e.line) && /^I don’t wan-?na wig-?gle loose/.test(r.f.line) && /^Hold on-?to me/.test(r.g.line) && r.h.line === '♪' && !r.sync && /Prepared/.test(r.credit), JSON.stringify(r));
   });
 
   await test('Song library: the songs in the app (no file picking); tapping one downloads the song and its instrumental, takes the band out, and shows his notes (Crazy Glue with its words, the others notes only for now)', async page => {

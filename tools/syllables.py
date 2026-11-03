@@ -16,7 +16,7 @@ EXCEPT = {'dandelions': 'dan-de-li-ons', 'realized': 're-a-lized', 'diamond': 'd
           'brighter': 'bright-er', 'skimming': 'skim-ming', 'skipping': 'skip-ping', 'waiting': 'wait-ing', 'singing': 'sing-ing',
           'dancing': 'danc-ing', 'living': 'liv-ing', 'shining': 'shin-ing', 'holding': 'hold-ing', 'sleeping': 'sleep-ing',
           'breaking': 'break-ing', 'clawing': 'claw-ing', 'kicking': 'kick-ing', 'heading': 'head-ing', 'buried': 'bur-ied',
-          'naked': 'na-ked', 'falling': 'fall-ing', 'master': 'mas-ter', 'disaster': 'di-sas-ter', 'middle': 'mid-dle',
+          'naked': 'na-ked', 'falling': 'fall-ing', 'master': 'mas-ter', 'disaster': 'di-sas-ter', 'middle': 'mid-dle', 'little': 'lit-tle', 'bubble': 'bub-ble', 'simple': 'sim-ple', 'gentle': 'gen-tle',
           'vanish': 'van-ish', 'corner': 'cor-ner', 'silent': 'si-lent', 'really': 'real-ly', 'again': 'a-gain', 'without': 'with-out',
           'twenty': 'twen-ty', 'seconds': 'sec-onds', 'fleeting': 'fleet-ing', 'mistake': 'mis-take', 'awake': 'a-wake',
           'paper': 'pa-per', 'email': 'e-mail', 'later': 'la-ter', 'boring': 'bor-ing', 'grounded': 'ground-ed', 'sitting': 'sit-ting',
