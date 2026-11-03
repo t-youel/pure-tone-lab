@@ -1050,10 +1050,40 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && s1.busy && !s2.busy && Math.abs(s2.off - s1.off) < 0.6 && s3.busy && s3.state === 'running' && s3.off > s2.off - 3 && s3.off < s2.off + 4, JSON.stringify({ playing, gone, toastTxt, again, s1, s2, s3 }));
   });
 
-  await test('Sing along without headphones, and coach mode: the song leaking from the speaker into the mic draws nothing while you are silent; your own voice still counts; Sing along plays to the end; with Coach me on, a weak line stops the song with its score, a tip and a retry, then Back to the song carries on', async page => {
+  await test('Coach mode, one line at a time in the main view: Coach turns the bar into the coach (line, Hear him, Sing with him, On my own, Done); the score and one tip show under the words; Again, then Next line when it goes well; Done brings everything back', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
-    await page.evaluate(async () => { store.proInfo = { 'Leak test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; store.settings = Object.assign(store.settings || {}, { coach: false }); save();
+    await page.evaluate(async () => { store.proInfo = { 'Coach test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Coach test', 'file', await makeProSong({ repeat: true, noVoice: true }));
+      window.sing = 'off'; setInterval(() => {
+        if (LS.phase === 'turn' && LS.cap && LS.cap.line) { const l = LS.cap.line, t = l.t0 + ac.currentTime - LS.cap.start, n = PRO.an.notes.find(x => t >= x.b0 && t <= x.b1 - 0.04); V.on = !!n && sing !== 'off'; if (n) V.m = n.midi + (sing === 'wrong' ? 3 : 0); return; }
+        if (ST.busy && sing !== 'off') { const t = PRO.off, n = PRO.an.notes.find(x => t >= x.b0 && t <= x.b1 - 0.04); V.on = !!n; if (n) V.m = n.midi + (sing === 'wrong' ? 3 : 0); return; }
+        V.on = false; }, 15); });
+    await page.click('[data-act="coach"]'); await page.waitForTimeout(200);
+    const on = await page.evaluate(() => ({ coaching: $('#proBar').classList.contains('coaching'), lbl: $('#coachLbl').textContent, studioHidden: document.querySelector('[data-card="studio"]').hidden, inBar: !!$('#proBar #stRes') && !!$('#proBar #stLive'),
+      visible: [...document.querySelectorAll('#proBar button')].filter(b => b.offsetParent).map(b => b.dataset.act || b.id).join() }));
+    await page.click('[data-act="coach-hear"]'); await page.waitForFunction(() => !ST.busy, null, { timeout: 30000 });
+    await page.evaluate(() => { sing = 'wrong'; }); await page.click('[data-act="coach-with"]');
+    await page.waitForFunction(() => !ST.busy && $('#proBar #stRes .ls-big'), null, { timeout: 30000 });
+    const bad = await page.evaluate(() => ({ score: +$('#stRes .ls-big').textContent, tip: $('#stRes .ls-tip').textContent, again: !!$('#proBar [data-act="again"]'), next: !!$('#proBar [data-act="nextline"]') }));
+    await page.evaluate(() => { sing = 'right'; }); await page.click('#proBar [data-act="again"]');
+    await page.waitForFunction(() => !ST.busy && $('#proBar [data-act="nextline"]'), null, { timeout: 30000 });
+    const good = await page.evaluate(() => ({ score: +$('#stRes .ls-big').textContent }));
+    await page.click('#proBar [data-act="nextline"]'); await page.waitForTimeout(200);
+    const next = await page.evaluate(() => ({ lbl: $('#coachLbl').textContent, k: ST.k, cleared: !$('#stRes .ls-big'), lyric: $('#proLyric .kr-now').textContent }));
+    await page.click('[data-act="coach-own"]'); await page.waitForFunction(() => !ST.busy && $('#proBar #stRes .ls-big'), null, { timeout: 40000 });
+    const own = await page.evaluate(() => ({ score: +$('#stRes .ls-big').textContent, text: $('#stRes').textContent.slice(0, 200), k: ST.k }));
+    await page.click('[data-act="coach-done"]'); await page.waitForTimeout(200);
+    const off = await page.evaluate(() => ({ coaching: $('#proBar').classList.contains('coaching'), studio: !document.querySelector('[data-card="studio"]').hidden, back: !!document.querySelector('[data-card="studio"] #stRes'), play: !!$('#proPlay').offsetParent }));
+    expect(on.coaching && /Line 1 of 4/.test(on.lbl) && on.studioHidden && on.inBar && /coach-hear/.test(on.visible) && /coach-with/.test(on.visible) && /coach-own/.test(on.visible) && !/proPlay/.test(on.visible)
+      && bad.score < 60 && bad.tip.length > 10 && bad.again && !bad.next && good.score >= 70 && /Line 2 of 4/.test(next.lbl) && next.k === 1 && next.cleared && /Hap/.test(next.lyric) && own.score > 0 && own.k === 1 && /↻ Again/.test(own.text)
+      && !off.coaching && off.studio && off.back && off.play, JSON.stringify({ on, bad, good, next, own, off }));
+  });
+
+  await test('Sing along without headphones, and coach mode: the song leaking from the speaker into the mic draws nothing while you are silent; your own voice still counts; Sing along plays to the end', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.proInfo = { 'Leak test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
       openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Leak test', 'file', await makeProSong({ repeat: true, noVoice: true }));
       // the iPad speaker: whatever plays also reaches the mic, a bit quieter
       const orig = AudioBufferSourceNode.prototype.start; AudioBufferSourceNode.prototype.start = function (...a) { if (this.buffer && this.buffer.duration > 10) { const g = ac.createGain(); g.gain.value = 0.15; this.connect(g); g.connect(analyser); } return orig.apply(this, a); };
@@ -1067,15 +1097,8 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     // singing along, same speaker: your voice is drawn
     await page.evaluate(() => { sing = 'right'; PRO.off = 0; }); await page.click('[data-act="singalong"]'); await page.waitForTimeout(9000);
     const singing = { drawn: await count() }; await page.evaluate(() => stHalt());
-    // coach me on, singing off: the song stops on the first weak line, with help and a way back into the song
-    await page.evaluate(() => { store.settings.coach = true; $('#stCoach').checked = true; sing = 'wrong'; PRO.off = 0; }); await page.click('[data-act="singalong"]');
-    await page.waitForFunction(() => $('[data-act="resume"]'), null, { timeout: 60000 });
-    const coach = await page.evaluate(() => ({ busy: ST.busy, k: ST.k, text: $('#stRes').textContent, again: !!$('#stRes [data-act="again"]'), resume: $('[data-act="resume"]').textContent }));
-    await page.evaluate(() => { sing = 'right'; }); await page.click('[data-act="resume"]'); await page.waitForTimeout(1500);
-    const back = await page.evaluate(() => ({ busy: ST.busy, whole: ST.whole, off: PRO.off })); await page.evaluate(() => stHalt());
     expect(silent.drawn === 0 && silent.end > silent.dur - 1 && silent.leak > 0 && silent.warned && singing.drawn > 100
-      && !coach.busy && coach.k === 0 && /fix line 1/.test(coach.text) && /\d+ \/ 100/.test(coach.text) && coach.again && /Back to the song \(line 2\)/.test(coach.resume)
-      && back.busy && back.whole && back.off > 3, JSON.stringify({ silent, singing, coach, back }));
+, JSON.stringify({ silent, singing }));
   });
 
   await test('Practise this song: one area on the main graph; Listen plays his line with the words, My turn has you sing it back while the music waits, bars turn green/red per word, a tip and help (lock in the note) when a line keeps going wrong, ✓ when learned; Sing along scores as the music plays', async page => {

@@ -520,6 +520,10 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .pro-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .pro-transport { justify-content: flex-start; gap: 6px; margin: 6px 0 0; flex-wrap: wrap; }
 .pro-transport button { padding: 6px 10px; } .pro-transport [data-act="coach"].on { background: color-mix(in srgb, #3aa76d 20%, var(--surface)); border-color: #3aa76d; }
+.coach-row, .coach-box { display: none; } .pro-bar.coaching .coach-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.pro-bar.coaching .coach-box { display: block; margin-top: 4px; } .pro-bar.coaching .pro-head button, .pro-bar.coaching .pro-transport { display: none; }
+.coach-lbl { flex: 1 1 auto; font-size: .95rem; } .coach-row button { padding: 6px 10px; font-size: .92rem; } .coach-box .ls-live { margin: 2px 0; }
+.coach-box .ls-score { margin: 2px 0 0; } .coach-box .ls-big { font-size: 1.6rem; } .coach-box .ls-tip { margin: 2px 0 4px; font-size: .95rem; } .coach-box .row button { padding: 6px 12px; }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
 .pro-bar .pro-head { gap: 6px; } .pro-bar .pro-head button { padding: 7px 12px; } .pro-bar .pro-name { flex: 1 1 100%; font-size: 1rem; }
 .pro-bar .pro-transport button { padding: 5px 9px; font-size: .9rem; } .pro-bar .pro-lyrics { margin: 6px 0 0; }
@@ -957,7 +961,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · Crazy Glue bridge, take 2</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · simple coach</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6059,7 +6063,7 @@ async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   return { env: rmsA, onsets, envHop: HOP / SR, pass2, passes, dur, notes, inst: allNotes.filter(n => n.inst), trace, hop: HOP / SR, t0f: N / 2 / SR, tune: fine.tuneSrc === 'band' ? fine.bandTune : Math.round(tune * 100), key: KEY_NAMES[key.k] + (key.minor ? ' minor' : ' major'), beat, sum, lo: sum.lo, hi: sum.hi };
 }
 function proRender() {
-  const an = PRO.an, out = $('#proOut'); out.textContent = '';
+  const an = PRO.an, out = $('#proOut'); out.textContent = ''; PRO.coach = false;
   proWordsToNotes(an); PRO.fitAll = true; PRO.bigWords = true;
   rollMount(PRO, out, { title: an.name, idp: 'pro', hint: 'Tap a bar to see that note. Drag the graph to move along the song.' });
   // the words above the graph while it plays, and Sing along right next to Play
@@ -6081,14 +6085,21 @@ function proRender() {
   mk('↺ 10s', 'back-10', 'Back 10 seconds', () => proSeek(Math.max(0, PRO.off - 10)));
   mk('10s ↻', 'fwd-10', 'Forward 10 seconds', () => proSeek(PRO.off + 10));
   mk('⏭', 'fwd-line', 'On to the next line', () => { const nx = stLines().find(l => l.t0 - 1 > PRO.off + 0.3); if (nx) proSeek(nx.t0 - 1); });
-  // coach me, right here too (the same setting as in Practise this song)
-  const cb2 = mk('', 'coach', 'Coach me: stop on a line that needs work, with a tip and a retry', () => { (store.settings ||= {}).coach = !(store.settings.coach); dirty = true; save(); const c = $('#stCoach'); if (c) c.checked = store.settings.coach; });
+  // coach mode: one line at a time, right here in the bar
+  const cb2 = mk('🧑‍🏫 Coach', 'coach', 'Coach: one line at a time, with a score and a tip', () => coachOn());
   // all the controls in one bar that stays at the top of the screen while you scroll: play, sing along, skip, coach
-  const head = out.querySelector('.pro-head'), bar = el('div', 'pro-bar'); head.before(bar); bar.append(head, tr, lyr);   // the words ride along in the bar
+  const head = out.querySelector('.pro-head'), bar = el('div', 'pro-bar'); bar.id = 'proBar'; head.before(bar); bar.append(head, tr, lyr);   // the words ride along in the bar
+  // the coach's row (shown only in coach mode): which line, hear him, sing with him or on your own, and its feedback under the words
+  const cr = el('div', 'row coach-row'), cm = (txt, act, fn, cls = 'small') => { const b = el('button', cls, txt); b.dataset.act = act; b.onclick = fn; cr.appendChild(b); return b; };
+  cr.appendChild(el('b', 'coach-lbl', '')); cr.lastChild.id = 'coachLbl'; cm('✕ Done', 'coach-done', () => coachOff());
+  cm('⏮', 'coach-prev', () => coachGo(ST.k - 1)); cm('⏭', 'coach-next', () => coachGo(ST.k + 1));
+  cm('▶ Hear him', 'coach-hear', () => stListen()); cm('🎤 Sing with him', 'coach-with', () => stAlong(), 'primary'); cm('🎤 Sing alone', 'coach-own', () => stTurn());
+  const cbox = el('div', 'coach-box'); cbox.id = 'coachBox';
+  bar.insertBefore(cr, lyr); bar.appendChild(cbox);
   // the Sing along button tells you what it will do: sing along, pause, or resume
   clearInterval(PRO.uiIv); PRO.uiIv = setInterval(() => { if (!sing.isConnected) return clearInterval(PRO.uiIv);
     const t = ST.busy && ST.whole ? '❚❚ Pause' : ST.paused != null ? '▶ Resume singing' : '🎤 Sing along'; if (sing.textContent !== t) sing.textContent = t;
-    const on = !!(store.settings && store.settings.coach), ct = on ? '🧑‍🏫 Coach ✓' : '🧑‍🏫 Coach'; if (cb2.textContent !== ct) { cb2.textContent = ct; cb2.classList.toggle('on', on); } }, 200);
+  }, 200);
 
   ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
   if (an.isolated && PRO.iso) {
@@ -6459,10 +6470,10 @@ function studioCard(an) {
   const opts = el('div', 'st-opts');
   if (PRO.vox) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stAlone'; cb.checked = !!ST.alone; cb.onchange = () => { ST.alone = cb.checked; }; l.append(cb, document.createTextNode(' 🎤 Hear his voice alone (no band)')); opts.appendChild(l); }
   if (PRO.inst) { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stBand'; cb.checked = !!ST.band; cb.onchange = () => { ST.band = cb.checked; }; l.append(cb, document.createTextNode(' 🎸 Sing along with just the band')); opts.appendChild(l); }
-  { const l = el('label', 'guide-tog'), cb = el('input'); cb.type = 'checkbox'; cb.id = 'stCoach'; cb.checked = !!(store.settings && store.settings.coach); cb.onchange = () => { (store.settings ||= {}).coach = cb.checked; dirty = true; save(); }; l.append(cb, document.createTextNode(' 🧑‍🏫 Coach me (stops on a weak line)')); opts.appendChild(l); }
   opts.appendChild(el('span', 'muted st-hint', '🎤 My turn: he sings the line, then you sing or hum it back while the music waits. 🎧 Sing this line: sing with him as the music plays (headphones help).'));
   c.appendChild(opts);
-  const live = el('p', 'ls-live', ''); live.id = 'stLive'; c.appendChild(live);
+  const home = el('div', 'st-home'); c.appendChild(home);
+  const live = el('p', 'ls-live', ''); live.id = 'stLive'; home.appendChild(live);
   const meter = el('div', 'ls-meter'); meter.id = 'lsMeter'; meter.hidden = true; meter.innerHTML = '<i class="ls-band"></i><i class="ls-dot"></i><span class="ls-note"></span>'; c.appendChild(meter);
   const res = el('div', 'st-res'); res.id = 'stRes'; c.appendChild(res);
   ST.setBusy = on => { ST.busy = on; c.querySelectorAll('.st-btns button').forEach(b => { if (b.dataset.act === 'stop') b.hidden = !on; else b.disabled = on; }); };
@@ -6472,6 +6483,7 @@ function studioCard(an) {
   return c;
 }
 function stNav() {
+  if (PRO.coach) coachLbl();
   { const ab = $('[data-card="studio"] [data-act="along"]'); if (ab) ab.textContent = ST.whole ? '🎧 Sing the song' : '🎧 Sing this line'; }
   const box = $('#stNav'); if (!box) return; box.textContent = ''; const lines = stLines(), n = lines.length, recs = (store.proLearn || {})['pro:' + PRO.an.name] || {}, learned = lines.filter((_, k) => recs[k] && recs[k].ok).length, r = recs[ST.k] || {};
   const prev = el('button', 'ls-arrow', '‹'); prev.dataset.act = 'prev'; prev.disabled = ST.whole || ST.k === 0; prev.onclick = () => stGo(ST.k - 1);
@@ -6565,21 +6577,33 @@ async function stAlong() {
   stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
   const [a, b] = stRange(), lines = stLines().filter(l => l.t0 >= a - 0.01 && l.t1 <= b + 0.01); ST.from = 0; lines.forEach(stClearLine);
   $('#stLive').textContent = '🎧 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '…';
-  const scored = new Set(), coach = ST.whole && !!(store.settings && store.settings.coach); ST.leakQ = []; ST.micHist = []; ST.leak = null; ST.leakWarned = false;
+  const scored = new Set(); ST.leakQ = []; ST.micHist = []; ST.leak = null; ST.leakWarned = false;
   const heard = l => { let n = 0; for (let i = Math.max(0, Math.floor((l.t0 - PRO.an.t0f) / PRO.an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 - PRO.an.t0f) / PRO.an.hop)); i++) if (ST.user[i] != null) n++; return n; };
   const done = await stPlay(a, b, { lead: ST.whole ? 0 : 1.5, band: ST.band, capture: t => { stCapture(t); for (const l of lines) if (!scored.has(l) && t > l.t1 + 0.3) { scored.add(l); const R = stMark(l), lk = stLines().indexOf(l), sang = heard(l) >= 10;
     if (!ST.whole || !sang) continue;
-    if (coach && R.score < 60) { setTimeout(() => stCoachStop(lk), 0); return; }   // coach: stop here, help with this line, then back into the song
-    $('#stLive').textContent = (R.score >= 85 ? '✓ ' + cue('good') + ' ' : R.score >= 60 ? '✓ ' : '') + 'Line ' + (lk + 1) + ': ' + R.score + (coach ? '' : R.score < 60 ? ' · keep going, we’ll look at it after' : ''); } } });
+    $('#stLive').textContent = (R.score >= 85 ? '✓ ' + cue('good') + ' ' : R.score >= 60 ? '✓ ' : '') + 'Line ' + (lk + 1) + ': ' + R.score; } } });
   if (LS.gen !== g && !done) return;
   ST.setBusy(false); for (const l of lines) if (!scored.has(l)) stMark(l);
   if (ST.whole) stSongSummary(lines); else stScore(stLines()[ST.k], 'along');
 }
-// coach mode: the song stops on a line that needs work: its score, one tip and a retry, then back into the song
-function stCoachStop(k) {
-  stHalt(); const L = stLines(); ST.whole = false; ST.resumeK = Math.min(L.length - 1, k + 1); ST.k = k; stNav();
-  stScore(L[k], 'along'); const res = $('#stRes'); if (res) res.prepend(el('p', 'ls-tip', '🧑‍🏫 Let’s fix line ' + (k + 1) + ' before we go on.'));
-  const sc = document.querySelector('[data-card="studio"]'); if (sc) { const r = sc.getBoundingClientRect(); if (r.top > innerHeight * 0.6 || r.bottom < 0) $('#stRes').scrollIntoView({ block: 'center' }); }
+// Coach mode: one line at a time, all in the main view. The bar shows the line (⏮ ⏭), ▶ Hear him, 🎤 Sing with him (the
+// music plays while you sing) and 🎤 On my own (he sings it, then you sing while the music waits); the live status, the
+// score and one tip (with ↻ Again, Next line, and Lock in the note when it keeps going wrong) appear right under the words.
+// It's the same scoring as line-by-line practice: its status and result panes move up into the bar while coaching.
+function coachOn() {
+  rollStop(PRO); stHalt(); ST.paused = null; PRO.coach = true; ST.whole = false;
+  const L = stLines(); let k = L.findIndex(l => l.t1 >= PRO.off); if (k < 0) k = 0;
+  const box = $('#coachBox'); ['stLive', 'lsMeter', 'stRes'].forEach(id => { const e = document.getElementById(id); if (e && box) box.appendChild(e); });
+  $('#proBar').classList.add('coaching'); const sc = document.querySelector('[data-card="studio"]'); if (sc) sc.hidden = true;
+  coachGo(k); $('#stLive').textContent = '🧑‍🏫 Hear him sing the line, then sing it: with him, or on your own.';
+  const b = $('#proBar'); if (b && b.getBoundingClientRect().top < 0) b.scrollIntoView({ block: 'start' });
+}
+function coachGo(k) { const L = stLines(); k = Math.max(0, Math.min(L.length - 1, k)); stGo(k); const r = $('#stRes'); if (r) r.textContent = ''; const lv = $('#stLive'); if (lv) lv.textContent = ''; coachLbl(); }
+function coachLbl() { const e = $('#coachLbl'); if (e) e.textContent = '🧑‍🏫 Line ' + (ST.k + 1) + ' of ' + stLines().length; }
+function coachOff() {
+  stHalt(); PRO.coach = false; const sc = document.querySelector('[data-card="studio"]');
+  if (sc) { const home = sc.querySelector('.st-home'); ['stLive', 'lsMeter', 'stRes'].forEach(id => { const e = document.getElementById(id); if (e && home) home.appendChild(e); }); sc.hidden = false; }
+  $('#proBar').classList.remove('coaching'); const r = $('#stRes'); if (r) r.textContent = '';
 }
 // move to a moment in the song and carry on as before: singing along keeps singing along, playing keeps playing, and
 // when stopped it just moves there. The words follow, as they're drawn from where the music is.
@@ -6621,9 +6645,7 @@ function stScore(l, how) {
   if (!R.ok && ST.fails[k] >= 2 && help) { const h = el('button', 'small', '🎯 Lock in ' + word(help)); h.dataset.act = 'lock'; h.onclick = () => stLock(help); row.appendChild(h); }
   if (!R.ok && ST.fails[k] >= 2 && PRO.vox && !ST.alone) { const h = el('button', 'small', '🎤 Hear his voice alone'); h.onclick = () => { ST.alone = true; const cb = $('#stAlone'); if (cb) cb.checked = true; stListen(); }; row.appendChild(h); }
   if (!R.ok && ST.fails[k] >= 3) res.appendChild(el('p', 'muted', 'Tip: listen twice before your turn, and hum it first; words can wait until the tune feels easy.'));
-  if (R.ok && k < stLines().length - 1) { const nx = el('button', 'primary', 'Next line →'); nx.dataset.act = 'nextline'; nx.onclick = () => stGo(k + 1); row.prepend(nx); }
-  if (ST.resumeK != null) { const L = stLines(), rk = ST.resumeK, b2 = el('button', R.ok ? 'primary' : 'small', '▶ Back to the song (line ' + (rk + 1) + ')'); b2.dataset.act = 'resume';
-    b2.onclick = () => { ST.resumeK = null; ST.whole = true; stGo(rk); ST.from = Math.max(0, L[rk].t0 - 2); stAlong(); }; row.prepend(b2); }
+  if ((R.ok || (PRO.coach && R.score >= 70)) && k < stLines().length - 1) { const nx = el('button', 'primary', 'Next line →'); nx.dataset.act = 'nextline'; nx.onclick = () => PRO.coach ? coachGo(k + 1) : stGo(k + 1); row.prepend(nx); }
   res.appendChild(row); stNav();
 }
 async function stLock(p) {
