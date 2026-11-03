@@ -1031,8 +1031,27 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       // reloading keeps a manual placement
       await proLoad(await makeProSong({ repeat: true, intro: true }), 'Intro test', 'file'); out.kept = store.proInfo['Intro test'].wordsAt;
       return out; });
-    expect(r.at === 2 && r.introWords === 0 && r.first === 'There’s' && r.grav === 'gra- vi- ty that' && r.introLyric === '♪' && /^There’s no gra-vi-ty/.test(r.sungLyric)
+    expect(r.at === 2 && r.introWords === 0 && r.first === 'There’s' && r.grav === 'gra- vi- ty that' && /Intro: the words start when he sings/.test(r.introLyric) && /^There’s no gra-vi-ty/.test(r.sungLyric)
       && r.later === 3 && r.laterFirst === 'There’s' && r.earlier === 1 && r.here === 2 && r.kept === 2, JSON.stringify(r));
+  });
+
+  await test('Words wait for his voice: a plucked intro with as many notes as a sung line still gets no words (notes are rated plucked or sung); "He’s singing now" tapped during playback lines the words up from that moment and is remembered', async page => {
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    const r = await page.evaluate(async () => {
+      const lyr = 'There’s no gravity that sucked me in your orbit\nThere’s no magnet that was in your heart today\nThe one restriction was the friction keeping us\nA little too far apart';
+      store.proInfo = { 'Riff test': { lyrics: lyr } }; store.proWords = {};
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true, longIntro: true }), 'Riff test', 'file'); await new Promise(r => setTimeout(r, 150));
+      const L = stLines(), an = PRO.an, voc = l => mean(l.idx.map(i => an.notes[i].voc));
+      const out = { at: store.proInfo['Riff test'].wordsAt, riff: [voc(L[0]), voc(L[1])], sung: [voc(L[2]), voc(L[3])], btn: !!$('[data-act="singing-now"]'), introWords: L[0].idx.concat(L[1].idx).filter(i => an.notes[i].word).length };
+      lyricShow($('#proLyric'), an, 3); out.introLyric = $('#proLyric .kr-now').textContent; out.introNext = $('#proLyric .kr-next').textContent;
+      // the singer taps "He's singing now" when his voice comes in (here: at line 4, to prove the tap wins)
+      PRO.off = L[3].t0 + 0.1; $('[data-act="singing-now"]').click();
+      out.tap = { at: store.proInfo['Riff test'].wordsAt, ok: store.proInfo['Riff test'].wordsOk, gone: !$('[data-act="singing-now"]'), first: an.notes[L[3].idx[0]].word, before: L[2].idx.filter(i => an.notes[i].word).length };
+      await proLoad(await makeProSong({ repeat: true, longIntro: true }), 'Riff test', 'file'); await new Promise(r => setTimeout(r, 100));
+      out.reload = { at: store.proInfo['Riff test'].wordsAt, btn: !!$('[data-act="singing-now"]') };
+      return out; });
+    expect(r.at === 2 && r.riff.every(v => v < 0.5) && r.sung.every(v => v >= 0.6) && r.btn && r.introWords === 0 && /Intro: the words start when he sings\. Tap 👆/.test(r.introLyric) && r.introNext === ''
+      && r.tap.at === 3 && r.tap.ok && r.tap.gone && r.tap.first === 'There’s' && r.tap.before === 0 && r.reload.at === 3 && !r.reload.btn, JSON.stringify(r));
   });
 
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {

@@ -482,6 +482,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .kr-now { font: 700 1.35rem/1.35 var(--display); } .kr-now span { all: unset; } .kr-now .kr-on { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; } .kr-now .kr-done { color: var(--muted); }
 .kr-next { color: var(--muted); font-size: .98rem; min-height: 1.2em; }
 .pro-lyrics { padding: 4px 0; }
+.pro-now { background: #f0973a; color: #fff; border-color: #f0973a; font-weight: 700; }
 .st-card { display: grid; gap: 10px; border: 2px solid var(--accent); } .st-card h3, .st-card p { margin: 0; }
 .st-btns { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 8px; } .st-btns button { min-height: 50px; font-size: 1.02rem; }
 .st-opts { display: grid; gap: 4px; } .st-opts .guide-tog { display: flex; gap: 8px; align-items: center; } .st-hint { font-size: .85rem; }
@@ -978,7 +979,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-02 · words in step with the song</p>
+  <p class="fine build" id="buildTag">Build 2026-11-03 · words wait for his voice</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -5633,20 +5634,27 @@ function wordsToTokens(text, notes) {
   return ws.flatMap(w => w.k === 1 ? [w.parts.join('')] : w.parts.map((p, i) => i < w.parts.length - 1 ? p + '-' : p));
 }
 // where the singing starts: the lyric lines' syllable counts against the detected lines' note counts, skipping intro lines
+function voiceStartLine(an) {
+  const L = proLines(an), sung = l => mean(l.idx.map(i => an.notes[i].voc ?? 0.5)) >= 0.5 && l.idx.length >= 3;
+  for (let k = 0; k < L.length; k++) if (sung(L[k]) && (!L[k + 1] || sung(L[k + 1]))) return k;
+  return 0;
+}
 function wordsOffset(an, ls) {
-  const L = proLines(an), sy = ls.map(t => t.split(/\s+/).filter(Boolean).reduce((a, w) => a + syllCount(w), 0)); let best = { o: 0, c: 1e9 };
-  for (let o = 0; o <= Math.min(12, L.length - 1); o++) { const m = Math.min(6, ls.length, L.length - o); if (m < 1) break; let c = 0; for (let j = 0; j < m; j++) c += Math.abs(L[j + o].idx.length - sy[j]) / Math.max(4, sy[j]); c = c / m + 0.12 * o; if (c < best.c) best = { o, c }; }
+  const info = proInfo(an.name), L = proLines(an);
+  if (info.wordsOk && info.wordsFrom != null) { const k = L.findIndex(l => l.t1 > info.wordsFrom && l.t0 >= info.wordsFrom - 0.8); return Math.max(0, k < 0 ? L.findIndex(l => l.t1 > info.wordsFrom) : k); }
+  const vs = voiceStartLine(an), sy = ls.map(t => t.split(/\s+/).filter(Boolean).reduce((a, w) => a + syllCount(w), 0)); let best = { o: vs, c: 1e9 };
+  for (let o = vs; o <= Math.min(vs + 3, L.length - 1); o++) { const m = Math.min(6, ls.length, L.length - o); if (m < 1) break; let c = 0; for (let j = 0; j < m; j++) c += Math.abs(L[j + o].idx.length - sy[j]) / Math.max(4, sy[j]); c = c / m + 0.12 * (o - vs); if (c < best.c) best = { o, c }; }
   return best.o;
 }
 function proPlaceWords(an, o) {
   const info = proInfo(an.name); if (!info.lyrics) return; const key = 'pro:' + an.name, auto = (store.proWordsAuto ||= {});
   const cur = (store.proWords ||= {})[key] || {}; if (o == null && Object.values(cur).some(v => v && v.trim()) && !auto[an.name] && !info.auto) return; // words you typed yourself stay
-  const ls = proSplitLyrics(info.lyrics); if (o == null) o = info.wordsAtManual ? info.wordsAt || 0 : wordsOffset(an, ls);
+  const ls = proSplitLyrics(info.lyrics); if (o == null) o = wordsOffset(an, ls); // only a placement you confirmed (👆 or nudged) is kept; anything else is worked out again
   const w = {}; proLines(an).forEach((_, k) => { const j = k - o; if (j >= 0 && ls[j]) w[k] = ls[j]; });
   store.proWords[key] = w; auto[an.name] = true; info.wordsAt = o; (store.proInfo ||= {})[an.name] = info; dirty = true; save();
 }
 // move all the words a line earlier or later, or start them at a given line
-function proShiftWords(an, o) { const info = proInfo(an.name); info.wordsAtManual = true; info.wordsAt = Math.max(0, o); proPlaceWords(an, info.wordsAt); proWordsToNotes(an); if (ST.show) an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), an, PRO.off + 0.01); stNav(); }
+function proShiftWords(an, o) { const info = proInfo(an.name), L = proLines(an); info.wordsAtManual = true; info.wordsOk = true; info.wordsAt = Math.max(0, o); if (L[info.wordsAt]) info.wordsFrom = L[info.wordsAt].t0; proPlaceWords(an, info.wordsAt); const b = $('[data-act="singing-now"]'); if (b) b.remove(); proWordsToNotes(an); if (ST.show) an.notes.forEach((n, i) => { ST.show.notes[i].word = n.word || ''; }); rollDraw(PRO); lyricShow($('#proLyric'), an, PRO.off + 0.01); stNav(); }
 async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
   const SR = 16000, dur = Math.min(buf.duration, 300), len = Math.ceil(SR * dur);
   const render = async filt => {
@@ -5730,6 +5738,16 @@ async function proAnalyze(buf, onProg, info = {}, mixBuf = null) {
     for (const n of notes) if (n.midi < best.w - 1 || n.midi > best.w + 20) n.inst = true;
   }
   const allNotes = notes.slice(); notes.length = 0; notes.push(...allNotes.filter(n => !n.inst));
+  // sung or plucked? A plucked string starts loud and dies away, with a dead-steady pitch; a voice holds its level and
+  // wavers a little. Each note gets a voice-likeness (0..1), used to find where the singing starts.
+  for (const n of notes) {
+    const i0 = Math.max(0, Math.round(n.t0 * SR / HOP)), i1 = Math.min(frames - 1, Math.round(n.t1 * SR / HOP)), len = i1 - i0 + 1;
+    if (len < 6) { n.voc = 0.5; continue; }
+    const th = Math.max(2, Math.floor(len / 3)); let e1 = 0, e3 = 0; for (let i = 0; i < th; i++) { e1 += rmsA[i0 + i]; e3 += rmsA[i1 - i]; }
+    const decay = e1 > 0 ? e3 / e1 : 1, v = []; for (let i = i0; i <= i1; i++) if (m[i] != null) v.push(m[i]);
+    let jit = 0; if (v.length >= 6) { const ma = v.map((_, k) => mean(v.slice(Math.max(0, k - 3), k + 4))); jit = Math.sqrt(mean(v.map((y, k) => (y - ma[k]) ** 2))) * 100; }
+    n.voc = Math.round((clamp((decay - 0.3) / 0.4) * 0.65 + clamp((jit - 1.5) / 5) * 0.35) * 100) / 100;
+  }
   // ---- second pass (1): singing the first pass left without a bar ----
   // Short notes and notes half-hidden by the band: use the fainter readings, only inside the singer's range, down to 60 ms.
   const pass2 = { filled: 0, snapped: 0 };
@@ -5911,6 +5929,14 @@ function proRender() {
   const sing = el('button', 'primary', '🎤 Sing along'); sing.dataset.act = 'singalong';
   sing.onclick = () => { const k = Math.max(0, (an._lines || []).findIndex(l => l.t1 >= PRO.off)); rollStop(PRO); ST.whole = false; stGo(k); const sc = document.querySelector('[data-card="studio"]'); if (sc) sc.scrollIntoView({ block: 'nearest' }); stAlong(); };
   out.querySelector('.pro-head').appendChild(sing);
+  if (proInfo(an.name).lyrics && !proInfo(an.name).wordsOk) {
+    const now = el('button', 'pro-now', '👆 He\u2019s singing now'); now.dataset.act = 'singing-now'; now.title = 'Tap at the moment his voice comes in, and the words line up from there';
+    now.onclick = () => { const t = PRO.off, info = proInfo(an.name); info.wordsFrom = Math.max(0, t - 0.15); info.wordsOk = true; info.wordsAtManual = true; (store.proInfo ||= {})[an.name] = info;
+      const L = stLines(); let k = L.findIndex(l => l.t1 > info.wordsFrom && l.t0 >= info.wordsFrom - 0.8); if (k < 0) k = Math.max(0, L.findIndex(l => l.t1 > info.wordsFrom)); proShiftWords(an, k); info.wordsAtManual = true; save();
+      now.remove(); toast('Got it: the words start there. You can nudge them in Practise this song.'); };
+    out.querySelector('.pro-head').appendChild(now);
+    lyr.dataset.hint = '1';
+  }
   ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
   if (an.kind === 'file') {
     const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst';
@@ -6213,10 +6239,13 @@ function lyricShow(box, an, t) {
   const n = an.notes.findIndex(x => t >= (x.b0 ?? x.t0) && t <= (x.b1 ?? x.t1)); let li = lines.findIndex(l => t >= l.t0 && t <= l.t1); if (li < 0) li = lines.findIndex(l => t >= l.t0 - 0.8 && t < l.t0); if (li < 0) li = lines.findIndex(l => t > l.t1 && t <= l.t1 + 0.4);
   const nli = li >= 0 ? li + 1 : lines.findIndex(l => l.t0 > t);
   const now = box.querySelector('.kr-now'), next = box.querySelector('.kr-next');
+  if (li >= 0 && !(w[li] || '').trim()) li = -1;
   if (li >= 0) { const toks = (an._tok && an._tok[li]) || wordsToTokens(w[li] || '', lines[li].idx.length), at = lines[li].idx.indexOf(n);
     now.innerHTML = toks.length ? toks.map((x, j) => '<span' + (j === at ? ' class="kr-on"' : j < at ? ' class="kr-done"' : '') + '>' + esc(x) + '</span>' + (/-$/.test(x) ? '' : ' ')).join('') : '<span class="muted">♪</span>'; }
   else now.innerHTML = '<span class="muted">♪</span>';
-  next.textContent = nli >= 0 && nli < lines.length ? (w[nli] || '') : '';
+  const firstW = lines.findIndex((_, k) => w[k] && w[k].trim());
+  if (firstW >= 0 && t < lines[firstW].t0 - 0.8) now.innerHTML = '<span class="muted">♪ Intro: the words start when he sings' + (box.dataset.hint ? '. Tap 👆 when his voice comes in.' : '') + '</span>';
+  next.textContent = nli >= 0 && nli < lines.length && lines[nli].t0 - t < 3 ? (w[nli] || '') : '';
 }
 // ---------- 🎵 Practise this song: one place to listen, take your turn, or sing along, line by line ----------
 // Everything happens on the main graph, with the real recording and the words: ▶ Listen to a line (or the whole song);
@@ -6277,7 +6306,7 @@ function stNav() {
     const o = proInfo(PRO.an.name).wordsAt || 0, wt = el('div', 'row st-tools st-wordsync');
     const e1 = el('button', 'small', '‹ Words earlier'); e1.dataset.act = 'w-earlier'; e1.disabled = o <= 0; e1.onclick = () => proShiftWords(PRO.an, o - 1);
     const here = el('button', 'small', '👆 Words start here'); here.dataset.act = 'w-here'; here.title = 'Tap at the moment he starts singing';
-    here.onclick = () => { const t = PRO.off, L = stLines(); let k = L.findIndex(l => t >= l.t0 - 0.3 && t <= l.t1); if (k < 0) k = L.findIndex(l => l.t0 > t); if (k >= 0) { proShiftWords(PRO.an, k); toast('The words now start at line ' + (k + 1)); } };
+    here.onclick = () => { const t = PRO.off, L = stLines(); let k = L.findIndex(l => t >= l.t0 - 0.3 && t <= l.t1); if (k < 0) k = L.findIndex(l => l.t0 > t); if (k >= 0) { const inf = proInfo(PRO.an.name); inf.wordsOk = true; inf.wordsFrom = L[k].t0; proShiftWords(PRO.an, k); const b = $('[data-act="singing-now"]'); if (b) b.remove(); toast('The words now start at line ' + (k + 1)); } };
     const e2 = el('button', 'small', 'Words later ›'); e2.dataset.act = 'w-later'; e2.onclick = () => proShiftWords(PRO.an, o + 1);
     wt.append(e1, here, e2); mid.append(wt);
   }
