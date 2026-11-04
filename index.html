@@ -531,6 +531,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .review-lines { display: grid; gap: 8px; margin: 8px 0; } .review-line { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); } .rv-btns { grid-column: 1 / -1; display: flex; gap: 6px; }
 .rv-score { font-weight: 700; min-width: 2.2em; text-align: center; border-radius: 8px; padding: 2px 4px; } .rv-score.work { background: color-mix(in srgb, #d9534f 20%, var(--surface)); } .rv-score.fair { background: color-mix(in srgb, #f0973a 20%, var(--surface)); }
 .rv-words { font-weight: 600; } .rv-tip { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .92rem; }
+.hp-note { margin: 4px 0 0; font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; } .hp-x { padding: 0 8px; font-size: .8rem; }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
 .pro-bar .pro-head { gap: 6px; } .pro-bar .pro-head button { padding: 7px 12px; } .pro-bar .pro-name { flex: 1 1 100%; font-size: 1rem; }
 .pro-bar .pro-transport button { padding: 5px 9px; font-size: .9rem; } .pro-bar .pro-lyrics { margin: 6px 0 0; }
@@ -968,7 +969,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-04 · how you did</p>
+  <p class="fine build" id="buildTag">Build 2026-11-04 · headphones note</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6113,6 +6114,9 @@ function proRender() {
   const nb = el('button', 'small speed-normal', '↺ Normal'); nb.id = 'speedNormal'; nb.dataset.act = 'speed-normal'; nb.onclick = () => setSpeed(1);
   const sv = el('span', 'speed-val', ''); sv.id = 'speedVal'; sv.onclick = () => setSpeed(1);
   sr.append(el('span', 'speed-ic', '🐢'), sl, el('span', 'speed-ic', '🐇'), sv, nb, dl); bar.insertBefore(sr, lyr); speedUI();
+  // a gentle note, once in view: singing with the song works best when the mic hears only you
+  if (!(store.settings && store.settings.hpNoteOff)) { const hp = el('p', 'hp-note', '🎧 Results may be better with headphones. '); hp.id = 'hpNote'; const x = el('button', 'small hp-x', '✕'); x.setAttribute('aria-label', 'Hide this note');
+    x.onclick = () => { (store.settings ||= {}).hpNoteOff = true; dirty = true; save(); hp.remove(); }; hp.appendChild(x); bar.insertBefore(hp, lyr); }
   // the Sing along button tells you what it will do: sing along, pause, or resume
   clearInterval(PRO.uiIv); PRO.uiIv = setInterval(() => { if (!sing.isConnected) return clearInterval(PRO.uiIv);
     const t = ST.busy && ST.whole ? '❚❚ Pause' : ST.paused != null ? '▶ Resume singing' : '🎤 Sing along'; if (sing.textContent !== t) sing.textContent = t;
@@ -6597,7 +6601,7 @@ async function stTurn() {
 async function stAlong() {
   stHalt(); if (!(await ensureListening({ aec: true }))) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
   const [a, b] = stRange(), lines = stLines().filter(l => l.t0 >= a - 0.01 && l.t1 <= b + 0.01); ST.from = 0; lines.forEach(stClearLine);
-  $('#stLive').textContent = '🎧 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '…';
+  $('#stLive').textContent = '🎤 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '… (results may be better with headphones)';
   const scored = new Set(); ST.leakQ = []; ST.micHist = []; ST.leak = null; ST.leakWarned = false;
   if (ST.whole) takeStart();
   const heard = l => { let n = 0; for (let i = Math.max(0, Math.floor((l.t0 - PRO.an.t0f) / PRO.an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 - PRO.an.t0f) / PRO.an.hop)); i++) if (ST.user[i] != null) n++; return n; };
@@ -6618,7 +6622,7 @@ function coachOn() {
   const L = stLines(); let k = L.findIndex(l => l.t1 >= PRO.off); if (k < 0) k = 0;
   const box = $('#coachBox'); ['stLive', 'lsMeter', 'stRes'].forEach(id => { const e = document.getElementById(id); if (e && box) box.appendChild(e); });
   $('#proBar').classList.add('coaching'); const sc = document.querySelector('[data-card="studio"]'); if (sc) sc.hidden = true;
-  coachGo(k); $('#stLive').textContent = '🧑‍🏫 Hear him sing the line, then sing it: with him, or on your own.';
+  coachGo(k); $('#stLive').textContent = '🧑‍🏫 Hear him sing the line, then sing it: with him, or on your own. 🎧 Results may be better with headphones.';
   const b = $('#proBar'); if (b && b.getBoundingClientRect().top < 0) b.scrollIntoView({ block: 'start' });
 }
 function coachGo(k) { const L = stLines(); k = Math.max(0, Math.min(L.length - 1, k)); stGo(k); const r = $('#stRes'); if (r) r.textContent = ''; const lv = $('#stLive'); if (lv) lv.textContent = ''; coachLbl(); }

@@ -1009,14 +1009,15 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const p0 = await st(); await page.click('[data-act="back-10"]'); await page.waitForTimeout(400); const p1 = await st();
     await page.click('[data-act="fwd-10"]'); await page.waitForTimeout(400); const p2 = await st();
     await page.click('[data-act="fwd-line"]'); await page.waitForTimeout(300); const p3 = await st(); await page.click('#proPlay');
-    const bar = await page.evaluate(() => ({ sticky: getComputedStyle($('.pro-bar')).position, words: !!$('.pro-bar #proLyric'), btns: [...document.querySelectorAll('.pro-bar button')].map(b => b.dataset.act || b.id).join() }));
+    const hp = await page.evaluate(() => { const n = $('#hpNote'), shown = !!n && /headphones/.test(n.textContent); n.querySelector('button').click(); const gone = !$('#hpNote'); proRender(); return { shown, gone, staysGone: !$('#hpNote') }; });
+    const bar = await page.evaluate(() => ({ hp: null, sticky: getComputedStyle($('.pro-bar')).position, words: !!$('.pro-bar #proLyric'), btns: [...document.querySelectorAll('.pro-bar button')].map(b => b.dataset.act || b.id).join() }));
     const lineOf = (s, t) => s.L.findIndex(l => t >= l[0] - 0.05 && t <= l[1]);
     expect(a.busy && /Pause/.test(a.btn) && a.off > 10 && !p.busy && /Resume/.test(p.btn) && Math.abs(p.off - a.off) < 1.6
       && r.busy && /Pause/.test(r.btn) && r.off >= p.off - 0.1 && r.off < p.off + 1.2
       && b10.busy && b10.off < r.off - 8.5 && b10.off > r.off - 11
       && bl.busy && bl.off < b10.off + 2.2 - 0.5 && bl.L.some(l => Math.abs(l[0] - 1 - bl.off) < 0.6 || bl.off < 0.6)
-      && p0.playing && p1.playing && p1.off < p0.off - 8.5 && p1.off > p0.off - 11 && p2.playing && p2.off > p1.off + 9 && p2.off < p1.off + 11.5 && p3.playing && p3.L.some(l => Math.abs(l[0] - 1 - p3.off) < 0.3) && p3.off > p2.off && bar.sticky === 'sticky' && bar.words && /proPlay/.test(bar.btns) && /singalong/.test(bar.btns) && /back-line.*back-10.*fwd-10.*fwd-line.*coach/.test(bar.btns)
-      && (lineOf(bl, bl.off + 1.2) < 0 || bl.lyric.length > 0), JSON.stringify({ a, p, r, b10, bl, p0, p1, p2, p3, bar }));
+      && p0.playing && p1.playing && p1.off < p0.off - 8.5 && p1.off > p0.off - 11 && p2.playing && p2.off > p1.off + 9 && p2.off < p1.off + 11.5 && p3.playing && p3.L.some(l => Math.abs(l[0] - 1 - p3.off) < 0.3) && p3.off > p2.off && hp.shown && hp.gone && hp.staysGone && bar.sticky === 'sticky' && bar.words && /proPlay/.test(bar.btns) && /singalong/.test(bar.btns) && /back-line.*back-10.*fwd-10.*fwd-line.*coach/.test(bar.btns)
+      && (lineOf(bl, bl.off + 1.2) < 0 || bl.lyric.length > 0), JSON.stringify({ a, p, r, b10, bl, p0, p1, p2, p3, bar, hp }));
   });
 
   await test('Leaving and coming back: the screen is kept on while a song plays (Play or Sing along); switching away stops the song cleanly and remembers the spot; Play (and Sing along) carries on from there even after the device paused the sound', async page => {
