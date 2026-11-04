@@ -969,7 +969,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-04 · headphones note</p>
+  <p class="fine build" id="buildTag">Build 2026-11-04 · First Notes wake fix</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -4930,7 +4930,7 @@ function easyOpen(list) {
   Object.assign(EZ, { on: true, list: list || EASY_ROUTINE, i: 0, stars: 0, inTune: 0, voiced: 0, phase: 'ready', readyAt: 0, song: null, piano: null, home: EZ.home });
   $('#easyMenu').hidden = true; document.documentElement.classList.add('ez-lock'); window.scrollTo(0, 0);
   clearInterval(EZ.iv); EZ.iv = setInterval(ezTick, 40);
-  if (mode === 'idle') startMic().catch(() => {});
+  ensureListening().catch(() => {});   // the plain mic (not the songs' echo cancelling one)
   ezRender();
 }
 function easyClose() { if (!EZ.on) return; EZ.on = false; clearInterval(EZ.iv); guideOff(); document.documentElement.classList.remove('ez-lock'); }
@@ -4986,7 +4986,7 @@ function ezRender() {
 }
 async function ezStart() {
   if (EZ.starting) return; EZ.starting = true; setTimeout(() => { EZ.starting = false; }, 300);
-  if (mode === 'idle') await startMic(); if (mode === 'idle') return;
+  await ensureListening(); if (mode === 'idle') return;
   await ensureAudio();
   if (EZ.home == null) EZ.home = ezHome(); // fix the easy note for the whole game, so targets don't drift
   const k = ezKey(), h = ezHome();
@@ -5043,20 +5043,24 @@ function ezNext() {
   ezRender();
 }
 function ezVoice(target) { if (S.rawM == null) return null; let m = S.rawM; if (target != null) { while (m - target > 6) m -= 12; while (target - m > 6) m += 12; } return m; }
+// Wake up, all inside the tap (a phone only lets sound and the mic start from a tap): wake the sound; restart the mic if
+// it's off, ended, or this is a second tap in a row (the first didn't do it)
 async function ezWakeMic() {
+  const again = EZ.lastWake && now() - EZ.lastWake < 15; EZ.lastWake = now(); EZ.dead = 0; $('#easyCard').hidden = true;
+  try { if (!ac) await ensureAudio(); if (ac.state !== 'running') ac.resume().catch(() => {}); } catch (e) {}
+  const ended = !stream || stream.getAudioTracks().every(t => t.readyState === 'ended');
+  if (mode === 'idle' || ended || again || MIC_AEC) { try { stopSources(); await startMic(); } catch (e) {} }
   try { if (ac && ac.state !== 'running') await ac.resume(); } catch (e) {}
-  EZ.dead = 0;
-  setTimeout(async () => { if (EZ.on && (!ac || ac.state !== 'running' || S.rms < 1e-6)) { stopSources(); await startMic(); } EZ.dead = 0; ezRender(); }, 600);
-  $('#easyCard').hidden = true;
+  EZ.dead = 0; ezRender();
 }
 function ezTick() {
   if (!EZ.on) return;
   const k = ezKey(), t = now();
   // watchdog: iPad can pause the audio after the screen dims or another sound interrupts
-  EZ.dead = mode === 'idle' || !ac || ac.state !== 'running' || S.rms < 1e-6 ? (EZ.dead || 0) + 0.04 : 0;
+  EZ.dead = mode === 'idle' || !ac || ac.state !== 'running' || (S.rms < 1e-6 && !MIC_AEC) ? (EZ.dead || 0) + 0.04 : 0;   // an echo-cancelling mic can send pure silence
   if (EZ.dead > 2 && EZ.phase !== 'menu') {
     const c = $('#easyCard');
-    if (c.hidden || !c.querySelector('.ec-wake')) { c.textContent = ''; c.hidden = false; c.append(el('div', 'ec-pic', '🎤'), el('div', 'ec-name', 'Tap to wake the microphone')); if (ezWordsOn()) c.appendChild(el('p', 'ec-how', 'The iPad paused the sound. One tap brings it back.')); const go = el('button', 'ec-go ec-wake'); go.append(el('span', '', '🎤'), el('span', 'ec-gl', 'Wake up')); go.onclick = () => ezWakeMic(); c.appendChild(go); }
+    if (c.hidden || !c.querySelector('.ec-wake')) { c.textContent = ''; c.hidden = false; c.append(el('div', 'ec-pic', '🎤'), el('div', 'ec-name', 'Tap to wake the microphone')); if (ezWordsOn()) c.appendChild(el('p', 'ec-how', 'Your device paused the sound. One tap brings it back.')); const go = el('button', 'ec-go ec-wake'); go.append(el('span', '', '🎤'), el('span', 'ec-gl', 'Wake up')); go.onclick = () => ezWakeMic(); c.appendChild(go); }
     ezDraw(null, false); return;
   }
   // each game starts by itself: after its little demo, or as soon as the singer makes a sound
@@ -5216,7 +5220,7 @@ function ezSongPick() {
 }
 async function ezSongStart(sg, fromPiano) {
   if (EZ.phase === 'run' && EZ.song) return;
-  if (mode === 'idle') await startMic(); if (mode === 'idle') return; await ensureAudio();
+  await ensureListening(); if (mode === 'idle') return; await ensureAudio();
   $('#easyMenu').hidden = true;
   const h = fromPiano && EZ.piano ? EZ.piano.doM : ezHome(), toks = sg.words.split(/\s+/).filter(x => x && x !== '/');
   const notes = sg.notes.map(([o, b], i) => ({ m: h + o, b, w: toks[i] || '' })); // the song's Do is the singer's Do, so the colours match the lines

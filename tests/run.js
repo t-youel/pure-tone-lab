@@ -743,6 +743,20 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(vid.src && vid.playing, JSON.stringify(vid));
   });
 
+  await test('First Notes after the song lab: it switches back to the plain mic (the songs use echo cancelling); if the mic stops, one tap on Wake up brings it back for good, no loop', async page => {
+    await page.evaluate(async () => { await ensureAudio(); await startMic({ aec: true }); });
+    const before = await page.evaluate(() => ({ mode, aec: MIC_AEC }));
+    await page.evaluate(() => { store.settings = { easyMode: true }; save(); $('#t-easy').click(); });
+    await page.waitForTimeout(1500);
+    const entered = await page.evaluate(() => ({ mode, aec: MIC_AEC }));
+    // the mic goes away (the phone stopped it)
+    await page.evaluate(() => { stopSources(); setMode('idle', 'x'); });
+    await page.waitForFunction(() => !$('#easyCard').hidden && !!$('#easyCard .ec-wake'), null, { timeout: 8000 });
+    await page.click('#easyCard .ec-wake'); await page.waitForTimeout(3500);
+    const after = await page.evaluate(() => ({ mode, aec: MIC_AEC, state: ac.state, card: !!$('#easyCard .ec-wake') && !$('#easyCard').hidden, text: '' }));
+    expect(before.aec && entered.mode === 'mic' && !entered.aec && after.mode === 'mic' && !after.aec && after.state === 'running' && !after.card, JSON.stringify({ before, entered, after }));
+  });
+
   await test('First Notes: a singer a half step off still gets the bird home (the band widens, close counts a little); targets are whole steps', async page => {
     await voice(page);
     await page.evaluate(() => { store.settings = { easyMode: true }; save(); $('#t-easy').click(); easyOpen(['match']); });
