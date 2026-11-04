@@ -526,6 +526,11 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .coach-box .ls-score { margin: 2px 0 0; } .coach-box .ls-big { font-size: 1.6rem; } .coach-box .ls-tip { margin: 2px 0 4px; font-size: .95rem; } .coach-box .row button { padding: 6px 12px; }
 .speed-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; } .speed-row input[type=range] { flex: 1 1 100px; max-width: 180px; }
 .speed-val { font-size: .88rem; cursor: pointer; white-space: nowrap; } .speed-row.off-normal .speed-val { font-weight: 700; color: #b8641a; } .speed-normal { background: color-mix(in srgb, #f0973a 18%, var(--surface)); }
+.pro-review { position: relative; margin: 6px 0; } .pro-review h3 { margin: 0 0 4px; } .review-x { position: absolute; top: 8px; right: 8px; }
+.review-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; } .review-close { margin: 4px 0; } .review-focus p, .review-best { margin: 4px 0; }
+.review-lines { display: grid; gap: 8px; margin: 8px 0; } .review-line { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); } .rv-btns { grid-column: 1 / -1; display: flex; gap: 6px; }
+.rv-score { font-weight: 700; min-width: 2.2em; text-align: center; border-radius: 8px; padding: 2px 4px; } .rv-score.work { background: color-mix(in srgb, #d9534f 20%, var(--surface)); } .rv-score.fair { background: color-mix(in srgb, #f0973a 20%, var(--surface)); }
+.rv-words { font-weight: 600; } .rv-tip { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .92rem; }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
 .pro-bar .pro-head { gap: 6px; } .pro-bar .pro-head button { padding: 7px 12px; } .pro-bar .pro-name { flex: 1 1 100%; font-size: 1rem; }
 .pro-bar .pro-transport button { padding: 5px 9px; font-size: .9rem; } .pro-bar .pro-lyrics { margin: 6px 0 0; }
@@ -963,7 +968,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-03 · speed control</p>
+  <p class="fine build" id="buildTag">Build 2026-11-04 · how you did</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1317,13 +1322,14 @@ function setMode(m, msg) {
   renderGuide();
 }
 
-async function startMic() {
+async function startMic(opts = {}) {
   await ensureAudio(); stopSources();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setMode('idle', 'This browser cannot reach the microphone here. Open the file in Chrome, Edge, Firefox or Safari directly (or from a https:// address).'); return;
   }
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    // exercises: the raw mic (most exact pitch). Singing with a song: echo cancelling, so the song from the speaker is taken out
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: !!opts.aec, noiseSuppression: false, autoGainControl: false } }); MIC_AEC = !!opts.aec;
   } catch (e) {
     setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then tap Turn on mic again.'); return;
   }
@@ -3392,7 +3398,8 @@ function labZone() {
   const z = strongZone(); if (z) return { lo: z.lo, hi: z.hi, center: (z.lo + z.hi) / 2 };
   return { lo: 50, hi: 60, center: 55 };
 }
-async function ensureListening() { const dead = !!stream && stream.getAudioTracks().every(t => t.readyState === 'ended'); if (mode === 'idle' || (mode === 'mic' && dead)) await startMic(); return mode !== 'idle'; }   // reconnect only a real mic that iOS cut off
+let MIC_AEC = false;
+async function ensureListening(opts = {}) { const aec = !!opts.aec, dead = !!stream && stream.getAudioTracks().every(t => t.readyState === 'ended'); if (mode === 'idle' || (mode === 'mic' && (dead || (!!stream && MIC_AEC !== aec)))) await startMic({ aec }); return mode !== 'idle'; }   // reconnect only a real mic that iOS cut off
 
 function renderLab() {
   const p = store.profile, pm = $('#profileMini'); pm.textContent = '';
@@ -6086,6 +6093,7 @@ function proRender() {
     if (cur - L[k].t0 < 1.5 && k > 0) k--; proSeek(Math.max(0, L[k].t0 - 1)); });
   mk('↺ 10s', 'back-10', 'Back 10 seconds', () => proSeek(Math.max(0, PRO.off - 10)));
   mk('10s ↻', 'fwd-10', 'Forward 10 seconds', () => proSeek(PRO.off + 10));
+  mk('📋', 'review', 'How did I do?', () => proReview());
   mk('⏭', 'fwd-line', 'On to the next line', () => { const nx = stLines().find(l => l.t0 - 1 > PRO.off + 0.3); if (nx) proSeek(nx.t0 - 1); });
   // coach mode: one line at a time, right here in the bar
   const cb2 = mk('🧑‍🏫 Coach', 'coach', 'Coach: one line at a time, with a score and a tip', () => coachOn());
@@ -6110,6 +6118,7 @@ function proRender() {
     const t = ST.busy && ST.whole ? '❚❚ Pause' : ST.paused != null ? '▶ Resume singing' : '🎤 Sing along'; if (sing.textContent !== t) sing.textContent = t;
   }, 200);
 
+  { const rv = el('div', 'card pro-review'); rv.id = 'proReview'; rv.hidden = true; out.querySelector('.pro-bar').after(rv); }
   ST.show = null; PRO.show = null; { const sc = studioCard(an), pos = out.querySelector('.pro-pos'); if (pos) pos.after(sc); else out.appendChild(sc); }
   if (an.isolated && PRO.iso) {
     const ib = el('div', 'pro-inst'); ib.dataset.card = 'inst'; const d = PRO.iso.removedDb;
@@ -6528,6 +6537,7 @@ async function stPlay(a, b, o = {}) {
     const src = ac.createBufferSource(), g = ac.createGain(); src.buffer = sb; g.gain.value = gain; src.connect(g); g.connect(ac.destination);
     const tap = ac.createAnalyser(); tap.fftSize = 2048; g.connect(tap); ST.tap = tap; ST.tapBuf = new Float32Array(tap.fftSize); ST.playHist = [];
     const from = Math.max(0, a - (o.lead ?? 0.3)), t0 = ac.currentTime + 0.05; src.start(t0, Math.max(0, from - lag) / r, (b - from + 0.4) / r); LS.src = src;
+    ST.playAt = { t0, from, r, lat: (ac.outputLatency || 0) + (ac.baseLatency || 0) };   // song time = from + (clock - t0 - lat) × r
     const lat = (ac.outputLatency || 0) + (ac.baseLatency || 0), lyr = $('#proLyric');
     const iv = setInterval(() => {
       const t = from + (ac.currentTime - t0 - lat) * r; if (t > b + 0.3) { clearInterval(iv); fin(true); return; }
@@ -6558,7 +6568,7 @@ function stCapture(t) {
   if (leak > 0.003 && !ST.leakWarned) { ST.leakWarned = true; const lv = $('#stLive'); if (lv) lv.textContent = '🎧 I can hear the song through your mic; headphones help. I only count your voice when it’s louder than the song.'; }
   if (k < 0 || k >= ST.user.length || !S.voiced || S.midi == null) return;
   if ((ST.playRms || 0) > 1e-4 && ST.leak == null) return;   // the first half second: still measuring the leak
-  if (S.rms < 2.5 * leak) return;   // only the song leaking in: not you
+  if (S.rms < 1.6 * leak) return;   // only the song leaking in: not you (you plus the leak is clearly louder than the leak alone)
   const n = an.notes.find(x => t >= (x.b0 ?? x.t0) - 0.1 && t <= (x.b1 ?? x.t1) + 0.1), tg = n ? n.midi : null;
   ST.user[k] = tg != null ? tg + ((((S.midi - tg) % 12) + 18) % 12) - 6 : S.midi;
 }
@@ -6569,7 +6579,7 @@ async function stListen() {
 // my turn: he sings the line, two soft clicks, then you sing it while the music waits
 async function stTurn() {
   if (ST.whole) { ST.whole = false; stNav(); }
-  stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen, gone = () => LS.gen !== g; ST.setBusy(true);
+  stHalt(); if (!(await ensureListening({ aec: true }))) return; await ensureAudio(); const g = LS.gen, gone = () => LS.gen !== g; ST.setBusy(true);
   const l = stLines()[ST.k], live = $('#stLive'), beat = stBeat();
   stClearLine(l); live.textContent = '🔊 His line…';
   if (!(await stPlay(l.t0, l.t1, { lead: 0.4 })) || gone()) return;
@@ -6585,17 +6595,19 @@ async function stTurn() {
 }
 // sing along: the music keeps playing; every line you pass is scored
 async function stAlong() {
-  stHalt(); if (!(await ensureListening())) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
+  stHalt(); if (!(await ensureListening({ aec: true }))) return; await ensureAudio(); const g = LS.gen; ST.setBusy(true);
   const [a, b] = stRange(), lines = stLines().filter(l => l.t0 >= a - 0.01 && l.t1 <= b + 0.01); ST.from = 0; lines.forEach(stClearLine);
   $('#stLive').textContent = '🎧 Sing or hum along' + (ST.band && PRO.inst ? ' with the band' : '') + '…';
   const scored = new Set(); ST.leakQ = []; ST.micHist = []; ST.leak = null; ST.leakWarned = false;
+  if (ST.whole) takeStart();
   const heard = l => { let n = 0; for (let i = Math.max(0, Math.floor((l.t0 - PRO.an.t0f) / PRO.an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 - PRO.an.t0f) / PRO.an.hop)); i++) if (ST.user[i] != null) n++; return n; };
   const done = await stPlay(a, b, { lead: ST.whole ? 0 : 1.5, band: ST.band, capture: t => { stCapture(t); for (const l of lines) if (!scored.has(l) && t > l.t1 + 0.3) { scored.add(l); const R = stMark(l), lk = stLines().indexOf(l), sang = heard(l) >= 10;
     if (!ST.whole || !sang) continue;
     $('#stLive').textContent = (R.score >= 85 ? '✓ ' + cue('good') + ' ' : R.score >= 60 ? '✓ ' : '') + 'Line ' + (lk + 1) + ': ' + R.score; } } });
+  if (ST.whole) takeStop();
   if (LS.gen !== g && !done) return;
   ST.setBusy(false); for (const l of lines) if (!scored.has(l)) stMark(l);
-  if (ST.whole) stSongSummary(lines); else stScore(stLines()[ST.k], 'along');
+  if (ST.whole) proReview(); else stScore(stLines()[ST.k], 'along');
 }
 // Coach mode: one line at a time, all in the main view. The bar shows the line (⏮ ⏭), ▶ Hear him, 🎤 Sing with him (the
 // music plays while you sing) and 🎤 On my own (he sings it, then you sing while the music waits); the live status, the
@@ -6677,6 +6689,95 @@ function speedUI() {
   const i = SPEEDS.indexOf(PRO.speed), sl = $('#speedSlider'), v = $('#speedVal'), n = $('#speedNormal'), row = $('#speedRow');
   if (sl) sl.value = String(i); if (v && !PRO.slowing) v.textContent = speedLabel(); if (n) n.hidden = PRO.speed === 1; if (row) row.classList.toggle('off-normal', PRO.speed !== 1);
 }
+// ---------- Your take: recorded while you sing along, played back in the review ----------
+const TAKEP = { mr: null, parts: [], buf: null, map: null, src: null };
+function takeStart() {
+  try { if (typeof MediaRecorder === 'undefined' || !ac || !analyser) return; if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); }
+    const mt = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+    const mr = new MediaRecorder(recDest.stream, mt ? { mimeType: mt } : {}); TAKEP.parts = []; TAKEP.at = ac.currentTime; mr.ondataavailable = e => { if (e.data && e.data.size) TAKEP.parts.push(e.data); };
+    mr.start(500); TAKEP.mr = mr; } catch (e) { TAKEP.mr = null; }
+}
+function takeStop() {
+  const mr = TAKEP.mr; if (!mr) return; TAKEP.mr = null; const pa = ST.playAt, at = TAKEP.at;
+  mr.onstop = async () => { try { const blob = new Blob(TAKEP.parts, { type: mr.mimeType || 'audio/webm' }); if (!blob.size) return;
+    const buf = await ac.decodeAudioData(await blob.arrayBuffer()); TAKEP.buf = buf;
+    // where the take sits in the song: second p of the take is song time s0 + p × speed
+    TAKEP.map = pa ? { s0: pa.from + (at - pa.t0 - pa.lat) * pa.r, r: pa.r } : { s0: 0, r: 1 }; const b = $('[data-act="play-take"]'); if (b) b.disabled = false; } catch (e) {} };
+  try { mr.stop(); } catch (e) {}
+}
+// play your take back, with the playhead and the words, so you see your line against his bars as you hear yourself
+function takePlay() {
+  if (!TAKEP.buf || !TAKEP.map) return; takeHalt(); rollStop(PRO); stHalt();
+  const { s0, r } = TAKEP.map, src = ac.createBufferSource(), g = ac.createGain(); src.buffer = TAKEP.buf; g.gain.value = 1.4; src.connect(g); g.connect(ac.destination);
+  const from = Math.max(0, (PRO.off - s0) / r), c0 = ac.currentTime + 0.05; src.start(c0, from); TAKEP.src = src;
+  const lyr = $('#proLyric'), btn = $('[data-act="play-take"]'); if (btn) btn.textContent = '■ Stop';
+  TAKEP.iv = setInterval(() => { const t = s0 + (from + ac.currentTime - c0) * r; if (from + ac.currentTime - c0 > TAKEP.buf.duration) return takeHalt();
+    PRO.off = t; PRO.view = Math.max(0, t - rollSpan(PRO) * 0.3); lyricShow(lyr, PRO.an, t); rollDraw(PRO); }, 20);
+}
+function takeHalt() { clearInterval(TAKEP.iv); if (TAKEP.src) { try { TAKEP.src.stop(); } catch (e) {} TAKEP.src = null; } const b = $('[data-act="play-take"]'); if (b) b.textContent = '▶ Play my take'; }
+
+// ---------- How did I do? Focused feedback after singing along with the song ----------
+// Every line you sang is scored as in practice; then the review picks out what matters: how much of your singing stayed
+// close to his notes, the habits that cost the most (flat or sharp, early or late, the high notes, the long held notes,
+// coming in), the three lines most worth working on (each with one tip and Coach this line), your best line, and
+// Play my take to hear yourself while the playhead shows your line against his bars. Kept per song, so the next take is
+// compared with the last.
+function stTipFor(R, k) {
+  const worst = R.per.filter(p => p.miss || Math.abs(p.c) > 35).sort((x, y) => (y.miss ? 999 : Math.abs(y.c)) - (x.miss ? 999 : Math.abs(x.c)))[0];
+  const word = p => { const w = (ST.show || PRO.an).notes[p.n.i].word; return w ? '“' + w.replace(/-$/, '') + '”' : 'note ' + (p.n.pos + 1); };
+  if (R.ok) return 'Lovely: every word on the note.';
+  if (worst && worst.miss) return 'I didn’t hear ' + word(worst) + '. Keep the sound going right through the line.';
+  if (worst && Math.abs(worst.c) >= 250) return 'On ' + word(worst) + ' you sang a different note from his (' + nameOf(worst.n.midi) + '). Hear it on its own first (▶ Hear him in the coach), hum it, then sing the word on it.';
+  if (worst) { const dir = worst.c < 0 ? 'flat' : 'sharp'; return word(worst) + ' (' + nameOf(worst.n.midi) + ') was ' + Math.abs(worst.c) + '¢ ' + dir + '. ' + (Math.abs(worst.n.leap) >= 4 ? cue('leap') : cue(dir)); }
+  if (Math.abs(R.lagMs) > 120) return 'Right notes, ' + Math.abs(R.lagMs) + ' ms ' + (R.lagMs > 0 ? 'late. ' + cue('late') : 'early. ' + cue('early'));
+  return 'Close. Once more and it’ll settle.';
+}
+function proReview() {
+  const box = $('#proReview'); if (!box) return; box.textContent = ''; box.hidden = false;
+  const L = stLines(), an = PRO.an, heardIn = l => { let n = 0, tot = 0; for (let i = Math.max(0, Math.floor((l.t0 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 - an.t0f) / an.hop)); i++) { tot++; if (ST.user[i] != null) n++; } return { n, tot }; };
+  const sung = L.map((l, k) => ({ l, k, h: heardIn(l) })).filter(x => x.h.n >= 10).map(x => Object.assign(x, { R: stEval(x.l).R }));
+  const close = el('button', 'small review-x', '✕'); close.onclick = () => { box.hidden = true; takeHalt(); }; box.appendChild(close);
+  box.appendChild(el('h3', '', '📋 How you did'));
+  if (!sung.length) { box.appendChild(el('p', '', 'I couldn’t hear you singing along this time. Hold the phone a little closer, sing out, or use headphones, then try again.')); return; }
+  sung.forEach(x => { const rec = stRec(x.k); rec.best = Math.max(rec.best || 0, x.R.score); if (x.R.ok) { rec.ok = true; rec.at = Date.now(); } });
+  const per = sung.flatMap(x => x.R.per.map(p => Object.assign({ line: x.k }, p))), hit = per.filter(p => !p.miss);
+  const avg = Math.round(mean(sung.map(x => x.R.score))), on = hit.length ? Math.round(100 * hit.filter(p => Math.abs(p.c) <= 25).length / per.length) : 0, near = hit.length ? Math.round(100 * hit.filter(p => Math.abs(p.c) <= 50).length / per.length) : 0;
+  const heardPct = Math.round(100 * sung.reduce((a, x) => a + x.h.n, 0) / Math.max(1, sung.reduce((a, x) => a + x.h.tot, 0)));
+  const hist = ((store.proTakes ||= {})[an.name] ||= []), last = hist[hist.length - 1]; hist.push({ at: Date.now(), avg, on, lines: sung.length }); if (hist.length > 20) hist.shift(); dirty = true; save();
+  const head = el('div', 'review-head'); head.append(el('b', 'ls-big', String(avg)), el('span', '', ' / 100 · ' + sung.length + ' of ' + L.length + ' lines' + (last ? ' · last time ' + last.avg + (avg > last.avg ? ' ↑' : avg < last.avg ? ' ↓' : '') : '')));
+  box.appendChild(head);
+  box.appendChild(el('p', 'review-close', 'Close to his notes: ' + on + '% right on (within 25¢), ' + near + '% close (within 50¢).'));
+  // the habits that cost the most, biggest first, at most two
+  const habits = [], ms = hit.map(p => p.n.midi), lo = Math.min(...ms), hi = Math.max(...ms), topQ = hi - (hi - lo) * 0.25, botQ = lo + (hi - lo) * 0.25;
+  const mc = hit.length ? mean(hit.map(p => p.c)) : 0; if (Math.abs(mc) >= 15) habits.push({ w: Math.abs(mc), t: (mc < 0 ? '🎯 You tend to sit a little flat' : '🎯 You tend to sit a little sharp') + ' (' + Math.round(Math.abs(mc)) + '¢ on average). ' + cue(mc < 0 ? 'flat' : 'sharp') });
+  const err = a => a.length ? mean(a.map(p => p.miss ? 80 : Math.abs(p.c))) : 0, hiN = per.filter(p => p.n.midi >= topQ), restN = per.filter(p => p.n.midi < topQ), loN = per.filter(p => p.n.midi <= botQ);
+  if (hiN.length >= 3 && err(hiN) - err(restN) >= 15) habits.push({ w: err(hiN) - err(restN), t: '⬆ The high notes are where it slips (' + nameOf(Math.round(topQ)) + ' and up). Breathe low, keep the jaw loose, and think of the note as forward and easy, not up and hard.' });
+  if (loN.length >= 3 && err(loN) - err(restN) >= 15) habits.push({ w: err(loN) - err(restN) - 5, t: '⬇ The low notes fade. Keep a little more air going through them, and don’t let them drop to a mumble.' });
+  const lag = sung.map(x => x.R.lagMs).filter(v => v != null && isFinite(v)); const ml = lag.length ? medArr(lag) : 0; if (Math.abs(ml) > 120) habits.push({ w: Math.abs(ml) / 6, t: (ml > 0 ? '⏱ You come in late' : '⏱ You rush ahead') + ' (about ' + Math.round(Math.abs(ml)) + ' ms). ' + cue(ml > 0 ? 'late' : 'early') });
+  const longN = per.filter(p => p.n.b - p.n.a >= 0.8), shortN = per.filter(p => p.n.b - p.n.a < 0.8); if (longN.length >= 3 && err(longN) - err(shortN) >= 15) habits.push({ w: err(longN) - err(shortN), t: '〰 Long held notes drift. Keep the breath steady to the end of the note, like a thread pulled evenly.' });
+  const missed = per.filter(p => p.miss).length; if (missed / Math.max(1, per.length) > 0.2) habits.push({ w: 100 * missed / per.length / 2, t: '🔇 Some words went missing (' + Math.round(100 * missed / per.length) + '% of them). Keep the sound going through each line, and take your breath in the gaps between lines.' });
+  if (heardPct < 50) habits.push({ w: 99, t: '🎤 I could only hear you ' + heardPct + '% of the time you were singing. Sing out a little more, hold the phone closer, or use headphones, so every note counts.' });
+  habits.sort((a, b) => b.w - a.w);
+  const focus = el('div', 'review-focus'); focus.appendChild(el('b', '', habits.length ? 'What to work on' : 'What went well'));
+  (habits.length ? habits.slice(0, 2) : [{ t: '✓ Steady and on the note: no habit stands out. Now shape the lines like he does: the slides into notes and the gentle vibrato on long ones.' }]).forEach(h => focus.appendChild(el('p', '', h.t)));
+  box.appendChild(focus);
+  // the lines most worth working on, and the best one
+  const best = sung.slice().sort((a, b) => b.R.score - a.R.score)[0], work = sung.filter(x => x.R.score < 80).sort((a, b) => a.R.score - b.R.score).slice(0, 3);
+  const words = k => { const w = L[k].idx.map(i => an.notes[i].word || '').filter(Boolean).join(' ').replace(/-\s*/g, ''); return (w || 'Line ' + (k + 1)).split(/\s+/).slice(0, 7).join(' '); };   // the words on that line's bars
+  if (work.length) { const wl = el('div', 'review-lines'); wl.appendChild(el('b', '', 'Lines to practise'));
+    work.forEach(x => { const row = el('div', 'review-line'); row.dataset.line = x.k;
+      const see = el('button', 'small', '👁'); see.title = 'Show this line on the graph'; see.onclick = () => { takeHalt(); proSeek(Math.max(0, x.l.t0 - 0.4)); const g = $('.pro-roll-wrap'); if (g) g.scrollIntoView({ block: 'nearest' }); };
+      const co = el('button', 'small', '🧑‍🏫 Coach this line'); co.dataset.act = 'coach-line'; co.onclick = () => { box.hidden = true; takeHalt(); coachOn(); coachGo(x.k); };
+      const btns = el('div', 'rv-btns'); btns.append(see, co);
+      row.append(el('span', 'rv-score ' + (x.R.score >= 60 ? 'fair' : 'work'), String(x.R.score)), el('span', 'rv-words', words(x.k) + '…'), el('p', 'rv-tip', stTipFor(x.R, x.k)), btns); wl.appendChild(row); });
+    box.appendChild(wl); }
+  if (best && best.R.score >= 60) box.appendChild(el('p', 'review-best', '⭐ Your best line: “' + words(best.k) + '…” (' + best.R.score + '). ' + cue('good')));
+  const row = el('div', 'row'); const pt = el('button', 'primary', '▶ Play my take'); pt.dataset.act = 'play-take'; pt.disabled = !TAKEP.buf; pt.onclick = () => TAKEP.src ? takeHalt() : (PRO.off = sung[0] ? Math.max(0, sung[0].l.t0 - 1) : 0, takePlay());
+  const again = el('button', '', '🎤 Sing it again'); again.dataset.act = 'review-again'; again.onclick = () => { box.hidden = true; takeHalt(); PRO.off = 0; $('[data-act="singalong"]').click(); };
+  row.append(pt, again); box.appendChild(row);
+  box.appendChild(el('p', 'muted small-print', 'On the graph: his voice is purple, yours is drawn over his bars; green bars you hit, red ones you missed. ▶ Play my take moves the playhead along as you hear yourself.'));
+  box.scrollIntoView({ block: 'nearest' });
+}
 function stClearLine(l) { if (!ST.show) stShowReset(); const an = PRO.an; for (let i = Math.max(0, Math.floor((l.t0 - 0.5 - an.t0f) / an.hop)); i <= Math.min(ST.user.length - 1, Math.ceil((l.t1 + 0.6 - an.t0f) / an.hop)); i++) ST.user[i] = null; l.idx.forEach(i => { delete ST.show.notes[i].hit; ST.show.notes[i].c = 0; }); }
 // how a line went: per note (any octave), timing, starts, vibrato; marks each bar
 function stEval(l) {
@@ -6698,6 +6799,7 @@ function stScore(l, how) {
   let tip, help = null;
   if (R.ok) tip = (R.score >= 90 ? cue('good') + ' ' : '') + '✓ Line ' + (k + 1) + ' learned.';
   else if (worst && worst.miss) tip = 'I didn’t hear ' + word(worst) + '. ' + cue('missed');
+  else if (worst && Math.abs(worst.c) >= 250) { tip = 'On ' + word(worst) + ' you sang a different note from his (' + nameOf(worst.n.midi) + '). Hear it on its own, hum it, then sing the word on it.'; help = worst; }
   else if (worst) { const dir = worst.c < 0 ? 'flat' : 'sharp'; tip = word(worst) + ' (' + nameOf(worst.n.midi) + ') was ' + Math.abs(worst.c) + '¢ ' + dir + (Math.abs(worst.n.hisC) <= 15 ? '; he sits right on it. ' : '. ') + (Math.abs(worst.n.leap) >= 4 ? cue('leap') : cue(dir)); help = worst; }
   else if (Math.abs(R.lagMs) > 120) tip = 'The notes are right; you came in ' + Math.abs(R.lagMs) + ' ms ' + (R.lagMs > 0 ? 'late. ' + cue('late') : 'early. ' + cue('early'));
   else tip = 'Close: ' + R.score + '. Once more and it’ll settle.';
@@ -6712,7 +6814,7 @@ function stScore(l, how) {
   res.appendChild(row); stNav();
 }
 async function stLock(p) {
-  stHalt(); if (!(await ensureListening())) return; const g = LS.gen; ST.setBusy(true); $('#stLive').textContent = '🎯 Hold ' + nameOf(p.n.midi) + ' inside the green band';
+  stHalt(); if (!(await ensureListening({ aec: true }))) return; const g = LS.gen; ST.setBusy(true); $('#stLive').textContent = '🎯 Hold ' + nameOf(p.n.midi) + ' inside the green band';
   const r = await lsHoldRun(p.n.midi, {}); if (!r || LS.gen !== g) return; ST.setBusy(false);
   $('#stLive').textContent = r.ok ? cue('good') + ' You found ' + nameOf(p.n.midi) + '. Now the line again: tap 🎤 My turn.' : 'Keep at it: hear the note in your head first, then sing it softly.';
 }

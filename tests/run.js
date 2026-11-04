@@ -1050,6 +1050,27 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && s1.busy && !s2.busy && Math.abs(s2.off - s1.off) < 0.6 && s3.busy && s3.state === 'running' && s3.off > s2.off - 3 && s3.off < s2.off + 4, JSON.stringify({ playing, gone, toastTxt, again, s1, s2, s3 }));
   });
 
+  await test('How you did: after singing along with the whole song, a focused review in the main view: score, how close you stayed to his notes, the habit that costs most (here: flat), the lines most worth practising with a tip and Coach this line, your best line, and Play my take with the playhead', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
+    await page.evaluate(async () => { store.proInfo = { 'Review test': { lyrics: 'one two three four five six se-ven eight nine ten and\nHap-py birth-day to you and to you my dear old friend\nthird line words here and there and more\nlast line of the song for now we go home' } }; save();
+      openLab('pro'); await proLoad(await makeProSong({ repeat: true }), 'Review test', 'file', await makeProSong({ repeat: true, noVoice: true }));
+      // the singer: line 1 right, lines 2 and 3 a little flat (one note badly), line 4 silent
+      setInterval(() => { if (!ST.busy) { V.on = false; return; } const t = PRO.off, L = stLines(), k = L.findIndex(l => t >= l.t0 && t <= l.t1), n = PRO.an.notes.find(x => t >= x.b0 && t <= x.b1 - 0.04);
+        V.on = !!n && k !== 3 && k >= 0; if (n) V.m = n.midi + (k === 1 || k === 2 ? (n === PRO.an.notes[L[k].idx[2]] ? -1 : -0.3) : 0); }, 15); });
+    await page.click('[data-act="singalong"]');
+    await page.waitForFunction(() => !ST.busy && !$('#proReview').hidden, null, { timeout: 90000 }); await page.waitForTimeout(800);
+    const r = await page.evaluate(() => { const b = $('#proReview'); return { text: b.textContent, score: +b.querySelector('.ls-big').textContent, work: [...b.querySelectorAll('.review-line')].map(x => +x.dataset.line), tips: [...b.querySelectorAll('.rv-tip')].map(x => x.textContent),
+      coach: b.querySelectorAll('[data-act="coach-line"]').length, take: !$('[data-act="play-take"]').disabled, underBar: $('.pro-bar').nextElementSibling === b }; });
+    await page.click('[data-act="play-take"]'); await page.waitForTimeout(300); const p0 = await page.evaluate(() => PRO.off); await page.waitForTimeout(1500); const p1 = await page.evaluate(() => ({ off: PRO.off, btn: $('[data-act="play-take"]').textContent }));
+    await page.click('[data-act="play-take"]');
+    await page.click('#proReview [data-act="coach-line"]'); await page.waitForTimeout(200);
+    const co = await page.evaluate(() => ({ coaching: $('#proBar').classList.contains('coaching'), k: ST.k, hidden: $('#proReview').hidden }));
+    expect(r.underBar && r.score > 0 && /How you did/.test(r.text) && /Close to his notes: \d+% right on/.test(r.text) && /flat/.test(r.text) && /3 of 4 lines/.test(r.text)
+      && r.work.length >= 1 && r.work.every(k => k === 1 || k === 2) && r.tips.every(x => x.length > 10) && r.coach === r.work.length && /best line/.test(r.text) && r.take
+      && p1.off > p0 + 1 && /Stop/.test(p1.btn) && co.coaching && co.k === r.work[0] && co.hidden, JSON.stringify({ r, p0, p1, co }));
+  });
+
   await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
