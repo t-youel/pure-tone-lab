@@ -633,7 +633,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('.tour-all summary'); await page.click('.tour-row[data-item="lab-match"] button');
     const opened = await page.evaluate(() => D.id);
     expect(s.screen === 'tour' && s.stages.length === 4 && /You are here/.test(s.stages[0].badge) && /After Stage 1/.test(s.stages[1].badge) && s.stages[1].dis && !s.stages[0].dis
-      && s.stages.every(x => x.learn.length > 20 && x.units >= 2) && s.tiles === 'session,songs,tutor,workout,home,pro,lab,range,progress,easy' && s.tutorLocked && s.folded
+      && s.stages.every(x => x.learn.length > 20 && x.units >= 2) && s.tiles === 'session,songs,tutor,sound,workout,home,pro,lab,range,progress,easy' && s.tutorLocked && s.folded
       && s.labs === s.total && s.lockedLab && /Opens in Stage 3/.test(s.lockTxt) && opened === 'match', JSON.stringify({ s, opened }));
   });
 
