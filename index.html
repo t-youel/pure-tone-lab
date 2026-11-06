@@ -1334,11 +1334,11 @@ function micProblem(e) {
   const why = n === 'NotAllowedError' || n === 'SecurityError' ? 'The microphone is blocked for this page.'
     : n === 'NotReadableError' || n === 'AbortError' ? 'Another app is using the microphone (a call, a voice memo, a video, or another tab).'
     : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No microphone was found.'
-    : n === 'NoMedia' ? 'This browser doesn’t let web pages use the microphone.' : 'The microphone didn’t start (' + (n || 'unknown reason') + ').';
+    : n === 'NoMedia' ? 'This browser doesn’t let web pages use the microphone.' : n === 'Silent' ? 'The microphone is on but sends no sound.' : 'The microphone didn’t start (' + (n || 'unknown reason') + ').';
   const fix = n === 'NotAllowedError' || n === 'SecurityError'
     ? (ios ? ['In Safari, tap the “aA” (or the icon) at the left of the address bar › Website Settings › Microphone › Allow.', 'Or: Settings › Apps › Safari › Microphone › Ask or Allow.', 'Then reload this page and tap the button again.'] : ['Click the lock or settings icon next to the address and allow the microphone, then reload.'])
     : n === 'NotReadableError' || n === 'AbortError' ? ['Close or pause the other app (or end the call), then tap the button again.', ios ? 'If it still won’t start, close Safari completely (swipe it away) and open the page again.' : 'If it still won’t start, reload the page.']
-    : n === 'NoMedia' ? ['Open the page in Safari (or Chrome) directly, not inside another app.'] : ['Reload the page and try again.'];
+    : n === 'NoMedia' ? ['Open the page in Safari (or Chrome) directly, not inside another app.'] : n === 'Silent' ? ['Another app may be holding the microphone (a call, a video, a voice memo): close it.', ios ? 'Then close Safari completely (swipe it away), open the page again and tap the button.' : 'Then reload the page and tap the button again.'] : ['Reload the page and try again.'];
   try { diag('Microphone: ' + (n || 'failed'), 'mic'); } catch (x) {}
   try { infoSheet('🎤 ' + why, fix.map(f => el('p', '', f))); } catch (x) { toast(why + ' ' + fix[0]); }
 }
@@ -1365,7 +1365,7 @@ async function startMic(opts = {}) {
     if (mode !== 'mic' || S.micPeak > 0) return;
     await rebuildAudio(); S.micPeak = 0;
     setMode('mic', ac.state === 'running' ? LISTEN_MSG : 'Tap anywhere on the page to switch the sound meter on.');
-    micWatch = setTimeout(() => { if (mode === 'mic' && S.micPeak === 0) setMode('mic', 'The microphone is sending no sound. Close other apps using the mic, reload this page, and tap Turn on mic again.'); }, 2500);
+    micWatch = setTimeout(() => { if (mode === 'mic' && S.micPeak === 0) { setMode('mic', 'The microphone is sending no sound. Close other apps using the mic, reload this page, and tap Turn on mic again.'); micProblem({ name: 'Silent' }); } }, 2500);
   }, 1500);
 }
 

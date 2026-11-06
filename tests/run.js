@@ -743,14 +743,18 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     expect(vid.src && vid.playing, JSON.stringify(vid));
   });
 
-  await test('Mic blocked or busy: Let’s go tells you why, where you can see it (blocked: how to allow it in Safari; in use: close the other app), instead of doing nothing', async page => {
+  await test('Mic blocked or busy: Let’s go tells you why, where you can see it (blocked: how to allow it in Safari; in use: close the other app), or the mic is silent, instead of doing nothing', async page => {
     await page.evaluate(() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('denied', 'NotAllowedError')); Object.defineProperty(navigator, 'userAgent', { configurable: true, get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' }); openLab('range', true); });
     await page.waitForTimeout(300); await page.click('text=Let\'s go'); await page.waitForTimeout(600);
     const blocked = await page.evaluate(() => ({ text: document.body.innerText.match(/microphone is blocked[\s\S]{0,300}/i)?.[0] || '', mode }));
     await page.evaluate(() => { document.querySelectorAll('.sheet, .info-sheet, [role="dialog"]').forEach(x => x.remove()); navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('busy', 'NotReadableError')); });
     await page.evaluate(() => startMic()); await page.waitForTimeout(400);
     const busy = await page.evaluate(() => (document.body.innerText.match(/Another app is using the microphone[\s\S]{0,200}/) || [''])[0]);
-    expect(blocked.mode === 'idle' && /Website Settings › Microphone › Allow/.test(blocked.text) && /Close or pause the other app/.test(busy), JSON.stringify({ blocked, busy }));
+    // the mic turns on but sends nothing at all (held by another app)
+    await page.evaluate(() => { document.querySelectorAll('.sheet, .info-sheet, [role="dialog"]').forEach(x => x.remove()); const silent = new AudioContext().createMediaStreamDestination().stream; navigator.mediaDevices.getUserMedia = () => Promise.resolve(silent); startMic(); });
+    await page.waitForFunction(() => /sends no sound/.test(document.body.innerText), null, { timeout: 12000 }).catch(() => {});
+    const silent = await page.evaluate(() => (document.body.innerText.match(/microphone is on but sends no sound[\s\S]{0,200}/) || [''])[0]);
+    expect(blocked.mode === 'idle' && /Website Settings › Microphone › Allow/.test(blocked.text) && /Close or pause the other app/.test(busy) && /close it/.test(silent), JSON.stringify({ blocked, busy, silent }));
   });
 
   await test('First Notes after the song lab: it switches back to the plain mic (the songs use echo cancelling); if the mic stops, one tap on Wake up brings it back for good, no loop', async page => {
