@@ -534,7 +534,13 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .hp-note { margin: 4px 0 0; font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; } .hp-x { padding: 0 8px; font-size: .8rem; }
 .snd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 8px 0; } .snd-try { display: flex; gap: 6px; align-items: center; text-align: left; padding: 8px 10px; }
 .snd-try.done { border-color: #3aa76d; } .snd-try b { flex: 1; font-size: .92rem; } .snd-sc { font-weight: 700; } .snd-ic { font-size: 1.3em; }
-.snd-cv { width: 100%; height: 120px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; } .snd-facts { font-weight: 600; }
+.snd-aim { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .snd-aim-l { color: var(--muted); } .snd-aim-n { font-size: 1.8rem; }
+.snd-now { font-size: 1.5rem; font-weight: 700; min-height: 1.6em; } .snd-now.on { color: #2e9d5b; } .snd-now.near { color: #c07a12; } .snd-now.off { color: #c9443f; }
+.snd-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; } .snd-m span { font-size: .85rem; color: var(--muted); } .snd-m b { display: block; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; } .snd-m b i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 5px; transition: width .15s; }
+.snd-meters.done .snd-m span { color: var(--ink); } .snd-gh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; } .snd-letter { font-size: 1.6rem; width: 1.6em; text-align: center; border-radius: 8px; }
+.snd-letter.gA { background: color-mix(in srgb, #3aa76d 25%, var(--surface)); } .snd-letter.gB { background: color-mix(in srgb, #7cc36b 25%, var(--surface)); } .snd-letter.gC { background: color-mix(in srgb, #f0c040 25%, var(--surface)); } .snd-letter.gD { background: color-mix(in srgb, #f0973a 25%, var(--surface)); }
+.snd-score { font-size: 1.3rem; } .snd-tip { margin: 4px 0; } .snd-table { display: grid; gap: 4px; margin: 6px 0; } .snd-row { display: grid; grid-template-columns: 1fr auto 2.5em; gap: 8px; align-items: center; } .snd-row .snd-letter { font-size: 1.1rem; } .snd-nat { font-weight: 600; }
+.snd-cv { width: 100%; height: 180px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; } .snd-facts { font-weight: 600; }
 .snd-gift { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; } .snd-gift-h { font-weight: 700; font-size: 1.05rem; } .snd-how { margin: 4px 0; }
 .snd-words { width: 100%; font: inherit; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); } .snd-write button.on { border-color: var(--accent); }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
@@ -974,7 +980,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-06 · find your sound, clear mic messages</p>
+  <p class="fine build" id="buildTag">Build 2026-11-06 · find your sound: see the note, live feedback, grades, howl</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -6984,16 +6990,17 @@ const woSpeak = () => (store.home && store.home.speak) ?? (store.profile && stor
 // comes first: every colour is measured against your own voice, not someone else's. Each try is recorded so you can
 // hear it. Your gifts are the tries you did best; then: songs here that suit them, and a song written for them.
 const SOUND_TRIES = [
-  { id: 'base', ic: '🙂', name: 'Your easy voice', how: 'Sing a relaxed “ahh” on this note, the way you’d hum in the shower. This is your starting point: every other sound is measured against it.', secs: 4, off: 0 },
-  { id: 'low', ic: '🐻', name: 'Low and warm', how: 'Slide down to the lowest note that still feels easy and rich, on “oh”, and hold it there. No pushing.', secs: 6, off: -5, like: 'Chris Cornell’s verses (“Black Hole Sun”), Don Henley’s verses (“Hotel California”)' },
-  { id: 'climb', ic: '🚀', name: 'The big climb', how: 'On “wee”, slide from low all the way up as high as you can go smoothly, then back down. Like a siren.', secs: 7, off: -5, like: 'Freddie Mercury (“Bohemian Rhapsody”), Steve Perry (“Don’t Stop Believin’”), Robert Plant (“Immigrant Song”)' },
-  { id: 'falsetto', ic: '🕊', name: 'Falsetto', how: 'A light, airy “ooh” up high, soft as a bird call. Let it float; don’t push it. Hold it.', secs: 5, off: 12, like: 'Barry Gibb (“Stayin’ Alive”), MGMT (“Time to Pretend”)' },
-  { id: 'belt', ic: '📣', name: 'Belt', how: 'Call out a strong “hey!” on this note, like calling to a friend across a field. Strong and bright, not shouting.', secs: 4, off: 7, like: 'Brandon Flowers (“Mr. Brightside”), Steve Perry’s chorus' },
-  { id: 'twang', ic: '🦆', name: 'Twang', how: 'Sing “nyah nyah nyah” on one note, bright and a bit nasal, like a cartoon duck.', secs: 4, off: 2, like: 'Isaac Brock (“Float On”), Jack White (“Seven Nation Army”)' },
-  { id: 'breathy', ic: '🌬', name: 'Breathy', how: 'A soft, airy “haa”, more air than sound, like a sigh, but still on the note.', secs: 4, off: 0, like: 'Dreamy indie voices (MGMT), quiet Bee Gees verses' },
-  { id: 'vibrato', ic: '〰', name: 'Vibrato', how: 'Hold “ah” on this note and let it gently wave up and down, like a slow ripple.', secs: 5, off: 4, like: 'Freddie Mercury, Chris Cornell’s long notes' },
-  { id: 'deadpan', ic: '😐', name: 'Deadpan', how: 'Speak-sing “I don’t care what the weather does today” on one note: cool, flat, steady.', secs: 5, off: 0, like: 'Alex Kapranos (“Take Me Out”), Jack White' },
-  { id: 'grit', ic: '🔥', name: 'Gentle grit', how: 'Only if it feels fine: a quiet “yeah” with a little rasp, like a soft growl. Stop at once if it scratches or hurts. Never loud, never more than a moment.', secs: 3, off: 2, like: 'Axl Rose (“Welcome to the Jungle”), Robert Plant, but gently', safety: true },
+  { id: 'base', ic: '🙂', name: 'Your easy voice', how: 'Sing a relaxed “ahh” on the note shown, the way you’d hum in the shower. Every other sound is measured against this one.', secs: 4, off: 0, kind: 'hold', colour: null },
+  { id: 'low', ic: '🐻', name: 'Low and warm', how: 'Start on the note shown and slide down on “oh” to the lowest note that still feels easy and rich. Hold it there. No pushing.', secs: 6, off: -2, kind: 'low', colour: 'Depth', like: 'Chris Cornell’s verses (“Black Hole Sun”), Don Henley’s verses (“Hotel California”)' },
+  { id: 'climb', ic: '🚀', name: 'The big climb', how: 'On “wee”, slide from your lowest note all the way up as high as you can go smoothly, then back down. Like a siren.', secs: 7, off: -5, kind: 'climb', colour: 'Range', like: 'Freddie Mercury (“Bohemian Rhapsody”), Steve Perry (“Don’t Stop Believin’”), Robert Plant (“Immigrant Song”)' },
+  { id: 'falsetto', ic: '🕊', name: 'Falsetto', how: 'A light, airy “ooh” on the high note shown, soft as a bird call. Let it float; don’t push it.', secs: 5, off: 12, kind: 'hold', colour: 'Lightness', like: 'Barry Gibb (“Stayin’ Alive”), MGMT (“Time to Pretend”)' },
+  { id: 'belt', ic: '📣', name: 'Belt', how: 'Call out a strong “hey!” on the note shown, like calling to a friend across a field. Strong and bright, not shouting.', secs: 4, off: 7, kind: 'hold', colour: 'Power', like: 'Brandon Flowers (“Mr. Brightside”), Steve Perry’s chorus' },
+  { id: 'howl', ic: '🐺', name: 'Howl', how: 'A big “whoa-oh”: start on the first note, slide up to the second and hold it, open and a little rough, like Springsteen.', secs: 5, off: 2, to: 7, kind: 'howl', colour: 'Howl', like: 'Bruce Springsteen (“Born to Run”, “Thunder Road”), Robert Plant' },
+  { id: 'twang', ic: '🦆', name: 'Twang', how: 'Sing “nyah nyah nyah” on the note shown, bright and a bit nasal, like a cartoon duck.', secs: 4, off: 2, kind: 'hold', colour: 'Twang', like: 'Isaac Brock (“Float On”), Jack White (“Seven Nation Army”)' },
+  { id: 'breathy', ic: '🌬', name: 'Breathy', how: 'A soft, airy “haa” on the note shown: more air than sound, like a sigh, but still on the note.', secs: 4, off: 0, kind: 'hold', colour: 'Air', like: 'Dreamy indie voices (MGMT), quiet Bee Gees verses' },
+  { id: 'vibrato', ic: '〰', name: 'Vibrato', how: 'Hold “ah” on the note shown and let it gently wave up and down around it, like a slow ripple.', secs: 5, off: 4, kind: 'hold', colour: 'Vibrato', like: 'Freddie Mercury, Chris Cornell’s long notes' },
+  { id: 'deadpan', ic: '😐', name: 'Deadpan', how: 'Speak-sing “I don’t care what the weather does today” on the note shown: cool, flat, steady.', secs: 5, off: 0, kind: 'hold', colour: 'Cool', like: 'Alex Kapranos (“Take Me Out”), Jack White' },
+  { id: 'grit', ic: '🔥', name: 'Gentle grit', how: 'Only if it feels fine: a quiet “yeah” on the note shown with a little rasp, like a soft growl. Stop at once if it scratches or hurts. Never loud.', secs: 3, off: 2, kind: 'hold', colour: 'Rasp', like: 'Axl Rose (“Welcome to the Jungle”), Robert Plant, but gently', safety: true },
 ];
 const SND = { gen: 0, busy: false, clips: {}, rec: null };
 function sndFeatures() {
@@ -7005,75 +7012,135 @@ function sndFeatures() {
 const sndHome = () => { const p = store.profile, h = store.home; return Math.round(h && h.sweet ? h.sweet : p && p.natural ? p.natural : 50); };
 const sndSd = a => { if (a.length < 2) return 0; const mu = mean(a); return Math.sqrt(mean(a.map(x => (x - mu) ** 2))); };
 const pct = (a, q) => { const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.max(0, Math.floor(q * (s.length - 1))))]; };
-// listen to one try: the guide note first (except the climb), then capture the sound for its seconds
+const sndTarget = tr => sndHome() + tr.off, sndTo = tr => tr.to != null ? sndHome() + tr.to : null;
+const sndGrade = s => s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 55 ? 'C' : s >= 40 ? 'D' : '–';
+const FLOOR = { twang: 0.01, air: 0.005, bright: 50 };
+const sndRel = (k, x, base) => base && base[k] != null ? (x + (FLOOR[k] || 0)) / (base[k] + (FLOOR[k] || 0)) : 1;
+// the sound's own colour, 0–1, from a stretch of samples (also used live, over the last second)
+function sndColour(tr, v, base) {
+  if (!v.length) return 0; const home = sndHome(), ms = v.map(x => x.m), cl = clamp, avg = k => mean(v.map(x => x[k] || 0));
+  switch (tr.id) {
+    case 'low': return cl((home - pct(ms, 0.1)) / 9) * 0.8 + cl((1 - sndRel('bright', avg('bright'), base)) * 3 + 0.5) * 0.2;
+    case 'climb': return cl((pct(ms, 0.95) - pct(ms, 0.05)) / 22);
+    case 'falsetto': return cl((avg('share') - 0.25) / 0.4);
+    case 'belt': return base ? cl(20 * Math.log10(avg('rms') / base.rms) / 8) * 0.6 + cl((sndRel('bright', avg('bright'), base) - 1) * 2.5) * 0.4 : 0.5;
+    case 'howl': { const a = sndTarget(tr), b = sndTo(tr), rise = cl((pct(ms, 0.9) - a) / Math.max(1, b - a)), loud = base ? cl(20 * Math.log10(avg('rms') / base.rms) / 6) : 0.5, jit = v.length > 2 ? medArr(v.slice(1).map((x, i) => Math.abs(x.m - v[i].m) * 100)) : 0; return 0.5 * rise + 0.3 * loud + 0.2 * cl((jit - 5) / 20); }
+    case 'twang': return cl((sndRel('twang', avg('twang'), base) - 1) / 1.2);
+    case 'breathy': return cl((sndRel('air', avg('air'), base) - 1) / 1.5);
+    case 'vibrato': { if (v.length < 20) return 0; const mu = mean(ms), d = ms.map(x => x - mu); let cr = 0; for (let i = 1; i < d.length; i++) if (d[i - 1] < 0 && d[i] >= 0) cr++; const dur = Math.max(0.5, v[v.length - 1].t - v[0].t), rate = cr / dur, w = sndSd(d) * 141; return rate >= 4 && rate <= 7.5 && w >= 20 && w <= 130 ? 0.6 + 0.4 * cl(1 - Math.abs(rate - 5.8) / 2) : 0.25 * cl(w / 40); }
+    case 'deadpan': return cl(1 - (sndSd(ms) * 100 - 30) / 120);
+    case 'grit': { const jit = v.length > 2 ? medArr(v.slice(1).map((x, i) => Math.abs(x.m - v[i].m) * 100)) : 0; return cl((jit - 8) / 30); }
+  }
+  return 0;
+}
+// the target for a moment of the try: the note shown (the howl: the first note, then the second after its slide)
+function sndAim(tr, t) { const a = sndTarget(tr); if (tr.kind === 'howl') return t < 1.2 ? a : sndTo(tr); return tr.kind === 'hold' ? a : null; }
+// listen to one try: the note twice, 3-2-1, then capture with live feedback
 function sndCapture(tr, g) {
   return new Promise(res => {
-    const home = sndHome(), note = home + tr.off, live = $('#sndLive'), sm = [], t0 = performance.now() + 900; let iv;
-    if (tr.id !== 'climb' && tr.id !== 'low') playTone(note, 0.8, PIPE);
-    sndRecStart();
+    const target = sndTarget(tr), live = $('#sndLive'), sm = []; let iv; const lead = tr.kind === 'climb' ? 1.6 : 3.4, t0 = performance.now() + lead * 1000;
+    if (tr.kind !== 'climb') { playTone(target, 1.0, PIPE); playTone(tr.kind === 'howl' ? sndTo(tr) : target, 1.0, PIPE, 1.2); }
+    let recOn = false;
     iv = setInterval(() => {
       if (SND.gen !== g) { clearInterval(iv); sndRecStop(); return res(null); }
-      const s = (performance.now() - t0) / 1000; if (s < 0) { live.textContent = '🎵 Listen… then ' + tr.how.split('.')[0].toLowerCase(); return; }
-      const f = sndFeatures(); sm.push({ t: s, m: S.rawM, rms: S.rms || 0, clar: S.clarNow || 0, share: S.rawM != null ? S.share : null, ...f });
-      live.textContent = tr.ic + ' ' + (S.rawM != null ? '♪ ' + nameOf(Math.round(S.rawM)) : '…') + ' · ' + Math.max(0, Math.ceil(tr.secs - s)) + ' s';
+      const s = (performance.now() - t0) / 1000;
+      if (s < 0) { live.textContent = s < -1.6 && tr.kind !== 'climb' ? '🎵 Listen to the note…' : '🎤 Your turn in ' + Math.ceil(-s) + '…'; return; }
+      if (!recOn) { recOn = true; sndRecStart(); }
+      const f = sndFeatures(), m = S.rawM;
+      sm.push({ t: s, m, rms: S.rms || 0, pur: m != null ? S.purity : null, share: m != null ? S.share : null, ...f });
+      sndLive(tr, sm, s);
       if (tr.safety && SND.base && S.rms > 4 * SND.base.rms) live.textContent = '🔥 Easy — quieter. Grit is a small sound.';
-      sndDraw(sm, note);
+      else live.textContent = '🎤 ' + tr.how.split(/[.:]/)[0] + ' · ' + Math.max(0, Math.ceil(tr.secs - s)) + ' s';
       if (s >= tr.secs) { clearInterval(iv); sndRecStop(tr.id); res(sm); }
     }, 25);
   });
 }
-function sndDraw(sm, note) {
-  const cv = $('#sndCv'); if (!cv) return; const c = cv.getContext('2d'), W = cv.width = cv.clientWidth * 2, H = cv.height = 240; c.clearRect(0, 0, W, H);
-  const ms = sm.filter(x => x.m != null).map(x => x.m), lo = Math.min(note - 7, ...ms) - 1, hi = Math.max(note + 7, ...ms) + 1, y = m => H - 10 - (m - lo) / (hi - lo) * (H - 20), x = t => 10 + t / 8 * (W - 20);
-  c.strokeStyle = 'rgba(128,128,128,.4)'; c.setLineDash([6, 6]); c.beginPath(); c.moveTo(0, y(note)); c.lineTo(W, y(note)); c.stroke(); c.setLineDash([]);
-  c.strokeStyle = getComputedStyle(document.body).getPropertyValue('--accent') || '#4b4fd8'; c.lineWidth = 4; c.beginPath(); let pen = false;
-  for (const p of sm) { if (p.m == null) { pen = false; continue; } pen ? c.lineTo(x(p.t), y(p.m)) : c.moveTo(x(p.t), y(p.m)); pen = true; } c.stroke();
+// the live picture: your note against the target (green on it, amber close, red off), and four meters
+function sndLive(tr, sm, s) {
+  const now = sm.filter(x => x.t > s - 1), v = now.filter(x => x.m != null), cur = sm[sm.length - 1], aim = sndAim(tr, s), base = SND.base;
+  const big = $('#sndNow'); if (big) { if (cur && cur.m != null) { const c = aim != null ? Math.round((cur.m - aim) * 100) : null; big.textContent = '♪ ' + nameOf(Math.round(cur.m)) + (c == null ? '' : Math.abs(c) <= 25 ? ' · on the note ✓' : ' · ' + Math.abs(c) + '¢ ' + (c > 0 ? 'sharp' : 'flat')); big.className = 'snd-now ' + (c == null ? '' : Math.abs(c) <= 25 ? 'on' : Math.abs(c) <= 50 ? 'near' : 'off'); } else { big.textContent = '…'; big.className = 'snd-now'; } }
+  const set = (k, x) => { const b = document.querySelector('#sndMeters [data-m="' + k + '"] i'); if (b) b.style.width = Math.round(100 * clamp(x)) + '%'; };
+  if (aim != null) set('note', v.length ? v.filter(x => Math.abs(x.m - sndAim(tr, x.t)) <= 0.5).length / v.length : 0);
+  else set('note', v.length / Math.max(1, now.length));
+  set('pure', v.length ? clamp((mean(v.map(x => x.pur || 0)) - 30) / 60) : 0);
+  set('steady', v.length > 5 ? clamp(1 - (sndSd(v.slice(-12).map(x => x.m)) * 100 - 8) / 45) : 0);
+  if (tr.colour) set('colour', sndColour(tr, tr.kind === 'climb' || tr.id === 'low' ? sm.filter(x => x.m != null) : v, base));
+  sndDraw(tr, sm);
+}
+function sndDraw(tr, sm) {
+  const cv = $('#sndCv'); if (!cv) return; const c = cv.getContext('2d'), W = cv.width = cv.clientWidth * 2, H = cv.height = 360; c.clearRect(0, 0, W, H);
+  const a = sndTarget(tr), b = sndTo(tr), ms = sm.filter(x => x.m != null).map(x => x.m), css = getComputedStyle(document.body);
+  let lo = Math.min(a, b ?? a) - 6, hi = Math.max(a, b ?? a) + 6; if (tr.kind === 'climb') { lo = a - 6; hi = a + 20; } if (tr.id === 'low') { lo = a - 12; hi = a + 4; }
+  if (ms.length) { lo = Math.min(lo, Math.floor(Math.min(...ms)) - 1); hi = Math.max(hi, Math.ceil(Math.max(...ms)) + 1); }
+  const L = 70, y = m => 12 + (hi - m) / (hi - lo) * (H - 24), x = t => L + clamp(t / tr.secs) * (W - L - 10);
+  c.font = '22px ' + (css.getPropertyValue('--mono') || 'monospace'); c.textBaseline = 'middle';
+  const row = (H - 24) / (hi - lo); let lastY = -99;   // names on the left, never crowding each other (E–F and B–C are only a semitone apart)
+  for (let m = Math.ceil(hi); m >= lo; m--) { const pc = ((m % 12) + 12) % 12, nat = ![1, 3, 6, 8, 10].includes(pc); c.strokeStyle = nat ? 'rgba(128,128,128,.25)' : 'rgba(128,128,128,.1)'; c.beginPath(); c.moveTo(L, y(m)); c.lineTo(W, y(m)); c.stroke();
+    if (nat && y(m) - lastY >= 30 && (row >= 30 || pc === 0 || pc === 4 || pc === 7 || pc === 9 || pc === 2)) { c.fillStyle = 'rgba(128,128,128,.9)'; c.fillText(nameOf(m), 4, y(m)); lastY = y(m); } }
+  // the target band(s)
+  const band = (m, t0, t1) => { c.fillStyle = 'rgba(58,167,109,.22)'; c.fillRect(x(t0), y(m + 0.25), x(t1) - x(t0), y(m - 0.25) - y(m + 0.25)); c.strokeStyle = 'rgba(58,167,109,.9)'; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(x(t0), y(m)); c.lineTo(x(t1), y(m)); c.stroke(); c.setLineDash([]); c.fillStyle = '#2e8a57'; c.font = 'bold 24px sans-serif'; c.fillText(nameOf(m), x(t1) - 60, y(m) - 20); };
+  if (tr.kind === 'hold') band(a, 0, tr.secs); else if (tr.kind === 'howl') { band(a, 0, 1.2); band(b, 1.2, tr.secs); } else if (tr.kind === 'low') band(a, 0, 1);
+  // your voice
+  c.lineWidth = 6; c.lineCap = 'round'; let prev = null;
+  for (const p of sm) { if (p.m == null) { prev = null; continue; } const aim = sndAim(tr, p.t), d = aim == null ? 0 : Math.abs(p.m - aim);
+    if (prev) { c.strokeStyle = aim == null ? '#4b4fd8' : d <= 0.25 ? '#2e9d5b' : d <= 0.5 ? '#e0962a' : '#d9534f'; c.beginPath(); c.moveTo(x(prev.t), y(prev.m)); c.lineTo(x(p.t), y(p.m)); c.stroke(); } prev = p; }
+  if (tr.kind === 'climb' && ms.length) { c.fillStyle = '#4b4fd8'; c.font = 'bold 24px sans-serif'; c.fillText('▲ ' + nameOf(Math.round(Math.max(...ms))), W - 130, y(Math.max(...ms))); c.fillText('▼ ' + nameOf(Math.round(Math.min(...ms))), W - 130, y(Math.min(...ms))); }
 }
 function sndRecStart() { try { if (typeof MediaRecorder === 'undefined') return; if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); } const mr = new MediaRecorder(recDest.stream), rec = { mr, parts: [] }; SND.rec = rec; mr.ondataavailable = e => { if (e.data && e.data.size) rec.parts.push(e.data); }; mr.start(250); } catch (e) { SND.rec = null; } }
 function sndRecStop(id) { const r = SND.rec; SND.rec = null; if (!r) return; r.mr.onstop = async () => { if (!id) return; try { const blob = new Blob(r.parts, { type: r.mr.mimeType || 'audio/webm' }); SND.clips[id] = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) {} }; try { r.mr.stop(); } catch (e) {} }
 function sndHear(id) { const b = SND.clips[id]; if (!b) return; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; g.gain.value = 1.5; s.connect(g); g.connect(ac.destination); s.start(); }
-// what each try measured, and how strongly it shows (0–100), always against your own easy voice
+// the grade for one attempt: on the note, pure and natural, steady, and the sound's own colour, each 0–100; then overall
 function sndScore(tr, sm, base) {
-  const v = sm.filter(x => x.m != null && x.t > 0.4), vf = v.length / Math.max(1, sm.filter(x => x.t > 0.4).length), ms = v.map(x => x.m), home = sndHome();
-  if (v.length < 15) return { score: 0, facts: 'I couldn’t hear a clear note. Try again a little closer to the mic.', heard: false };
-  const tail = v.filter(x => x.t > tr.secs - 2.5).map(x => x.m), steady = clamp(1 - (sndSd(tail) * 100 - 10) / 50), med = medArr(ms);
-  // against your easy voice, with a small floor so a voice with almost nothing in a band can't give a silly ratio
-  const FLOOR = { twang: 0.01, air: 0.005, bright: 50 }, rel = k => base && base[k] != null ? (mean(v.map(x => x[k])) + (FLOOR[k] || 0)) / (base[k] + (FLOOR[k] || 0)) : 1, cl = clamp, times = x => x >= 5 ? 'over 5' : x.toFixed(1);
+  const v = sm.filter(x => x.m != null && x.t > 0.4), all = sm.filter(x => x.t > 0.4), home = sndHome();
+  if (v.length < 15) return { score: 0, heard: false, parts: {}, facts: 'I couldn’t hear a clear note. Sing a little louder or closer to the mic, and start when the countdown ends.' };
+  const ms = v.map(x => x.m), tail = v.filter(x => x.t > tr.secs - 2.5).map(x => x.m), med = medArr(ms);
+  const note = tr.kind === 'hold' || tr.kind === 'howl' ? v.filter(x => Math.abs(x.m - sndAim(tr, x.t)) <= 0.5).length / v.length : v.length / Math.max(1, all.length);
+  const pure = clamp((mean(v.map(x => x.pur || 0)) - 30) / 60), steady = clamp(1 - (sndSd(tail) * 100 - 10) / 50), colour = tr.colour ? sndColour(tr, v, base) : null;
+  const P = { note: Math.round(100 * note), pure: Math.round(100 * pure), steady: Math.round(100 * (tr.kind === 'climb' ? clamp(1 - sndJumps(v) / 4) : steady)) }; if (colour != null) P.colour = Math.round(100 * colour);
+  const score = tr.id === 'base' ? Math.round(0.35 * P.note + 0.35 * P.pure + 0.3 * P.steady) : Math.round(0.25 * P.note + 0.25 * P.pure + 0.2 * P.steady + 0.3 * (P.colour || 0));
+  const f = sndFacts(tr, v, ms, med, P, base, home);
+  const out = { score, parts: P, facts: f, heard: true };
+  if (tr.id === 'base') Object.assign(out, { med, rms: mean(v.map(x => x.rms)), bright: mean(v.map(x => x.bright)), twang: mean(v.map(x => x.twang)), air: mean(v.map(x => x.air)), share: mean(v.map(x => x.share || 0)) });
+  if (tr.id === 'low') out.low = pct(ms, 0.1); if (tr.id === 'climb') { out.top = pct(ms, 0.95); out.bottom = pct(ms, 0.05); } if (tr.id === 'falsetto' || tr.id === 'belt' || tr.id === 'howl') out.top = med;
+  return out;
+}
+function sndJumps(v) { let j = 0; for (let i = 1; i < v.length; i++) if (v[i].t - v[i - 1].t < 0.08 && Math.abs(v[i].m - v[i - 1].m) > 2.5) j++; return j; }
+function sndFacts(tr, v, ms, med, P, base, home) {
+  const n = m => nameOf(Math.round(m));
   switch (tr.id) {
-    case 'base': return { score: 0, facts: 'Your easy note: ' + nameOf(Math.round(med)) + '.', heard: true, med, rms: mean(v.map(x => x.rms)), bright: mean(v.map(x => x.bright)), twang: mean(v.map(x => x.twang)), air: mean(v.map(x => x.air)), share: mean(v.map(x => x.share || 0)) };
-    case 'low': { const low = pct(ms, 0.1), depth = cl((home - low) / 9), warm = cl((1 - rel('bright')) * 3 + 0.5); return { score: Math.round(100 * (0.45 * steady + 0.35 * depth + 0.2 * warm)), facts: 'Down to ' + nameOf(Math.round(low)) + (steady > 0.7 ? ', held steady' : '') + (warm > 0.6 ? ', warm and dark' : '') + '.', low }; }
-    case 'climb': { const a = pct(ms, 0.05), b = pct(ms, 0.95), span = b - a; let jumps = 0; for (let i = 1; i < v.length; i++) if (v[i].t - v[i - 1].t < 0.08 && Math.abs(v[i].m - v[i - 1].m) > 2.5) jumps++;
-      const smooth = cl(1 - jumps / 4); return { score: Math.round(100 * (0.6 * cl(span / 22) + 0.4 * smooth)), facts: 'You climbed ' + Math.round(span) + ' semitones, ' + nameOf(Math.round(a)) + ' to ' + nameOf(Math.round(b)) + (jumps ? ', with ' + (jumps === 1 ? 'a jump' : jumps + ' jumps') + ' where the voice flips (that’s the break, it’s normal)' : ', smoothly all the way') + '.', top: b, bottom: a }; }
-    case 'falsetto': { const pure = cl((mean(v.map(x => x.share || 0)) - 0.25) / 0.4), high = cl((med - home) / 12); return { score: Math.round(100 * (0.4 * steady + 0.3 * pure + 0.3 * high)), facts: nameOf(Math.round(med)) + (pure > 0.6 ? ', light and pure' : pure > 0.3 ? ', fairly light' : ', still quite full (more chest than falsetto)') + (steady > 0.7 ? ', steady' : '') + '.', top: med }; }
-    case 'belt': { const loud = base ? 20 * Math.log10(mean(v.map(x => x.rms)) / base.rms) : 6, br = rel('bright'); return { score: Math.round(100 * (0.3 * cl(loud / 8) + 0.3 * cl((br - 1) * 2.5) + 0.4 * steady)), facts: (loud > 4 ? Math.round(loud) + ' dB stronger than your easy voice' : 'not much stronger than your easy voice yet') + (br > 1.2 ? ', bright and ringing' : '') + ' on ' + nameOf(Math.round(med)) + '.', top: med }; }
-    case 'twang': { const tw = rel('twang'); return { score: Math.round(100 * (0.7 * cl((tw - 1) / 1.2) + 0.3 * steady)), facts: tw > 1.6 ? 'A real twang: ' + times(tw) + '× the ring of your easy voice.' : tw > 1.2 ? 'Some twang (' + times(tw) + '×). Think brighter, more nose.' : 'Not much twang yet. Smile and aim the sound at your nose.' }; }
-    case 'breathy': { const air = rel('air'); return { score: Math.round(100 * (0.6 * cl((air - 1) / 1.5) + 0.4 * cl(vf / 0.7))), facts: (air > 1.6 ? 'Lots of air (' + times(air) + '× your easy voice)' : 'A little air') + (vf > 0.6 ? ', still on the note.' : '; keep a little more tone so the note stays.') }; }
-    case 'vibrato': { const tt = v.filter(x => x.t > 1).map(x => x.m), mu = mean(tt), d = tt.map(x => x - mu); let cross = 0; for (let i = 1; i < d.length; i++) if (d[i - 1] < 0 && d[i] >= 0) cross++;
-      const dur = (v[v.length - 1].t - Math.max(1, v[0].t)) || 1, rate = cross / dur, width = sndSd(d) * 141; const ok = rate >= 4 && rate <= 7.5 && width >= 20 && width <= 130;
-      return { score: Math.round(100 * (ok ? 0.6 + 0.4 * cl(1 - Math.abs(rate - 5.8) / 2) : 0.25 * cl(width / 40))), facts: ok ? 'A natural vibrato: ' + rate.toFixed(1) + ' waves a second, ±' + Math.round(width) + '¢.' : width < 20 ? 'Very straight so far; let the note relax and wave.' : 'A wave of ' + rate.toFixed(1) + ' a second, ±' + Math.round(width) + '¢; a natural one is 5–7 a second.' }; }
-    case 'deadpan': { const sd = sndSd(ms) * 100; return { score: Math.round(100 * (0.7 * cl(1 - (sd - 30) / 120) + 0.3 * cl(vf / 0.5))), facts: sd < 60 ? 'Cool and flat: your pitch stayed within ±' + Math.round(sd) + '¢.' : 'It wandered ±' + Math.round(sd) + '¢. Keep it on one note, like reading a list.' }; }
-    case 'grit': { const jit = medArr(v.slice(1).map((x, i) => Math.abs(x.m - v[i].m) * 100)), rough = cl((jit - 8) / 30), loudOk = !base || mean(v.map(x => x.rms)) < 4 * base.rms;
-      return { score: Math.round(100 * (0.6 * rough + 0.4 * cl(vf / 0.5)) * (loudOk ? 1 : 0.6)), facts: (rough > 0.5 ? 'A real rasp, and you kept a pitch under it.' : 'Mostly clean so far. That’s fine: grit is optional, and gentle is right.') + (loudOk ? '' : ' Keep it quieter next time.') }; }
+    case 'base': return 'Your easy note: ' + n(med) + '.';
+    case 'low': return 'Down to ' + n(pct(ms, 0.1)) + (P.steady >= 70 ? ', held steady' : '') + '.';
+    case 'climb': { const j = sndJumps(v); return 'You climbed ' + Math.round(pct(ms, 0.95) - pct(ms, 0.05)) + ' semitones, ' + n(pct(ms, 0.05)) + ' to ' + n(pct(ms, 0.95)) + (j ? ', with ' + (j === 1 ? 'a jump' : j + ' jumps') + ' where the voice flips (the break: normal, and it smooths with practice)' : ', smoothly all the way') + '.'; }
+    case 'howl': return 'From ' + n(sndTarget(tr)) + ' up to ' + n(pct(ms, 0.9)) + (Math.abs(pct(ms, 0.9) - sndTo(tr)) <= 0.5 ? ', right on the top note' : ' (the top note is ' + n(sndTo(tr)) + ')') + (P.colour >= 60 ? ', with a real howl in it.' : '. Open it up more: a bigger “whoa”, a little rough.');
+    case 'vibrato': return P.colour >= 60 ? 'A natural vibrato.' : 'Let the note relax and wave a little more.';
+    default: return n(med) + (P.colour != null ? ' · ' + tr.colour.toLowerCase() + ' ' + P.colour : '') + '.';
   }
-  return { score: 0, facts: '' };
+}
+// one tip for the weakest part
+function sndTip(tr, P) {
+  const parts = Object.entries(P).filter(([k]) => !(tr.kind === 'climb' && k === 'note')).sort((a, b) => a[1] - b[1]), [k, val] = parts[0] || [];
+  if (val == null || val >= 75) return 'Lovely. That sound comes easily to you.';
+  return { note: 'Hear the note first (▶ Hear the note), hum it, then open up into the sound on it. Watch the line turn green.', pure: 'Make it cleaner: less push, more breath flow, a relaxed jaw. A pure sound is an easy one.', steady: 'Hold it steadier: breathe low first, then let the air flow evenly to the end.',
+    colour: { low: 'Let the jaw drop and the sound fall into your chest. Lower, not louder.', climb: 'Go further: start lower, and keep sliding even when it flips. The flip is fine.', falsetto: 'Lighter: think of a soft “ooh” from the top of your head, like a yawn-sigh.', belt: 'More ring: smile a little, say “hey!” as if calling, and keep the throat open.', howl: 'Bigger “whoa”: drop the jaw, slide up boldly, and let a little roughness in on the top note.', twang: 'More twang: smile and aim the sound at your nose, like a duck.', breathy: 'More air: let a sigh carry the note.', vibrato: 'Relax the note and let it wave: think “ah-ah-ah” very gently.', deadpan: 'Flatter: say it like reading a list, all on one note.', grit: 'A tiny bit of rasp, quietly. If it doesn’t come easily, skip it: that’s fine.' }[tr.id] }[k] || '';
 }
 const GIFT = {
   low: { name: 'A low, warm voice', what: 'Rich low notes are rarer than high ones. Verses that sit low and dark are your home.' },
   climb: { name: 'A big range', what: 'You cover a lot of ground. Songs that start low and soar in the chorus show it off.' },
   falsetto: { name: 'A pure falsetto', what: 'A light, floating top that most singers have to work hard for.' },
   belt: { name: 'A strong belt', what: 'A bright, ringing call at the top of your chest voice: the big chorus moment.' },
+  howl: { name: 'A howl', what: 'A big, open “whoa” that climbs and rings: the Springsteen moment at the top of a chorus.' },
   twang: { name: 'Twang', what: 'A bright, nasal edge that cuts through a band and sounds instantly like you.' },
   breathy: { name: 'An intimate, breathy colour', what: 'Soft and close: it makes quiet songs feel like a secret.' },
   vibrato: { name: 'A natural vibrato', what: 'Your long notes shimmer on their own: a gift for slow, held melodies.' },
   deadpan: { name: 'Cool deadpan', what: 'A steady, talky delivery that makes verses sound effortless and cool.' },
   grit: { name: 'Gentle grit', what: 'A little rasp that adds attitude. Use it sparingly, and only when it feels easy.' },
 };
-// the app's songs that suit each gift, and how to use it in them
 const GIFT_SONGS = {
   low: ['Afterglow', 'Its verses sit low and gentle: lean into the warmth on “Rainbow, waiting by my window”.'],
   climb: ['Crazy Glue', 'From the low verses to the high bridge (“Hold onto me”): a real climb.'],
   falsetto: ['Crazy Glue', 'Take the high “Hold onto me” in the bridge up into a light falsetto.'],
   belt: ['Crazy Glue', 'Belt “That you are crazy glue, my darling” in the chorus.'],
+  howl: ['Crazy Glue', 'Howl the “Hold onto me” in the bridge: slide up into it and let it ring.'],
   twang: ['Coffee', 'Its quick, wordy verses love a bright, twangy edge.'],
   breathy: ['Afterglow', 'Sing the choruses (“You’re the afterglow”) soft and airy.'],
   vibrato: ['Afterglow', 'Let the long “That never fades” notes wave.'],
@@ -7082,63 +7149,91 @@ const GIFT_SONGS = {
 };
 function soundStart() {
   woStop(); SND.gen++; const box = $('#woBox'); box.textContent = ''; const c = el('div', 'wo-card snd-card'); box.appendChild(c);
-  c.append(el('h3', '', '🎨 Find your sound'), el('p', '', 'Every great voice has something of its own: Barry Gibb’s falsetto, Chris Cornell’s low verses that soar, Jack White’s twang. Try ten short sounds. The app measures each one against your own easy voice and finds what you’re already gifted at. Then you’ll get songs that suit it, and a new song written for it.'),
+  c.append(el('h3', '', '🎨 Find your sound'), el('p', '', 'Every great voice has something of its own: Barry Gibb’s falsetto, Springsteen’s howl, Chris Cornell’s low verses that soar. Try these sounds one by one. For each you’ll see the note to sing, hear it first, and watch your voice on the screen. Every attempt gets a grade: on the note, pure and natural, steady, and the sound itself. Your best grades show your gifts; then songs that suit them, and a new song written for them.'),
     el('p', 'muted', '🎧 Results may be better with headphones. Nothing here should hurt: if a sound scratches or strains, skip it.'));
   const list = el('div', 'snd-list'); list.id = 'sndList'; c.appendChild(list);
   const stage = el('div', 'snd-stage'); stage.id = 'sndStage'; c.appendChild(stage);
   const res = el('div', 'snd-res'); res.id = 'sndRes'; c.appendChild(res);
-  sndList();
-  const prev = store.sound; if (prev && prev.gifts && prev.gifts.length) sndResult();
+  sndList(); const prev = store.sound; if (prev && prev.gifts) sndResult();
 }
 function sndList() {
   const list = $('#sndList'); if (!list) return; list.textContent = ''; const r = (store.sound || {}).tries || {};
   SOUND_TRIES.forEach((tr, i) => { const b = el('button', 'snd-try' + (r[tr.id] ? ' done' : '')); b.dataset.try = tr.id;
-    b.append(el('span', 'snd-ic', tr.ic), el('b', '', tr.name), el('span', 'snd-sc', r[tr.id] ? (tr.id === 'base' ? '✓' : String(r[tr.id].score)) : ''));
+    b.append(el('span', 'snd-ic', tr.ic), el('b', '', tr.name), el('span', 'snd-sc', r[tr.id] ? (tr.id === 'base' ? '✓' : sndGrade(r[tr.id].score) + ' ' + r[tr.id].score) : ''));
     b.onclick = () => sndTry(i); list.appendChild(b); });
-  const go = el('button', 'primary', (store.sound && store.sound.tries) ? '▶ Carry on' : '▶ Start with your easy voice'); go.dataset.act = 'snd-go';
+  const go = el('button', 'primary', (store.sound && store.sound.tries && store.sound.tries.base) ? '▶ Carry on' : '▶ Start with your easy voice'); go.dataset.act = 'snd-go';
   go.onclick = () => { const k = SOUND_TRIES.findIndex(t => !r[t.id]); sndTry(k < 0 ? 0 : k); }; list.appendChild(go);
 }
-async function sndTry(i) {
-  const tr = SOUND_TRIES[i]; if (!tr) return sndResult(); if (!(await ensureListening())) return; await ensureAudio(); SND.gen++; const g = SND.gen;
-  const st = $('#sndStage'); st.textContent = ''; const r = (store.sound ||= { tries: {} }).tries ||= {};
+// one sound: the note to sing, hear it, then go; live feedback while you sing; a grade for the attempt
+function sndTry(i) {
+  const tr = SOUND_TRIES[i]; if (!tr) return sndResult(); SND.gen++; SND.cur = null;
+  const st = $('#sndStage'); st.textContent = ''; const r = ((store.sound ||= { tries: {} }).tries ||= {});
   if (tr.id !== 'base' && !r.base) { toast('First your easy voice: everything is measured against it.'); return sndTry(0); }
-  SND.base = r.base || null; SND.cur = tr.id; SND.curAt = performance.now();
-  st.append(el('h4', '', tr.ic + ' ' + (i) + (tr.id === 'base' ? '' : ' of ' + (SOUND_TRIES.length - 1)) + ' · ' + tr.name), el('p', '', tr.how));
-  if (tr.like) st.appendChild(el('p', 'muted', 'Listen for it in: ' + tr.like + '.'));
-  const cv = el('canvas', 'snd-cv'); cv.id = 'sndCv'; const live = el('p', 'ls-live', ''); live.id = 'sndLive'; st.append(cv, live);
-  const row = el('div', 'row'); const skip = el('button', 'small', 'Skip'); skip.onclick = () => { SND.gen++; sndTry(i + 1); }; row.appendChild(skip); st.appendChild(row);
+  SND.base = r.base || null; SND.i = i;
+  const target = sndTarget(tr), to = sndTo(tr);
+  st.append(el('h4', '', tr.ic + ' ' + (tr.id === 'base' ? 'Start' : i + ' of ' + (SOUND_TRIES.length - 1)) + ' · ' + tr.name), el('p', '', tr.how));
+  const aim = el('div', 'snd-aim'); aim.append(el('span', 'snd-aim-l', tr.kind === 'climb' ? 'Slide from' : tr.kind === 'low' ? 'Start on' : 'Sing'),
+    el('b', 'snd-aim-n', tr.kind === 'climb' ? 'low → high' : tr.kind === 'howl' ? nameOf(target) + ' ↗ ' + nameOf(to) : nameOf(target) + (tr.kind === 'low' ? ' ↓' : '')));
+  const hear = el('button', 'small', '▶ Hear the note'); hear.dataset.act = 'snd-note'; hear.onclick = async () => { await ensureAudio(); playTone(target, 1.2, PIPE); if (to != null) playTone(to, 1.2, PIPE, 1.3); }; if (tr.kind === 'climb') hear.hidden = true; aim.appendChild(hear);
+  st.appendChild(aim); if (tr.like) st.appendChild(el('p', 'muted', 'Listen for it in: ' + tr.like + '.'));
+  const cv = el('canvas', 'snd-cv'); cv.id = 'sndCv'; const now = el('div', 'snd-now', ''); now.id = 'sndNow';
+  const meters = el('div', 'snd-meters'); meters.id = 'sndMeters';
+  const mt = (k, label) => { const m = el('div', 'snd-m'); m.dataset.m = k; m.append(el('span', '', label), el('b', '', '')); m.lastChild.appendChild(el('i')); meters.appendChild(m); };
+  mt('note', tr.kind === 'climb' || tr.kind === 'low' ? 'Heard' : 'On the note'); mt('pure', 'Pure tone'); mt('steady', tr.kind === 'climb' ? 'Smooth' : 'Steady'); if (tr.colour) mt('colour', tr.colour);
+  const live = el('p', 'ls-live', ''); live.id = 'sndLive';
+  st.append(now, cv, meters, live); sndDraw(tr, []);
+  const row = el('div', 'row'); const go = el('button', 'primary', '🎤 Go'); go.dataset.act = 'snd-start'; const skip = el('button', 'small', 'Skip'); skip.onclick = () => sndTry(i + 1);
+  row.append(go, skip); st.appendChild(row); const res = el('div', 'snd-grade'); res.id = 'sndGrade'; st.appendChild(res);
+  sndAttempts(tr);
+  go.onclick = async () => {
+    if (!(await ensureListening())) return; await ensureAudio(); SND.gen++; const g = SND.gen; SND.cur = tr.id; SND.curAt = performance.now(); go.disabled = true; res.textContent = '';
+    const sm = await sndCapture(tr, g); go.disabled = false; SND.cur = null; if (!sm || SND.gen !== g) return;
+    const out = sndScore(tr, sm, SND.base); live.textContent = ''; sndShowGrade(tr, i, out);
+  };
   st.scrollIntoView({ block: 'nearest' });
-  const sm = await sndCapture(tr, g); if (!sm || SND.gen !== g) return;
-  const out = sndScore(tr, sm, SND.base); live.textContent = '';
-  if (tr.id === 'base') { if (out.heard) { r.base = out; SND.base = out; } }
-  else if (out.heard !== false) r[tr.id] = { score: out.score, facts: out.facts, top: out.top, low: out.low, bottom: out.bottom, at: Date.now() };
+}
+function sndShowGrade(tr, i, out) {
+  const r = store.sound.tries, res = $('#sndGrade'); res.textContent = ''; const go = document.querySelector('[data-act="snd-start"]');
+  ((store.sound.attempts ||= {})[tr.id] ||= []).push(out.heard ? out.score : 0); if (store.sound.attempts[tr.id].length > 8) store.sound.attempts[tr.id].shift();
+  if (out.heard) { if (tr.id === 'base') { r.base = out; SND.base = out; } else if (!r[tr.id] || out.score >= r[tr.id].score) r[tr.id] = { score: out.score, parts: out.parts, facts: out.facts, top: out.top, low: out.low, bottom: out.bottom, at: Date.now() }; }
   dirty = true; save(); sndList();
-  st.appendChild(el('p', 'snd-facts', (tr.id === 'base' ? '' : (out.heard === false ? '' : '★ ' + out.score + ' · ')) + out.facts));
-  const r2 = el('div', 'row'); const hear = el('button', 'small', '▶ Hear yourself'); hear.onclick = () => sndHear(tr.id); hear.dataset.act = 'snd-hear';
-  const again = el('button', 'small', '↻ Again'); again.onclick = () => sndTry(i);
-  const next = el('button', 'primary', i + 1 < SOUND_TRIES.length ? 'Next: ' + SOUND_TRIES[i + 1].ic + ' ' + SOUND_TRIES[i + 1].name + ' →' : '★ See your gifts'); next.dataset.act = 'snd-next'; next.onclick = () => i + 1 < SOUND_TRIES.length ? sndTry(i + 1) : sndResult();
-  r2.append(hear, again, next); if (out.heard === false) { hear.hidden = true; } st.appendChild(r2); row.remove();
-  if (tr.safety && out.heard !== false) st.appendChild(el('p', 'muted', 'Grit is a spice: a little goes a long way, and it should never hurt. If your throat feels scratchy, have a sip of water and rest it.'));
+  if (!out.heard) { res.appendChild(el('p', 'snd-facts', '🤔 ' + out.facts)); if (go) go.textContent = '🎤 Try again'; return; }
+  const head = el('div', 'snd-gh'); head.append(el('b', 'snd-letter g' + sndGrade(out.score), sndGrade(out.score)), el('b', 'snd-score', String(out.score)), el('span', '', ' / 100 · ' + out.facts)); res.appendChild(head);
+  const bars = el('div', 'snd-meters done'); const L = { note: tr.kind === 'climb' || tr.kind === 'low' ? 'Heard' : 'On the note', pure: 'Pure tone', steady: tr.kind === 'climb' ? 'Smooth' : 'Steady', colour: tr.colour };
+  Object.entries(out.parts).forEach(([k, val]) => { const m = el('div', 'snd-m'); m.append(el('span', '', L[k] + ' ' + val), el('b', '', '')); const bar = el('i'); bar.style.width = val + '%'; m.lastChild.appendChild(bar); bars.appendChild(m); });
+  res.appendChild(bars); res.appendChild(el('p', 'snd-tip', '💡 ' + sndTip(tr, out.parts)));
+  const row = el('div', 'row'); const hear = el('button', 'small', '▶ Hear yourself'); hear.dataset.act = 'snd-hear'; hear.onclick = () => sndHear(tr.id);
+  const next = el('button', 'primary', i + 1 < SOUND_TRIES.length ? 'Next: ' + SOUND_TRIES[i + 1].ic + ' ' + SOUND_TRIES[i + 1].name + ' →' : '★ See your sound'); next.dataset.act = 'snd-next'; next.onclick = () => i + 1 < SOUND_TRIES.length ? sndTry(i + 1) : sndResult();
+  row.append(hear, next); res.appendChild(row); if (go) go.textContent = '🎤 Try again';
+  if (tr.safety) res.appendChild(el('p', 'muted', 'Grit is a spice: a little goes a long way, and it should never hurt. If your throat feels scratchy, have a sip of water and rest it.'));
+  sndAttempts(tr);
+}
+function sndAttempts(tr) {
+  const a = ((store.sound || {}).attempts || {})[tr.id] || [], st = $('#sndStage'); let e = $('#sndAtt'); if (!st) return; if (!e) { e = el('p', 'muted snd-att'); e.id = 'sndAtt'; st.appendChild(e); }
+  e.textContent = a.length ? 'Your attempts: ' + a.map(x => sndGrade(x) + ' ' + x).join(' · ') + ' (your best counts)' : '';
 }
 function sndGifts() {
-  const r = (store.sound || {}).tries || {}; const g = Object.keys(GIFT).filter(k => r[k] && r[k].score >= 55).sort((a, b) => r[b].score - r[a].score);
-  // a contrast gift: a strong low end and a strong top (falsetto or the climb) together, like Cornell's verses-to-chorus
-  return g.slice(0, 3);
+  const r = (store.sound || {}).tries || {}; return Object.keys(GIFT).filter(k => r[k] && r[k].score >= 60).sort((a, b) => r[b].score - r[a].score).slice(0, 3);
 }
 function sndResult() {
   SND.gen++; const res = $('#sndRes'); if (!res) return; res.textContent = ''; const r = (store.sound || {}).tries || {}, gifts = sndGifts(); store.sound.gifts = gifts; dirty = true; save();
-  const done = Object.keys(GIFT).filter(k => r[k]).length;
+  const done = Object.keys(GIFT).filter(k => r[k]);
   res.appendChild(el('h3', '', '★ Your sound'));
-  if (done < 4) { res.appendChild(el('p', '', 'Try at least four sounds to find your gifts (' + done + ' so far).')); return; }
-  if (!gifts.length) { res.appendChild(el('p', '', 'No sound stood out yet: that’s normal at the start. Every one of these grows with practice. Try the ones that felt most fun again.')); }
-  const lowTop = r.low && r.low.score >= 55 && ((r.falsetto && r.falsetto.score >= 55) || (r.climb && r.climb.score >= 60));
+  if (done.length < 4) { res.appendChild(el('p', '', 'Try at least four sounds to find your gifts (' + done.length + ' so far).')); return; }
+  // every sound you tried, by grade
+  const table = el('div', 'snd-table'); done.sort((a, b) => r[b].score - r[a].score).forEach(k => { const t = SOUND_TRIES.find(x => x.id === k), row = el('div', 'snd-row'); row.append(el('span', '', t.ic + ' ' + t.name), el('b', 'snd-letter g' + sndGrade(r[k].score), sndGrade(r[k].score)), el('span', 'muted', String(r[k].score))); table.appendChild(row); }); res.appendChild(table);
+  // the natural sound: the one you make most purely and steadily
+  const nat = done.filter(k => r[k].parts && r[k].score >= 55).sort((a, b) => (r[b].parts.pure + r[b].parts.steady) - (r[a].parts.pure + r[a].parts.steady))[0];
+  res.appendChild(el('p', 'snd-nat', nat ? '🌱 Your most natural sound: ' + SOUND_TRIES.find(x => x.id === nat).ic + ' ' + GIFT[nat].name.replace(/^An? /, '').toLowerCase() + ' (pure ' + r[nat].parts.pure + ', steady ' + r[nat].parts.steady + '). That’s where your voice is most at ease.' : '🌱 No sound is fully natural for you yet: none scored above C. That’s normal at the start. Work on your easy voice and try again in a week; the grades will show the change.'));
+  if (!gifts.length) { res.appendChild(el('p', '', 'No gift stands out yet (a gift needs a B: 60 or more). Try the sounds that felt most fun again; every one of them grows with practice.')); }
+  const lowTop = r.low && r.low.score >= 60 && ((r.falsetto && r.falsetto.score >= 60) || (r.climb && r.climb.score >= 60) || (r.howl && r.howl.score >= 60));
   gifts.forEach((k, n) => { const G2 = GIFT[k], tr = SOUND_TRIES.find(t => t.id === k), card = el('div', 'snd-gift'); card.dataset.gift = k;
-    card.append(el('div', 'snd-gift-h', (n === 0 ? '🌟 ' : '⭐ ') + G2.name + ' · ' + r[k].score), el('p', '', G2.what + ' ' + r[k].facts), el('p', 'muted', 'Like: ' + tr.like + '. (Find these on your music app and listen for it.)'));
-    const [song, how] = GIFT_SONGS[k], row = el('div', 'row'); const sb = el('button', 'small', '🎵 Use it in “' + song + '”'); sb.dataset.act = 'gift-song'; sb.title = how; sb.onclick = () => { openLab('pro'); setTimeout(() => { const s = SONG_LIB.find(x => x.title === song); if (s) proLoadLib(s); }, 50); };
+    card.append(el('div', 'snd-gift-h', (n === 0 ? '🌟 ' : '⭐ ') + G2.name + ' · ' + sndGrade(r[k].score) + ' ' + r[k].score), el('p', '', G2.what + ' ' + r[k].facts), el('p', 'muted', 'Like: ' + tr.like + '. (Find these on your music app and listen for it.)'));
+    const [song, how] = GIFT_SONGS[k], row = el('div', 'row'); const sb = el('button', 'small', '🎵 Use it in “' + song + '”'); sb.dataset.act = 'gift-song'; sb.onclick = () => { openLab('pro'); setTimeout(() => { const s = SONG_LIB.find(x => x.title === song); if (s) proLoadLib(s); }, 50); };
     const hb = el('button', 'small', '▶ Hear yours'); hb.onclick = () => sndHear(k); hb.hidden = !SND.clips[k];
     row.append(sb, hb); card.append(el('p', 'snd-how', '🎵 ' + how), row); res.appendChild(card); });
   if (lowTop) res.appendChild(el('p', 'snd-gift-x', '✨ And together: rich lows and a strong top. That low-to-high contrast is what makes “Black Hole Sun” and “Bohemian Rhapsody” so striking.'));
-  const w = el('button', 'primary', '✍️ Write a song for my voice'); w.dataset.act = 'write'; w.onclick = () => songWriter(); res.appendChild(w);
+  if (gifts.length) { const w = el('button', 'primary', '✍️ Write a song for my voice'); w.dataset.act = 'write'; w.onclick = () => songWriter(); res.appendChild(w); }
   const ws = el('div', 'snd-write'); ws.id = 'sndWrite'; res.appendChild(ws);
   res.scrollIntoView({ block: 'nearest' });
 }
@@ -7155,6 +7250,7 @@ const WRITE_BANK = {
   breathy: { title: ['Whisper', 'Close to You', 'Soft Light'], verse: ['I leave the lamp on in the hall', 'I hear the rain a- gainst the wall', 'You know I nev- er say it all', 'But here I am a- bout to call'], chorus: ['Whis- per, whis- per, close to me', 'Soft as the wind a- cross the sea', 'Whis- per, whis- per, say it slow', 'Some things are bet- ter said low'] },
   vibrato: { title: ['Long Night', 'Shimmer', 'The Last Light'], verse: ['The sun goes down o- ver the bay', 'The boats come home at the end of day', 'I hold the light as it fades a- way', 'And wish that time would let it stay'], chorus: ['Shim- mer, shim- mer, on the sea', 'Light of the eve- ning, stay with me', 'Shim- mer, shim- mer, long and slow', 'Hold on be- fore you go'] },
   deadpan: { title: ['Weather Report', 'Tuesday', 'Nothing Much'], verse: ['I woke up at sev- en and I made some toast', 'I read the pa- per and I checked the post', 'The weath- er’s grey and that’s the way I like it most', 'I don’t mind, I don’t mind, I don’t mind at all'], chorus: ['Noth- ing much is hap- pen- ing to- day', 'That’s ex- act- ly how I want to stay', 'Noth- ing much and that’s al- right with me', 'Noth- ing much is all I need to be'] },
+  howl: { title: ['Born on the Highway', 'Night Drive', 'Whoa Tonight'], verse: ['The rain is fall- ing on the high- way at night', 'The ra- di- o is play- ing and the road is bright', 'I got my hands on the wheel and my heart on the line', 'I’m driv- ing to the end of the world to- night'], chorus: ['Whoa- oh, whoa- oh, run with me', 'Out where the road meets the sea', 'Whoa- oh, whoa- oh, hold on tight', 'We’re gon- na make it to- night'] },
   grit: { title: ['Gravel Road', 'Rough and Ready', 'Engine'], minor: true, verse: ['I got a gra- vel road and an en- gine that roars', 'I got a dust- y jack- et and a heart that’s sore', 'I keep on run- ning to an o- pen door', 'I keep on rock- ing like I did be- fore'], chorus: ['Yeah! Rough and read- y', 'Yeah! Hold it stead- y', 'Yeah! On the gra- vel road', 'Yeah! Car- ry the load'] },
 };
 let WRITE_SEED = 1;
@@ -7168,7 +7264,7 @@ function songCompose(gift, linesIn, second) {
   lines.forEach((line, li) => {
     const chorus = li >= 4, toks = line.split(/\s+/).filter(Boolean), n = toks.length; if (!n) return;
     // rhythm: 8 beats a line, the last syllable held (longer for falsetto and vibrato), the rest shared in half beats
-    const hold = chorus && (gift === 'vibrato' || gift === 'falsetto' || gift === 'belt') ? 3 : 2, units = (8 - hold) * 2, m = n - 1;
+    const hold = chorus && (gift === 'vibrato' || gift === 'falsetto' || gift === 'belt' || gift === 'howl') ? 3 : 2, units = (8 - hold) * 2, m = n - 1;
     // the other syllables share the rest of the 8 beats in half beats (the first ones get the spare), at least half a beat each
     const beats = toks.map((_, i) => i === n - 1 ? (n === 1 ? 8 : hold) : 0.5 * (m >= units ? 1 : Math.floor(units / m) + (i < units % m ? 1 : 0)));
     // the contour, in scale steps from the key note
@@ -7180,6 +7276,7 @@ function songCompose(gift, linesIn, second) {
         if (gift === 'climb') x = ci % 2 === 0 ? (i === 0 ? 0 : 7 + Math.round(f * 2)) : Math.round(4 + f * 3 - (i === n - 1 ? 2 : 0));
         else if (gift === 'falsetto') x = 7 + Math.round(Math.sin(f * Math.PI) * 2 + (ci % 2 ? 0 : 1));
         else if (gift === 'belt') x = i === n - 1 ? 7 : 4 + Math.round(f * 3);
+        else if (gift === 'howl') x = i === 0 ? 2 : i === 1 ? 5 : i < 4 ? 7 : 6 - Math.round(f * 2) + (i === n - 1 ? 1 : 0);   // whoa (low) - oh (up a fourth), then hold high
         else if (gift === 'low') x = 2 - Math.round(f * 4);
         else if (gift === 'twang' || gift === 'deadpan') x = 4 + (i % 2 ? 0 : 1) - (i === n - 1 ? 2 : 0);
         else if (gift === 'grit') x = i === 0 ? 4 : 3 - Math.round(f * 3);
@@ -7189,10 +7286,10 @@ function songCompose(gift, linesIn, second) {
     const a = notes.length;
     toks.forEach((tk, i) => { notes.push([deg(d[i]), beats[i]]); words.push(tk); });
     words.push('/');
-    if (chorus && (gift === 'falsetto' || gift === 'climb' || gift === 'belt' || gift === 'grit' || gift === 'vibrato')) { const hi = notes.slice(a).reduce((m, x, k) => x[0] > notes[a + m][0] ? k : m, 0); marks.push({ i: a + (gift === 'vibrato' ? toks.length - 1 : hi), gift }); }
+    if (chorus && (gift === 'falsetto' || gift === 'climb' || gift === 'belt' || gift === 'grit' || gift === 'vibrato' || gift === 'howl')) { const hi = notes.slice(a).reduce((m, x, k) => x[0] > notes[a + m][0] ? k : m, 0); marks.push({ i: a + (gift === 'vibrato' ? toks.length - 1 : hi), gift }); }
   });
   // keep the whole song in your voice: the verse around your easy note, the chorus no higher than you reached
-  const top = gift === 'falsetto' && r.falsetto && r.falsetto.top ? r.falsetto.top : r.climb && r.climb.top ? r.climb.top : r.belt && r.belt.top ? r.belt.top : home + 9;
+  const top = gift === 'falsetto' && r.falsetto && r.falsetto.top ? r.falsetto.top : gift === 'howl' && r.howl && r.howl.top ? r.howl.top + 1 : r.climb && r.climb.top ? r.climb.top : r.belt && r.belt.top ? r.belt.top : home + 9;
   const hiN = Math.max(...notes.map(x => x[0])) + tonic, shift = hiN > top ? Math.round(top - hiN) : 0;   // the key moves down until the top note is one you sang
   return { tonic: tonic + shift, notes, words: words.join(' ').replace(/ \/$/, ''), lines, marks, title: B.title[Math.floor(wRand() * B.title.length)], gift, minor };
 }
@@ -7207,7 +7304,7 @@ function songShow() {
   box.append(el('h3', '', '✍️ “' + s.title + '”'), el('p', 'muted', 'Written for ' + (GIFT[s.gift] || {}).name.toLowerCase() + ' · key of ' + KEY_NAMES[((s.tonic % 12) + 12) % 12] + (s.minor ? ' minor' : ' major') + ' · verse low and easy, chorus where your voice shines.'));
   if (gifts.length > 1) { const pick = el('div', 'row'); gifts.forEach(k => { const b = el('button', 'small' + (k === s.gift ? ' on' : ''), (SOUND_TRIES.find(t => t.id === k) || {}).ic + ' ' + GIFT[k].name); b.onclick = () => songWriter(k); pick.appendChild(b); }); box.appendChild(pick); }
   const ta = el('textarea', 'snd-words'); ta.rows = 9; ta.value = s.lines.map(l => l.replace(/- /g, '-')).join('\n'); ta.setAttribute('aria-label', 'The words, one line per line'); ta.id = 'sndWords';
-  const tip = el('p', 'muted', 'The words are a start: change any of them. Mark the syllables of long words with a hyphen (ev-er-y) so each gets its own note. ' + (s.marks.length ? '★ marks your gift moments: ' + ({ falsetto: 'float these up into falsetto', climb: 'the big leap', belt: 'belt these', grit: 'a touch of grit here', vibrato: 'let these wave' })[s.gift] + '.' : ''));
+  const tip = el('p', 'muted', 'The words are a start: change any of them. Mark the syllables of long words with a hyphen (ev-er-y) so each gets its own note. ' + (s.marks.length ? '★ marks your gift moments: ' + ({ falsetto: 'float these up into falsetto', climb: 'the big leap', belt: 'belt these', grit: 'a touch of grit here', vibrato: 'let these wave', howl: 'howl these: slide up and let them ring' })[s.gift] + '.' : ''));
   box.append(ta, tip);
   const row = el('div', 'row');
   const hear = el('button', 'small', '▶ Hear the tune'); hear.dataset.act = 'write-hear'; hear.onclick = () => songPlay(s);
