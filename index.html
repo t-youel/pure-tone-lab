@@ -974,7 +974,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-06 · find your sound</p>
+  <p class="fine build" id="buildTag">Build 2026-11-06 · find your sound, clear mic messages</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -1328,16 +1328,30 @@ function setMode(m, msg) {
   renderGuide();
 }
 
+// When the mic can't start, say why where it can be seen (not only in the status line at the top), with the fix
+function micProblem(e) {
+  const n = (e && e.name) || '', ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const why = n === 'NotAllowedError' || n === 'SecurityError' ? 'The microphone is blocked for this page.'
+    : n === 'NotReadableError' || n === 'AbortError' ? 'Another app is using the microphone (a call, a voice memo, a video, or another tab).'
+    : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No microphone was found.'
+    : n === 'NoMedia' ? 'This browser doesn’t let web pages use the microphone.' : 'The microphone didn’t start (' + (n || 'unknown reason') + ').';
+  const fix = n === 'NotAllowedError' || n === 'SecurityError'
+    ? (ios ? ['In Safari, tap the “aA” (or the icon) at the left of the address bar › Website Settings › Microphone › Allow.', 'Or: Settings › Apps › Safari › Microphone › Ask or Allow.', 'Then reload this page and tap the button again.'] : ['Click the lock or settings icon next to the address and allow the microphone, then reload.'])
+    : n === 'NotReadableError' || n === 'AbortError' ? ['Close or pause the other app (or end the call), then tap the button again.', ios ? 'If it still won’t start, close Safari completely (swipe it away) and open the page again.' : 'If it still won’t start, reload the page.']
+    : n === 'NoMedia' ? ['Open the page in Safari (or Chrome) directly, not inside another app.'] : ['Reload the page and try again.'];
+  try { diag('Microphone: ' + (n || 'failed'), 'mic'); } catch (x) {}
+  try { infoSheet('🎤 ' + why, fix.map(f => el('p', '', f))); } catch (x) { toast(why + ' ' + fix[0]); }
+}
 async function startMic(opts = {}) {
   await ensureAudio(); stopSources();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setMode('idle', 'This browser cannot reach the microphone here. Open the file in Chrome, Edge, Firefox or Safari directly (or from a https:// address).'); return;
+    setMode('idle', 'This browser cannot reach the microphone here. Open the file in Chrome, Edge, Firefox or Safari directly (or from a https:// address).'); micProblem({ name: 'NoMedia' }); return;
   }
   try {
     // exercises: the raw mic (most exact pitch). Singing with a song: echo cancelling, so the song from the speaker is taken out
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: !!opts.aec, noiseSuppression: false, autoGainControl: false } }); MIC_AEC = !!opts.aec;
   } catch (e) {
-    setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then tap Turn on mic again.'); return;
+    setMode('idle', 'Microphone access was blocked. Allow the microphone for this page in your browser\'s site settings, then tap Turn on mic again.'); micProblem(e); return;
   }
   const src = ac.createMediaStreamSource(stream); src.connect(micIn); liveNodes.push(src);
   micLostFlag = false; $('.status').classList.remove('warn');
