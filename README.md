@@ -74,6 +74,12 @@ The microphone path runs through a narrow notch filter at the guide's frequency,
 without a microphone. It needs the `playwright` package and its Chromium. The same suite runs
 on GitHub Actions after every push.
 
+## Find your sound (your voice's gifts)
+
+Lab → 🎨 Find your sound. Ten short tries, each modelled on a famous kind of voice: your easy voice first (everything else is measured against it), then 🐻 low and warm, 🚀 the big climb (a siren from low to high), 🕊 falsetto, 📣 belt, 🦆 twang, 🌬 breathy, 〰 vibrato, 😐 deadpan, and 🔥 gentle grit (only if it feels fine; never loud; a warning if it gets loud). What's measured: how low or high and how steady; purity (the fundamental's share, high in falsetto); brightness (the spectrum's centre); the twang band (2–4 kHz); air (4–8 kHz while still on a note); vibrato rate and width; grit (a rough, irregular pitch); loudness against your easy voice. Each try is recorded (▶ Hear yourself). Your gifts are your best tries (55+), with what was measured, singers to listen to on your music app (named only: their recordings can't be in the app), and a song here to use it in (🎵 Use it in "Crazy Glue" opens it in Learn from the pros). Rich lows plus a strong top is called out as the low-to-high contrast of "Black Hole Sun" and "Bohemian Rhapsody".
+
+✍️ Write a song for my voice: an original song shaped for your gift (verses low and easy, a chorus that goes where you shine: up into falsetto, an octave leap, a belted top, long waving notes, quick twangy words, a gritty "yeah"), in your range (the key moves until the top note is one you sang) and a fitting key (minor for low and gritty). Simple starter words on the gift's theme, one syllable per note, 8 beats a line; change any words (✓ Use my words re-fits the tune), 🎲 another one, ▶ hear the tune, 🎤 Sing it opens it on the Sing screen like any song, kept with your songs.
+
 ## Find your singing home
 
 Lab → Find your singing home (1 minute). Count to ten in your talking voice (its pitch is measured), then sing "ah" up a ladder of whole steps from just under it, and back down, each note on the moving graph with your talking voice marked. Each note is scored for pitch, steadiness and a clear tone; it stops after two misses (or "That's my top"). The comfortable zone is the longest run of good notes, the sweet spot its best-scored middle. Most voices sing best a few notes (often 3 to 7 semitones) above where they talk. The zone sets the key for songs (profile zlo/zhi) and the sweet spot is where the workout starts.

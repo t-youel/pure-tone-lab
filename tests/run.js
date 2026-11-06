@@ -1086,6 +1086,41 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && p1.off > p0 + 1 && /Stop/.test(p1.btn) && co.coaching && co.k === r.work[0] && co.hidden, JSON.stringify({ r, p0, p1, co }));
   });
 
+  await test('Find your sound: ten tries measured against your easy voice (low, climb, falsetto, belt, twang, breathy, vibrato, deadpan, gentle grit); your gifts with singers to listen to and a song here to use them in; a song written for your gift, in your range, one syllable per note, that opens on the Sing screen', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 60 }; store.home = null; store.sound = null; save();
+      // the singer does each sound on purpose
+      setInterval(() => { const id = SND.cur, t = (performance.now() - (SND.curAt || 0)) / 1000 - 0.9; V.noise = 0; V.vol = 1; V.wave = [1, .3, .15, .07];
+        if (!id || t < 0) { V.on = false; return; } V.on = true;
+        if (id === 'base') V.m = 50; else if (id === 'low') { V.m = 43; V.wave = [1, .15, .04]; } else if (id === 'climb') V.m = 43 + Math.min(1, t / 3.5) * 21 - Math.max(0, t - 3.5) * 5;
+        else if (id === 'falsetto') { V.m = 62; V.wave = [1, .06, .02]; } else if (id === 'belt') { V.m = 57; V.vol = 2.6; V.wave = [1, .9, .8, .7, .6, .5, .4, .3]; }
+        else if (id === 'twang') { V.m = 52; V.wave = [1, .3, .2, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .6, .8, .9, .9, .8, .8, .7, .6, .5]; } else if (id === 'breathy') { V.m = 50; V.noise = 0.12; V.vol = 0.5; }
+        else if (id === 'vibrato') V.m = 54 + 0.45 * Math.sin(2 * Math.PI * 5.6 * t); else if (id === 'deadpan') V.m = 50; else if (id === 'grit') { V.m = 52 + (Math.random() - 0.5) * 0.9; } }, 20); });
+    await page.evaluate(() => openLab('sound'));
+    const intro = await page.evaluate(() => ({ title: $('#lsTitle').textContent, tries: document.querySelectorAll('#sndList .snd-try').length, hp: /headphones/.test($('#woBox').textContent) }));
+    await page.click('[data-act="snd-go"]');
+    const scores = {};
+    for (let i = 0; i < 10; i++) {
+      await page.waitForFunction(() => $('#sndStage [data-act="snd-next"]'), null, { timeout: 30000 });
+      const s = await page.evaluate(() => ({ id: SND.cur, facts: $('#sndStage .snd-facts').textContent })); scores[s.id] = s.facts;
+      await page.click('#sndStage [data-act="snd-next"]');
+    }
+    await page.waitForFunction(() => $('#sndRes .snd-gift') || /Your sound/.test($('#sndRes').textContent), null, { timeout: 10000 });
+    const res = await page.evaluate(() => ({ tries: store.sound.tries, gifts: store.sound.gifts, cards: [...document.querySelectorAll('#sndRes .snd-gift')].map(c => c.textContent), songBtn: !!$('#sndRes [data-act="gift-song"]') }));
+    await page.click('[data-act="write"]');
+    const w = await page.evaluate(() => { const s = SND.written, toks = s.words.split(/\s+/).filter(x => x !== '/'); return { gift: s.gift, n: s.notes.length, toks: toks.length, lo: Math.min(...s.notes.map(x => x[0])) + s.tonic, hi: Math.max(...s.notes.map(x => x[0])) + s.tonic, title: s.title, lines: s.lines.length, beats: s.notes.reduce((a, x) => a + x[1], 0) }; });
+    // your own words: the tune re-fits
+    await page.evaluate(() => { $('#sndWords').value = 'One two three four\nfive six se-ven eight nine\nten\nel-ev-en twelve\nThis is my song\nsing it high\nsing it low\nhome'; }); await page.click('[data-act="write-refit"]');
+    const w2 = await page.evaluate(() => ({ n: SND.written.notes.length, toks: SND.written.words.split(/\s+/).filter(x => x !== '/').length }));
+    await page.click('[data-act="write-sing"]'); await page.waitForTimeout(300);
+    const sing = await page.evaluate(() => ({ song: G.song && G.song.name, mine: !!(G.song && G.song.mine), n: G.seq.length, kept: (store.mySongs || []).length }));
+    const T = res.tries;
+    expect(intro.tries === 10 && intro.hp && T.base && T.low.score >= 50 && T.climb.score >= 60 && T.falsetto.score >= 60 && T.belt.score >= 55 && T.twang.score >= 50 && T.vibrato.score >= 55 && T.deadpan.score >= 60 && T.grit.score >= 40
+      && res.gifts.length >= 2 && res.cards.length === res.gifts.length && res.cards.every(c => /Like:/.test(c)) && res.songBtn
+      && w.n === w.toks && w.lines === 8 && w.lo >= 41 && w.hi <= 66 && w.n >= 40 && w2.n === w2.toks && w2.n === 26 && w.beats === 64 && w.hi <= 62 && Object.values(scores).every(f => !/\d{4,}/.test(f)) && sing.mine && sing.n === w2.n && sing.kept === 1,
+      JSON.stringify({ intro, scores, gifts: res.gifts, tries: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v.score])), w, w2, sing }));
+  });
+
   await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });
