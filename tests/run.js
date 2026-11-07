@@ -1139,6 +1139,25 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       JSON.stringify({ intro, grades, tries: T, gifts: res.gifts, nat: res.nat, w, sing, falsetto: seen.falsetto, howl: seen.howl }));
   });
 
+  await test('Examples to follow: each sound links to real singers (the Springsteen howl), has stepping stones with their own examples, and an example voice that sings the sound on your notes (the howl: first note, then up to the second); the note can move to you, and is offered when you sang well below it', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50 }; store.home = null; store.sound = { tries: { base: { heard: true, med: 50, rms: 0.05, bright: 900, twang: 0.05, air: 0.02, share: 0.3, score: 70 } } }; save(); openLab('sound'); sndTry(SOUND_TRIES.findIndex(t => t.id === 'howl')); });
+    const ui = await page.evaluate(() => ({ aim: $('.snd-aim-n').textContent, steps: [...document.querySelectorAll('.snd-steps li b')].map(b => b.textContent).join(''), real: [...document.querySelectorAll('.snd-real a')].map(a => a.href), realText: $('.snd-real').textContent, example: !!$('[data-act="snd-example"]') }));
+    // the example voice sings the howl: listen to it through the pitch detector
+    const ex = await page.evaluate(async () => { window.EX_TO_ANALYSER = true; V.on = false; const a = sndTarget(SOUND_TRIES.find(t => t.id === 'howl')), b = sndTo(SOUND_TRIES.find(t => t.id === 'howl'));
+      const dur = await sndExample(SOUND_TRIES.find(t => t.id === 'howl')); const pts = []; const t0 = performance.now();
+      await new Promise(r => { const iv = setInterval(() => { const s = (performance.now() - t0) / 1000; if (S.rawM != null) pts.push([s, S.rawM]); if (s > dur) { clearInterval(iv); r(); } }, 30); });
+      window.EX_TO_ANALYSER = false; const early = pts.filter(p => p[0] > 0.15 && p[0] < 0.4).map(p => p[1]), late = pts.filter(p => p[0] > 1.2 && p[0] < 2.4).map(p => p[1]);
+      const fold = (m, t) => t + ((((m - t) % 12) + 18) % 12) - 6, md = x => x.slice().sort((p, q) => p - q)[x.length >> 1];
+      return { a, b, dur, early: early.length ? fold(md(early), a) : null, late: late.length ? fold(md(late), b) : null }; });
+    await page.click('[data-act="snd-lower"]'); const moved = await page.evaluate(() => $('.snd-aim-n').textContent);
+    // an attempt sung well below the note: offered to move the note there
+    await page.evaluate(() => { const tr = SOUND_TRIES.find(t => t.id === 'howl'); sndShowGrade(tr, SND.i, { heard: true, score: 30, med: sndTo(tr) - 4, parts: { note: 10, pure: 60, steady: 60, colour: 20 }, facts: 'x' }); });
+    const offer = await page.evaluate(() => ($('[data-act="snd-move"]') || {}).textContent || '');
+    expect(/↗/.test(ui.aim) && ui.steps === 'Call it: Slide it: Howl it: ' && ui.real.some(u => /youtube\.com\/results\?search_query=Bruce%20Springsteen%20Born%20to%20Run/.test(u)) && ui.real.some(u => /music\.apple\.com/.test(u)) && /whoa-oh/.test(ui.realText) && /Bruce Springsteen/.test(ui.realText) && ui.example
+      && ex.dur > 2 && Math.abs(ex.early - ex.a) <= 1 && Math.abs(ex.late - ex.b) <= 1 && moved !== ui.aim && /Move the note to/.test(offer), JSON.stringify({ ui, ex, moved, offer }));
+  });
+
   await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });

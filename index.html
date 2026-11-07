@@ -534,6 +534,8 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .hp-note { margin: 4px 0 0; font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; } .hp-x { padding: 0 8px; font-size: .8rem; }
 .snd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 8px 0; } .snd-try { display: flex; gap: 6px; align-items: center; text-align: left; padding: 8px 10px; }
 .snd-try.done { border-color: #3aa76d; } .snd-try b { flex: 1; font-size: .92rem; } .snd-sc { font-weight: 700; } .snd-ic { font-size: 1.3em; }
+.snd-steps { margin: 4px 0 8px 1.2em; padding: 0; } .snd-steps li { margin: 4px 0; } .snd-steps-h { margin: 8px 0 0; font-weight: 600; } .snd-ex-note { font-size: .85rem; margin: 0 0 4px; }
+.snd-real { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 8px 0; } .snd-real summary { font-weight: 700; cursor: pointer; } .snd-real-row { margin-top: 6px; } .snd-real-row { display: grid; gap: 4px; } .snd-real-links { display: flex; gap: 6px; flex-wrap: wrap; } .snd-real-links a { text-decoration: none; }
 .snd-aim { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .snd-aim-l { color: var(--muted); } .snd-aim-n { font-size: 1.8rem; }
 .snd-now { font-size: 1.5rem; font-weight: 700; min-height: 1.6em; } .snd-now.on { color: #2e9d5b; } .snd-now.near { color: #c07a12; } .snd-now.off { color: #c9443f; }
 .snd-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; } .snd-m span { font-size: .85rem; color: var(--muted); } .snd-m b { display: block; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; } .snd-m b i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 5px; transition: width .15s; }
@@ -981,7 +983,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-07 · better advice after a song</p>
+  <p class="fine build" id="buildTag">Build 2026-11-07 · examples to follow</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -7032,7 +7034,8 @@ function sndFeatures() {
 const sndHome = () => { const p = store.profile, h = store.home; return Math.round(h && h.sweet ? h.sweet : p && p.natural ? p.natural : 50); };
 const sndSd = a => { if (a.length < 2) return 0; const mu = mean(a); return Math.sqrt(mean(a.map(x => (x - mu) ** 2))); };
 const pct = (a, q) => { const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.max(0, Math.floor(q * (s.length - 1))))]; };
-const sndTarget = tr => sndHome() + tr.off, sndTo = tr => tr.to != null ? sndHome() + tr.to : null;
+const sndAdj = tr => (((store.sound || {}).adj || {})[tr.id] || 0);   // the singer can move a sound's notes down or up
+const sndTarget = tr => sndHome() + tr.off + sndAdj(tr), sndTo = tr => tr.to != null ? sndHome() + tr.to + sndAdj(tr) : null;
 const sndGrade = s => s >= 85 ? 'A' : s >= 70 ? 'B' : s >= 55 ? 'C' : s >= 40 ? 'D' : '–';
 const FLOOR = { twang: 0.01, air: 0.005, bright: 50 };
 const sndRel = (k, x, base) => base && base[k] != null ? (x + (FLOOR[k] || 0)) / (base[k] + (FLOOR[k] || 0)) : 1;
@@ -7119,7 +7122,7 @@ function sndScore(tr, sm, base) {
   const P = { note: Math.round(100 * note), pure: Math.round(100 * pure), steady: Math.round(100 * (tr.kind === 'climb' ? clamp(1 - sndJumps(v) / 4) : steady)) }; if (colour != null) P.colour = Math.round(100 * colour);
   const score = tr.id === 'base' ? Math.round(0.35 * P.note + 0.35 * P.pure + 0.3 * P.steady) : Math.round(0.25 * P.note + 0.25 * P.pure + 0.2 * P.steady + 0.3 * (P.colour || 0));
   const f = sndFacts(tr, v, ms, med, P, base, home);
-  const out = { score, parts: P, facts: f, heard: true };
+  const out = { score, parts: P, facts: f, heard: true, med };
   if (tr.id === 'base') Object.assign(out, { med, rms: mean(v.map(x => x.rms)), bright: mean(v.map(x => x.bright)), twang: mean(v.map(x => x.twang)), air: mean(v.map(x => x.air)), share: mean(v.map(x => x.share || 0)) });
   if (tr.id === 'low') out.low = pct(ms, 0.1); if (tr.id === 'climb') { out.top = pct(ms, 0.95); out.bottom = pct(ms, 0.05); } if (tr.id === 'falsetto' || tr.id === 'belt' || tr.id === 'howl') out.top = med;
   return out;
@@ -7167,6 +7170,103 @@ const GIFT_SONGS = {
   deadpan: ['Coffee', 'Speak-sing the verses, cool and flat (“A cup of coffee in the morning…”), then lift the chorus.'],
   grit: ['Crazy Glue', 'A touch of grit on “wiggle loose” at the end of the chorus.'],
 };
+// ---------- Examples to follow ----------
+// Real singers: their recordings can't be in the app, so each sound links to them (YouTube, Apple Music, Spotify) with
+// the moment to listen for. And a sketch of the sound sung on your own notes by the app's example voice: a rich
+// buzzing source through vowel resonances (ah, oh, ooh, ee), with the pitch shape of the sound (the howl's slide, the
+// climb, the falsetto's float), and its colour: brightness, breath, vibrato, twang (a 3 kHz lift), rasp (a rough
+// half-pitch growl with jitter). Not a real voice, but the shape to copy.
+const SND_REAL = {
+  base: [],
+  low: [['Chris Cornell', 'Black Hole Sun', 'the low, dark verses'], ['Eagles', 'Hotel California', 'Don Henley’s low, steady verses']],
+  climb: [['Queen', 'Bohemian Rhapsody', 'Freddie Mercury climbing from the ballad into the high “I don’t want to die”'], ['Journey', 'Don’t Stop Believin’', 'the chorus lifting high'], ['Led Zeppelin', 'Immigrant Song', 'the opening wail']],
+  falsetto: [['Bee Gees', 'Stayin’ Alive', 'Barry Gibb’s falsetto, all through the verses'], ['MGMT', 'Time to Pretend', 'the light, floating chorus']],
+  belt: [['The Killers', 'Mr. Brightside', 'the chorus: “jealousy”'], ['Journey', 'Don’t Stop Believin’', 'the big held “feeling”']],
+  howl: [['Bruce Springsteen', 'Born to Run', 'the big “whoa-oh” cries in the last chorus'], ['Bruce Springsteen', 'Thunder Road', 'the big open notes near the end'], ['Led Zeppelin', 'Immigrant Song', 'the “ahh-ah” wail']],
+  twang: [['Modest Mouse', 'Float On', 'the bright, nasal chorus'], ['The White Stripes', 'Seven Nation Army', 'Jack White’s verses']],
+  breathy: [['MGMT', 'Time to Pretend', 'the dreamy, airy lines'], ['Bee Gees', 'How Deep Is Your Love', 'the soft, close verses']],
+  vibrato: [['Queen', 'Bohemian Rhapsody', 'the long held notes of the ballad'], ['Soundgarden', 'Black Hole Sun', 'the long chorus notes']],
+  deadpan: [['Franz Ferdinand', 'Take Me Out', 'the cool, flat verses before the beat drops'], ['The White Stripes', 'Seven Nation Army', 'the talky verses']],
+  grit: [['Guns N’ Roses', 'Welcome to the Jungle', 'the growl (we only want a gentle bit of it)'], ['Bruce Springsteen', 'Born to Run', 'the rough edge on the big notes']],
+};
+const SND_STEPS = {
+  howl: [['Call it', 'Call out “hey!” on the first note, like shouting to a friend across a street. Loud, but easy.', 'call'], ['Slide it', 'Now “whoa-oh”: “whoa” on the first note, then slide slowly up to the second on “oh” and hold it.', 'slide'], ['Howl it', 'The same, but bigger: drop the jaw, slide up boldly, hold the top note and let a little roughness in.', 'full']],
+  falsetto: [['Owl hoot', 'A soft, high “hoo”, like an owl. Light, not loud.', 'hoot'], ['Yawn-sigh', 'Start high on “ooh” and sigh down, like a yawn. Feel how light the top is.', 'sigh'], ['Float it', 'Now hold that light “ooh” on the note shown.', 'full']],
+  belt: [['Speak it', 'Say “hey!” in your talking voice, as if calling someone. Notice where it rings.', 'call'], ['Sing it', 'Now sing “hey!” on the note shown with that same ring. Strong, not shouting.', 'full']],
+  climb: [['Small siren', 'A gentle “wee” siren, just a few notes up and down.', 'small'], ['Big siren', 'Now all the way: from low to as high as is easy, and back.', 'full']],
+  low: [['Sigh down', 'Sigh “oh” from your easy note downwards, letting the jaw drop.', 'sigh'], ['Hold low', 'Stop on the lowest note that still sounds rich, and hold it.', 'full']],
+  grit: [['Clean first', 'Sing “yeah” cleanly on the note, quietly.', 'clean'], ['A touch of rasp', 'Now let a little roughness in, like a soft growl. Only if it feels fine.', 'full']],
+};
+const VOWEL = { ah: [[730, 1], [1090, 0.5], [2440, 0.25]], oh: [[570, 1], [840, 0.45], [2410, 0.15]], oo: [[300, 1], [870, 0.3], [2240, 0.08]], ee: [[300, 0.7], [2300, 0.6], [3000, 0.35]], eh: [[530, 1], [1840, 0.45], [2480, 0.25]] };
+// the example voice: pitch points [[time, midi], ...], and a colour
+function exampleVoice(pts, o = {}) {
+  if (!ac) return 0; const t0 = ac.currentTime + 0.08, dur = pts[pts.length - 1][0] + (o.tail || 0.35), nodes = [];
+  const out = ac.createGain(); out.gain.value = 0; out.connect(ac.destination); if (window.EX_TO_ANALYSER) out.connect(analyser); const vol = o.vol ?? 0.5;
+  out.gain.setValueAtTime(0, t0); out.gain.linearRampToValueAtTime(vol, t0 + (o.attack || 0.08));
+  (o.env || []).forEach(([t, v]) => out.gain.linearRampToValueAtTime(vol * v, t0 + t));
+  out.gain.setValueAtTime(out.gain.value, t0 + dur - 0.15); out.gain.linearRampToValueAtTime(0, t0 + dur);
+  const nh = o.pure ? 4 : 30, amps = Array.from({ length: nh }, (_, i) => (o.pure ? [1, 0.12, 0.04, 0.02][i] : 1 / Math.pow(i + 1, o.bright ? 0.8 : 1.25)));
+  const osc = ac.createOscillator(); osc.setPeriodicWave(makeWave(amps)); nodes.push(osc);
+  pts.forEach(([t, m], i) => i ? osc.frequency.linearRampToValueAtTime(m2f(m), t0 + t) : osc.frequency.setValueAtTime(m2f(m), t0));
+  // vibrato (from a time on) and jitter (rasp)
+  if (o.vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = o.vibRate || 5.6; lg.gain.setValueAtTime(0, t0); lg.gain.setValueAtTime(0, t0 + (o.vibFrom || 0.5)); lg.gain.linearRampToValueAtTime(o.vib, t0 + (o.vibFrom || 0.5) + 0.4); l.connect(lg); lg.connect(osc.detune); l.start(t0); l.stop(t0 + dur); nodes.push(l); }
+  const src = ac.createGain(); osc.connect(src);
+  if (o.rasp) { // a rough growl: a half-pitch partner, roughly amplitude-modulated, plus pitch jitter
+    const sub = ac.createOscillator(); sub.setPeriodicWave(makeWave(amps.slice(0, 12))); pts.forEach(([t, m], i) => i ? sub.frequency.linearRampToValueAtTime(m2f(m) / 2, t0 + t) : sub.frequency.setValueAtTime(m2f(m) / 2, t0));
+    const sg = ac.createGain(); sg.gain.setValueAtTime(0, t0); sg.gain.setValueAtTime(0, t0 + (o.raspFrom || 0)); sg.gain.linearRampToValueAtTime(o.rasp * 0.6, t0 + (o.raspFrom || 0) + 0.2); sub.connect(sg); sg.connect(src); sub.start(t0); sub.stop(t0 + dur); nodes.push(sub);
+    const nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const n = ac.createBufferSource(); n.buffer = nb; n.loop = true; const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 60; const ng = ac.createGain(); ng.gain.value = 0; ng.gain.setValueAtTime(0, t0 + (o.raspFrom || 0)); ng.gain.linearRampToValueAtTime(o.rasp * 120, t0 + (o.raspFrom || 0) + 0.2); n.connect(lp); lp.connect(ng); ng.connect(osc.detune); n.start(t0); n.stop(t0 + dur); nodes.push(n);
+  }
+  // vowel resonances, brightness, twang
+  const vw = VOWEL[o.vowel || 'ah'], mix = ac.createGain(); mix.gain.value = 1;
+  vw.forEach(([f, g]) => { const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 6; const gg = ac.createGain(); gg.gain.value = g * 3; src.connect(bp); bp.connect(gg); gg.connect(mix); });
+  let tail = mix; if (o.twang) { const pk = ac.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 3000; pk.Q.value = 1.2; pk.gain.value = 14; tail.connect(pk); tail = pk; }
+  const lpf = ac.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = o.dark ? 1800 : o.bright ? 6000 : 4000; tail.connect(lpf); lpf.connect(out);
+  if (o.breath) { const nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const n = ac.createBufferSource(); n.buffer = nb; n.loop = true; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3500; bp.Q.value = 0.5; const g = ac.createGain(); g.gain.value = o.breath; n.connect(bp); bp.connect(g); g.connect(out); n.start(t0); n.stop(t0 + dur); nodes.push(n); }
+  // syllables (twang's “nyah nyah”, deadpan's talking): dips in loudness
+  (o.pulses || []).forEach(t => { out.gain.setValueAtTime(vol, t0 + t - 0.06); out.gain.linearRampToValueAtTime(vol * 0.15, t0 + t); out.gain.linearRampToValueAtTime(vol, t0 + t + 0.07); });
+  osc.start(t0); osc.stop(t0 + dur); SND.exNodes = nodes.concat(SND.exNodes || []);
+  return dur;
+}
+function exampleStop() { (SND.exNodes || []).forEach(n => { try { n.stop(); } catch (e) {} }); SND.exNodes = []; }
+// the example of a sound (or of one of its stepping stones), on this singer's notes
+async function sndExample(tr, step) {
+  await ensureAudio(); exampleStop(); const a = sndTarget(tr), b = sndTo(tr), h = sndHome();
+  const S2 = (pts, o) => exampleVoice(pts, o);
+  switch (tr.id + ':' + (step || 'full')) {
+    case 'howl:call': return S2([[0, a], [0.7, a]], { vowel: 'eh', bright: true, vol: 0.6, attack: 0.03 });
+    case 'howl:slide': return S2([[0, a], [0.6, a], [1.4, b], [2.6, b]], { vowel: 'oh', vol: 0.5 });
+    case 'howl:full': return S2([[0, a], [0.45, a], [0.8, b], [2.6, b]], { vowel: 'oh', bright: true, vol: 0.62, rasp: 0.5, raspFrom: 0.7, vib: 30, vibFrom: 1.6 });
+    case 'falsetto:hoot': return S2([[0, a + 2], [0.5, a + 2], [0.7, a - 1]], { vowel: 'oo', pure: true, breath: 0.02, vol: 0.35 });
+    case 'falsetto:sigh': return S2([[0, a + 3], [1.6, a - 9]], { vowel: 'oo', pure: true, breath: 0.03, vol: 0.35 });
+    case 'falsetto:full': return S2([[0, a], [2.4, a]], { vowel: 'oo', pure: true, breath: 0.02, vol: 0.35, vib: 15, vibFrom: 1.2 });
+    case 'belt:call': return S2([[0, h + 2], [0.25, h + 4], [0.7, h + 1]], { vowel: 'eh', bright: true, vol: 0.55, attack: 0.03 });
+    case 'belt:full': return S2([[0, a], [2, a]], { vowel: 'eh', bright: true, vol: 0.65, attack: 0.04 });
+    case 'climb:small': return S2([[0, a], [1, a + 5], [2, a]], { vowel: 'ee', vol: 0.45 });
+    case 'climb:full': return S2([[0, a], [2.4, a + 16], [3.6, a]], { vowel: 'ee', vol: 0.45 });
+    case 'low:sigh': return S2([[0, h], [1.6, h - 6]], { vowel: 'oh', dark: true, vol: 0.5 });
+    case 'low:full': return S2([[0, a], [0.8, h - 7], [2.6, h - 7]], { vowel: 'oh', dark: true, vol: 0.55 });
+    case 'grit:clean': return S2([[0, a], [1.2, a]], { vowel: 'eh', vol: 0.4 });
+    case 'grit:full': return S2([[0, a], [1.2, a]], { vowel: 'eh', vol: 0.45, rasp: 0.45 });
+    case 'twang:full': return S2([[0, a], [1.8, a]], { vowel: 'ah', twang: true, bright: true, vol: 0.5, pulses: [0.6, 1.2] });
+    case 'breathy:full': return S2([[0, a], [2, a]], { vowel: 'ah', breath: 0.12, vol: 0.25 });
+    case 'vibrato:full': return S2([[0, a], [2.6, a]], { vowel: 'ah', vol: 0.5, vib: 50, vibFrom: 0.5, vibRate: 5.8 });
+    case 'deadpan:full': return S2([[0, a], [2.4, a]], { vowel: 'eh', vol: 0.45, pulses: [0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1] });
+    default: return S2([[0, a], [2, a]], { vowel: 'ah', vol: 0.45 });
+  }
+}
+// links to real recordings: a search on each service (the app can't play them itself)
+function sndRealLinks(tr) {
+  const list = SND_REAL[tr.id] || []; if (!list.length) return null; const box = document.createElement('details'); box.className = 'snd-real'; const sm = document.createElement('summary'); sm.textContent = '🎧 Hear real singers do it (' + list.map(x => x[0]).filter((v, i, a) => a.indexOf(v) === i).join(', ') + ')'; box.appendChild(sm);
+  list.forEach(([who, song, moment]) => { const q = encodeURIComponent(who + ' ' + song), row = el('div', 'snd-real-row');
+    row.append(el('span', '', who + ' · “' + song + '”: ' + moment + '.'));
+    const links = el('span', 'snd-real-links');
+    [['YouTube', 'https://www.youtube.com/results?search_query=' + q], ['Apple Music', 'https://music.apple.com/search?term=' + q], ['Spotify', 'https://open.spotify.com/search/' + q]].forEach(([n, u]) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.textContent = n; a.className = 'btn small'; links.appendChild(a); });
+    row.appendChild(links); box.appendChild(row); });
+  return box;
+}
+
 function soundStart() {
   woStop(); SND.gen++; const box = $('#woBox'); box.textContent = ''; const c = el('div', 'wo-card snd-card'); box.appendChild(c);
   c.append(el('h3', '', '🎨 Find your sound'), el('p', '', 'Every great voice has something of its own: Barry Gibb’s falsetto, Springsteen’s howl, Chris Cornell’s low verses that soar. Try these sounds one by one. For each you’ll see the note to sing, hear it first, and watch your voice on the screen. Every attempt gets a grade: on the note, pure and natural, steady, and the sound itself. Your best grades show your gifts; then songs that suit them, and a new song written for them.'),
@@ -7195,7 +7295,15 @@ function sndTry(i) {
   const aim = el('div', 'snd-aim'); aim.append(el('span', 'snd-aim-l', tr.kind === 'climb' ? 'Slide from' : tr.kind === 'low' ? 'Start on' : 'Sing'),
     el('b', 'snd-aim-n', tr.kind === 'climb' ? 'low → high' : tr.kind === 'howl' ? nameOf(target) + ' ↗ ' + nameOf(to) : nameOf(target) + (tr.kind === 'low' ? ' ↓' : '')));
   const hear = el('button', 'small', '▶ Hear the note'); hear.dataset.act = 'snd-note'; hear.onclick = async () => { await ensureAudio(); playTone(target, 1.2, PIPE); if (to != null) playTone(to, 1.2, PIPE, 1.3); }; if (tr.kind === 'climb') hear.hidden = true; aim.appendChild(hear);
-  st.appendChild(aim); if (tr.like) st.appendChild(el('p', 'muted', 'Listen for it in: ' + tr.like + '.'));
+  const ex = el('button', 'small', '▶ Hear an example'); ex.dataset.act = 'snd-example'; ex.title = 'The app’s example voice sings the sound on your notes'; ex.onclick = () => sndExample(tr); aim.appendChild(ex);
+  if (tr.kind !== 'climb') { const mv = (d, t) => { const b = el('button', 'small', t); b.dataset.act = d < 0 ? 'snd-lower' : 'snd-higher'; b.title = d < 0 ? 'Move the note down' : 'Move the note up'; b.onclick = () => { const S3 = (store.sound.adj ||= {}); S3[tr.id] = (S3[tr.id] || 0) + d; dirty = true; save(); sndTry(i); }; return b; }; aim.append(mv(-2, '⬇ Lower'), mv(2, '⬆ Higher')); }
+  st.appendChild(aim);
+  st.appendChild(el('p', 'muted snd-ex-note', '▶ Hear an example: the app’s example voice sketches the sound on your notes, so you can hear the shape to copy. It isn’t a real singer: for that, see below.'));
+  // stepping stones up to the harder sounds, each with its own example
+  if (SND_STEPS[tr.id]) { const ol = el('ol', 'snd-steps'); SND_STEPS[tr.id].forEach(([name, how, key], k) => { const li = el('li', ''); li.append(el('b', '', name + ': '), document.createTextNode(how + ' '));
+      const b = el('button', 'small', '▶ Hear it'); b.dataset.act = 'snd-step'; b.onclick = () => sndExample(tr, key); li.appendChild(b); ol.appendChild(li); });
+    st.append(el('p', 'snd-steps-h', 'Work up to it, one step at a time:'), ol); }
+  const real = sndRealLinks(tr); if (real) st.appendChild(real);
   const cv = el('canvas', 'snd-cv'); cv.id = 'sndCv'; const now = el('div', 'snd-now', ''); now.id = 'sndNow';
   const meters = el('div', 'snd-meters'); meters.id = 'sndMeters';
   const mt = (k, label) => { const m = el('div', 'snd-m'); m.dataset.m = k; m.append(el('span', '', label), el('b', '', '')); m.lastChild.appendChild(el('i')); meters.appendChild(m); };
@@ -7222,6 +7330,9 @@ function sndShowGrade(tr, i, out) {
   const bars = el('div', 'snd-meters done'); const L = { note: tr.kind === 'climb' || tr.kind === 'low' ? 'Heard' : 'On the note', pure: 'Pure tone', steady: tr.kind === 'climb' ? 'Smooth' : 'Steady', colour: tr.colour };
   Object.entries(out.parts).forEach(([k, val]) => { const m = el('div', 'snd-m'); m.append(el('span', '', L[k] + ' ' + val), el('b', '', '')); const bar = el('i'); bar.style.width = val + '%'; m.lastChild.appendChild(bar); bars.appendChild(m); });
   res.appendChild(bars); res.appendChild(el('p', 'snd-tip', '💡 ' + sndTip(tr, out.parts)));
+  if ((tr.kind === 'hold' || tr.kind === 'howl') && out.med != null && Math.abs(out.med - (tr.kind === 'howl' ? sndTo(tr) : sndTarget(tr))) >= 2.5) {
+    const d = Math.round(out.med - (tr.kind === 'howl' ? sndTo(tr) : sndTarget(tr))), p = el('p', 'snd-tip', '🎯 You sang around ' + nameOf(Math.round(out.med)) + (d < 0 ? ', below the note.' : ', above the note.') + ' That’s fine: let’s bring the note to you, then work it up from there. ');
+    const b = el('button', 'small', d < 0 ? '⬇ Move the note to ' + nameOf(sndTarget(tr) + d) : '⬆ Move the note to ' + nameOf(sndTarget(tr) + d)); b.dataset.act = 'snd-move'; b.onclick = () => { const S3 = (store.sound.adj ||= {}); S3[tr.id] = (S3[tr.id] || 0) + d; dirty = true; save(); sndTry(i); }; p.appendChild(b); res.appendChild(p); }
   const row = el('div', 'row'); const hear = el('button', 'small', '▶ Hear yourself'); hear.dataset.act = 'snd-hear'; hear.onclick = () => sndHear(tr.id);
   const next = el('button', 'primary', i + 1 < SOUND_TRIES.length ? 'Next: ' + SOUND_TRIES[i + 1].ic + ' ' + SOUND_TRIES[i + 1].name + ' →' : '★ See your sound'); next.dataset.act = 'snd-next'; next.onclick = () => i + 1 < SOUND_TRIES.length ? sndTry(i + 1) : sndResult();
   row.append(hear, next); res.appendChild(row); if (go) go.textContent = '🎤 Try again';
