@@ -1361,6 +1361,22 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     } finally { srv.close(); }
   });
 
+  await test('Advice after a song: a tune sung 2 semitones low is recognised as a key change (not 20 wrong notes): how much of the tune was right, notes marked right in your key, Move the song to my key, and sung again there it scores', async page => {
+    await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
+    await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'twinkle')); G.tempo = 'normal'; V.follow = true; window.KEYOFF = -2; setInterval(() => { V.off = KEYOFF; }, 20); });
+    const key0 = await page.evaluate(() => G.shift);
+    await page.click('#btnSing'); await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    const r1 = await page.evaluate(() => ({ note: ($('#report .key-note') || {}).textContent || '', inKey: document.querySelectorAll('#report .tile.in-key').length, tiles: document.querySelectorAll('#report .tile').length,
+      first: ($('#report .fix b') || {}).textContent || '', btns: [...document.querySelectorAll('#report .fix button')].map(b => b.dataset.act).filter(Boolean).join(), flatAdvice: /Notes are close but flat/.test($('#report').textContent) }));
+    await page.click('#report [data-act="fix-key"]'); await page.waitForTimeout(300);
+    const key1 = await page.evaluate(() => G.shift);
+    await page.evaluate(() => { KEYOFF = 0; }); // the singer sings the same notes; the song now sits there
+    await page.click('#btnSing'); await page.waitForFunction(() => G.run === 'done', null, { timeout: 90000 }); await page.waitForTimeout(300);
+    const r2 = await page.evaluate(() => ({ note: !!$('#report .key-note'), score: runStats().score }));
+    expect(/2 semitones lower than written/.test(r1.note) && /\d+% of the tune was right/.test(r1.note) && r1.inKey >= r1.tiles * 0.6 && /2 semitones lower than written/.test(r1.first) && /fix-key/.test(r1.btns) && /fix-first/.test(r1.btns) && !r1.flatAdvice
+      && key1 === key0 - 2 && !r2.note && r2.score >= 70, JSON.stringify({ key0, key1, r1, r2 }));
+  });
+
   await test('Your take, note by note: the song results show each note as a bar and your voice as a line, flat notes marked, and play the take', async page => {
     await voice(page); await setLevel(page, 1); await tab(page, '#t-sing');
     await page.evaluate(() => { loadSong(SONGS.find(s => s.id === 'bday')); G.tempo = 'normal'; V.follow = true; setInterval(() => { V.off = G.idx >= 12 && G.idx <= 18 ? -0.5 : 0; }, 20); });

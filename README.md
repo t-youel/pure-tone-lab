@@ -129,6 +129,10 @@ Everything happens on the main graph, with the real recording and the words (the
 - With the instrumental added: his notes are split into syllable-sized sounds (a new note, or a short dip in loudness where a consonant cuts the vowel), the lyric lines are matched to his sung phrases, and the words' syllables to the sounds in each phrase. Long words are split so each note gets one (gra-vi-ty); the intro shows ♪. Words typed for a line (✎ Words) are kept and never re-placed.
 - ■ Stop and ↻ Again at any time. After a try: a score, each word's bar green/gold/red, one tip (the word that was off and how he sings it, timing, a cue), and help when a line keeps going wrong (🎯 Lock in the note on a live meter, 🎤 hear his voice alone, hum it first). ✓ when a line is learned (80+, every note within 35¢), kept between visits, with progress for the song.
 
+## Advice after a song
+
+The advice leads with the one thing that matters most. A tune sung in another key (most notes off by about the same amount, the shape intact) is called what it is: "You sang the tune 2 semitones lower than written: in C instead of D", with how much of the tune was right once the shift is taken out, the notes that were right in your key marked ✓ in your key, and two ways forward: 🎯 Move the song to my key (sing it again there and every note can score) or ▶ Hear the first note (the first note sets the key). The rest of the pitch advice (flat or sharp, uneven pitch, jumps) is then judged in your key, so it doesn't repeat the same shift as twenty errors.
+
 ## Your take, note by note
 
 After every song, the results show the same graph as Learn from the pros for your own singing: each note of the song as a bar (its length is how long it lasts, its word underneath), your voice as a line, notes more than 25¢ off outlined with their cents, and ▶ Play to hear your recorded take with the playhead moving along.

@@ -543,6 +543,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .snd-cv { width: 100%; height: 180px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; } .snd-facts { font-weight: 600; }
 .snd-gift { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; } .snd-gift-h { font-weight: 700; font-size: 1.05rem; } .snd-how { margin: 4px 0; }
 .snd-words { width: 100%; font: inherit; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); } .snd-write button.on { border-color: var(--accent); }
+.key-note { font-weight: 600; margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #4b4fd8 10%, var(--surface)); } .tile.in-key .ts { color: #2e8a57; }
 .pro-bar { position: sticky; top: 0; z-index: 20; background: var(--surface); padding: 6px 0; margin: 0 0 4px; box-shadow: 0 6px 8px -8px rgba(0,0,0,.35); }
 .pro-bar .pro-head { gap: 6px; } .pro-bar .pro-head button { padding: 7px 12px; } .pro-bar .pro-name { flex: 1 1 100%; font-size: 1rem; }
 .pro-bar .pro-transport button { padding: 5px 9px; font-size: .9rem; } .pro-bar .pro-lyrics { margin: 6px 0 0; }
@@ -980,7 +981,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-06 · find your sound: see the note, live feedback, grades, howl</p>
+  <p class="fine build" id="buildTag">Build 2026-11-07 · better advice after a song</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -2781,14 +2782,27 @@ function med(a) { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 // Works out why points were lost and what to do about it. Returns up to three findings, most important first.
 function diagnose(st) {
-  const out = [], add = (w, title, why, tryThis, act) => out.push({ w, title, why, tryThis, act });
+  const out = [], add = (w, title, why, tryThis, act, act2) => out.push({ w, title, why, tryThis, act, act2 });
   const sung = st.sung, n = st.n;
   if (st.monotone) add(99, 'You held one note through a moving tune', 'Each word sits on its own note. A single held pitch can be pure, but it isn\'t the song.', 'Tap ▶ Listen and follow the dots on the staff. Then try Pitch match: hear a note, sing it back.', 'listen');
   if (st.missed / n > 0.2) add(st.missed / n * 4, `${st.missed} of ${n} notes weren't heard`,
     G.tempo !== 'slow' ? 'The tempo may be too quick to get each note started.' : 'A note only counts when it has a clear, steady sound.',
     'Switch to Slow, tap ▶ Listen, then sing every word out clearly, a little louder than feels natural.', G.tempo !== 'slow' ? 'slow' : 'listen');
+  // A whole tune sung in another key (most notes off by about the same amount) isn't a string of wrong notes: the singer's
+  // voice chose a comfortable key. Say so, show how much of the tune's shape was right, and offer to move the song there.
+  let kb = 0;
+  if (sung.length >= 4 && !st.monotone) {
+    const b0 = med(sung.map(r => r.c)), rel = sung.filter(r => Math.abs(r.c - b0) <= 60).length / sung.length;
+    if (Math.abs(b0) >= 70 && rel >= 0.4) {
+      kb = b0; const semis = Math.round(b0 / 100), dn = semis < 0, k = Math.abs(semis) || 1;
+      st.keyShift = { semis: semis || (dn ? -1 : 1), rel: Math.round(rel * 100), bias: b0 };
+      add(20, `You sang the tune ${k} semitone${k > 1 ? 's' : ''} ${dn ? 'lower' : 'higher'} than written: in ${pcOf(G.shift + (semis || (dn ? -1 : 1)))} instead of ${pcOf(G.shift)}`,
+        `That's a key change, not a string of wrong notes. With the shift taken out, ${Math.round(rel * 100)}% of the tune was right. Your voice chose where it's comfortable${dn ? ', which is often a little lower at first' : ''}.`,
+        `Two ways forward: move the song to your key (the button) and sing it again, so every note can score. Or stay in this key: tap ▶ Hear the first note, hum it, and start right on it. The first note sets the key for the whole song.`, 'key', 'first');
+    }
+  }
   if (sung.length >= 3) {
-    const cs = sung.map(r => r.c), bias = Math.round(med(cs)), spread = Math.round(med(cs.map(c => Math.abs(c - bias))));
+    const cs = sung.map(r => r.c - kb), bias = Math.round(med(cs)), spread = Math.round(med(cs.map(c => Math.abs(c - bias))));
     if (Math.abs(bias) > 20 && spread < 70) add(Math.abs(bias) / 25,
       bias < 0 ? `Notes are close but flat: about ${-bias}¢ under` : `Notes are close but sharp: about ${bias}¢ over`,
       bias < 0 ? 'Your ear is finding the notes. Flat singing usually comes from low breath energy or a lowered soft palate.' : 'Your ear is finding the notes. Sharp singing usually comes from pushing or tension.',
@@ -2808,7 +2822,7 @@ function diagnose(st) {
         'Keep low notes light and forward, as if speaking them on "mm". If they rumble or fade away, raise the key with +.', 'up');
     }
     const leap = [], step = [];
-    st.all.forEach((r, i) => { if (!i || r.status === 'missed') return; const iv = Math.abs(G.seq[i].m - G.seq[i - 1].m); if (iv >= 4) leap.push(Math.abs(r.c)); else if (iv > 0) step.push(Math.abs(r.c)); });
+    st.all.forEach((r, i) => { if (!i || r.status === 'missed') return; const iv = Math.abs(G.seq[i].m - G.seq[i - 1].m), e = Math.abs(r.c - kb); if (iv >= 4) leap.push(e); else if (iv > 0) step.push(e); });
     if (leap.length >= 2 && mean(leap) > mean(step) + 30) add((mean(leap) - mean(step)) / 30, 'Jumps between notes are harder than steps',
       `Notes after a jump were ${Math.round(mean(leap))}¢ off on average, steps only ${Math.round(mean(step))}¢.`,
       'Before each jump, hear the next note in your head first. The Major arpeggio is all jumps; practise it at Slow.', 'arp');
@@ -2831,7 +2845,7 @@ function diagnose(st) {
         'Take a deep, low breath at every comma and line break, and spend the air slowly at the start of each line.');
     }
   }
-  const LABFOR = [[/flat|sharp/, 'match'], [/varies/, 'match'], [/Higher notes/, 'vowels'], [/Lower notes/, 'scale'], [/Jumps/, 'leaps'], [/scooping/, 'match'], [/Breathy/, 'hold'], [/wobble/, 'hold'], [/noisy or tight/, 'vowels'], [/softly/, 'hold'], [/fade/, 'hold']];
+  const LABFOR = [[/than written/, null], [/flat|sharp/, 'match'], [/varies/, 'match'], [/Higher notes/, 'vowels'], [/Lower notes/, 'scale'], [/Jumps/, 'leaps'], [/scooping/, 'match'], [/Breathy/, 'hold'], [/wobble/, 'hold'], [/noisy or tight/, 'vowels'], [/softly/, 'hold'], [/fade/, 'hold']];
   for (const f of out) { const hit = LABFOR.find(([re]) => re.test(f.title)); if (hit) f.lab = hit[1]; }
   if (!G.song.lab && !st.monotone) {
     if (st.lateMs != null && st.lateMs > 160) add(1 + st.lateMs / 400, `Notes arrived about ${st.lateMs} ms after the beat`, 'Arriving late usually means waiting to hear the note before singing it.', 'Tap your foot with the metronome and breathe on the beat before each phrase, so the note starts with the click, not after it.', 'listen');
@@ -3051,17 +3065,23 @@ function renderReport() {
   box.appendChild(fh);
   const fixes = document.createElement('div'); fixes.className = 'fixes';
   let found = diagnose(st);
+  // sung in another key: say so above the notes, and mark the notes that were right in that key
+  if (st.keyShift) { const ks = st.keyShift, k = Math.abs(ks.semis);
+    box.insertBefore(el('p', 'key-note', '🎵 You sang it ' + k + ' semitone' + (k > 1 ? 's' : '') + (ks.semis < 0 ? ' lower' : ' higher') + ' than written. In your key, ' + ks.rel + '% of the tune was right. See “How to improve” below.'), tiles);
+    [...tiles.children].forEach((t, i) => { const r = st.all[i]; if (r && r.status !== 'missed' && Math.abs(r.c - ks.bias) <= 50 && (r.status === 'low' || r.status === 'high')) { t.querySelector('.ts').textContent = '✓ in your key'; t.classList.add('in-key'); } }); }
   if (!G.song.lab || G.song.check) { store.focus = [...new Set(found.map(f => f.lab).filter(Boolean))]; dirty = true; }
   if (!found.length) found = [{ good: true, title: st.ok === st.n ? 'Clean and consistent' : 'No single problem stands out', why: st.ok === st.n ? 'Pitch and tone held up across the whole song.' : 'Your misses are spread out rather than following a pattern.',
     tryThis: st.ok === st.n ? 'Stretch yourself: switch to Medium tempo, or move the key up one step with +.' : 'Sing it again at the same tempo; repetition will settle the tune.', act: st.ok === st.n ? 'medium' : null }];
   const ACTS = { slow: ['Switch to Slow', () => { G.tempo = 'slow'; G.run = 'ready'; renderSing(); }], medium: ['Switch to Medium', () => { G.tempo = 'medium'; G.run = 'ready'; renderSing(); }],
     listen: ['▶ Listen', () => { G.run = 'ready'; G.res = []; renderSing(); listenFirst(); }], arp: ['Practise the arpeggio', () => loadSong(SONGS.find(x => x.id === 'arp'))],
-    down: ['Lower the key', () => { G.shift--; loadSong(G.song, true); }], up: ['Raise the key', () => { G.shift++; loadSong(G.song, true); }] };
+    down: ['Lower the key', () => { G.shift--; loadSong(G.song, true); }], up: ['Raise the key', () => { G.shift++; loadSong(G.song, true); }],
+    key: ['🎯 Move the song to my key', () => { const k = st.keyShift ? st.keyShift.semis : 0; G.shift += k; loadSong(G.song, true); toast('Moved to ' + pcOf(G.shift) + ': where you sang it. Now sing it again.'); }],
+    first: ['▶ Hear the first note', async () => { await ensureAudio(); playTone(G.seq[0].m, 1.6, PIPE); }] };
   for (const f of found) {
     const d = document.createElement('div'); d.className = 'fix' + (f.good ? ' good' : '');
     d.innerHTML = '<b></b><span class="why"></span><span class="try"><b>Try this:</b> <span></span></span>';
     d.querySelector('b').textContent = f.title; d.querySelector('.why').textContent = f.why; d.querySelector('.try span').textContent = f.tryThis;
-    if (f.act && ACTS[f.act]) { const b = document.createElement('button'); b.className = 'small'; b.textContent = ACTS[f.act][0]; b.onclick = ACTS[f.act][1]; d.appendChild(b); }
+    for (const a of [f.act, f.act2]) if (a && ACTS[a]) { const b = document.createElement('button'); b.className = a === 'key' ? 'primary small' : 'small'; b.dataset.act = 'fix-' + a; b.textContent = ACTS[a][0]; b.onclick = ACTS[a][1]; d.appendChild(b); }
     if (f.lab && !G.song.lab) { const L = LAB.find(x => x.id === f.lab), b = document.createElement('button'); b.className = 'small'; b.textContent = 'Practise in the Lab: ' + L.title + ' →'; b.onclick = () => openLab(f.lab); d.appendChild(b); }
     fixes.appendChild(d);
   }
