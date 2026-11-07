@@ -1158,6 +1158,24 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       && ex.dur > 2 && Math.abs(ex.early - ex.a) <= 1 && Math.abs(ex.late - ex.b) <= 1 && moved !== ui.aim && /Move the note to/.test(offer), JSON.stringify({ ui, ex, moved, offer }));
   });
 
+  await test('How to make it: each sound shows the voice from the side in its shape (the howl: jaw dropped, soft palate lifted) with numbered pointers and instructions, Show me animates it, the live mirror reads the mouth from the sound (an open “ah” has the jaw more open than “ee”, “ee” has the tongue further forward), and training progress is kept per sound', async page => {
+    await voice(page); await setLevel(page, 1);
+    await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50 }; store.home = null; store.sound = { tries: { base: { heard: true, med: 50, rms: 0.05, bright: 900, twang: 0.05, air: 0.02, share: 0.3, score: 70 } } }; save(); openLab('sound'); sndTry(SOUND_TRIES.findIndex(t => t.id === 'howl')); });
+    const ui = await page.evaluate(() => ({ svg: !!$('#vtPic svg'), marks: $('#vtPic svg').querySelectorAll('circle[r="10"]').length, tips: [...document.querySelectorAll('.vt-tips li')].map(l => l.textContent), show: !!$('[data-act="vt-show"]'),
+      shapes: { howl: vtShape('howl'), rest: VT_REST } }));
+    await page.click('[data-act="vt-show"]'); await page.waitForTimeout(1400); const shown = await page.evaluate(() => $('#vtPic svg').querySelectorAll('circle[r="10"]').length);
+    // the mirror: the example voice sings "ah" then "ee"; the estimates move the right way
+    const mirror = await page.evaluate(async () => { window.EX_TO_ANALYSER = true; V.on = false; const read = async vowel => { exampleStop(); exampleVoice([[0, 48], [1.6, 48]], { vowel, vol: 0.5 }); const js = [], fs = []; const t0 = performance.now();
+        await new Promise(r => { const iv = setInterval(() => { const s = (performance.now() - t0) / 1000; if (s > 0.4) { const fm = vtFormants(); if (fm) { const v = vtFromVoice(fm); js.push(v.jaw); fs.push(v.front); } } if (s > 1.5) { clearInterval(iv); r(); } }, 40); });
+        const md = x => x.slice().sort((p, q) => p - q)[x.length >> 1]; return { jaw: md(js), front: md(fs), n: js.length }; };
+      const ah = await read('ah'), ee = await read('ee'); window.EX_TO_ANALYSER = false; return { ah, ee }; });
+    // progress: two attempts on two days
+    await page.evaluate(() => { const tr = SOUND_TRIES.find(t => t.id === 'howl'); sndShowGrade(tr, SND.i, { heard: true, score: 42, med: sndTo(tr), parts: { note: 50, pure: 50, steady: 50, colour: 20 }, facts: 'x' }); store.sound.hist.howl[0].at -= 86400000; sndShowGrade(tr, SND.i, { heard: true, score: 74, med: sndTo(tr), parts: { note: 80, pure: 70, steady: 70, colour: 70 }, facts: 'x' }); });
+    const prog = await page.evaluate(() => ({ text: $('#sndProg').textContent, spark: !!$('#sndProg svg') }));
+    expect(ui.svg && ui.marks === 3 && ui.tips.length === 3 && /drop the jaw/.test(ui.tips[0]) && ui.show && ui.shapes.howl.jaw > 0.8 && ui.shapes.howl.palate > 0.8 && shown === 3
+      && mirror.ah.n >= 5 && mirror.ee.n >= 5 && mirror.ah.jaw > mirror.ee.jaw + 0.15 && mirror.ee.front > mirror.ah.front + 0.15 && /first 42 → best 74 \(\+32\)/.test(prog.text) && /2 days/.test(prog.text) && prog.spark, JSON.stringify({ ui: { marks: ui.marks, tips: ui.tips }, shown, mirror, prog }));
+  });
+
   await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
     await voice(page); await setLevel(page, 1);
     await page.addScriptTag({ content: require('fs').readFileSync(require('path').join(__dirname, 'prosynth.js'), 'utf8') });

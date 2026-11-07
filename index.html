@@ -536,6 +536,9 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .snd-try.done { border-color: #3aa76d; } .snd-try b { flex: 1; font-size: .92rem; } .snd-sc { font-weight: 700; } .snd-ic { font-size: 1.3em; }
 .snd-steps { margin: 4px 0 8px 1.2em; padding: 0; } .snd-steps li { margin: 4px 0; } .snd-steps-h { margin: 8px 0 0; font-weight: 600; } .snd-ex-note { font-size: .85rem; margin: 0 0 4px; }
 .snd-real { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 8px 0; } .snd-real summary { font-weight: 700; cursor: pointer; } .snd-real-row { margin-top: 6px; } .snd-real-row { display: grid; gap: 4px; } .snd-real-links { display: flex; gap: 6px; flex-wrap: wrap; } .snd-real-links a { text-decoration: none; }
+.vt-box { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 8px 0; } .vt-head { display: flex; justify-content: space-between; align-items: center; }
+.vt-pic { max-width: 340px; margin: 0 auto; } .vt-svg { width: 100%; height: auto; color: var(--ink); } .vt-tips { margin: 4px 0 4px 1.4em; padding: 0; } .vt-tips li { margin: 2px 0; } .vt-tips li::marker { color: #c2185b; font-weight: 700; } .vt-cue { font-weight: 700; min-height: 1.3em; margin: 2px 0; } .vt-note { font-size: .8rem; margin: 0; }
+.snd-prog { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0; } .snd-spark { display: block; }
 .snd-aim { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .snd-aim-l { color: var(--muted); } .snd-aim-n { font-size: 1.8rem; }
 .snd-now { font-size: 1.5rem; font-weight: 700; min-height: 1.6em; } .snd-now.on { color: #2e9d5b; } .snd-now.near { color: #c07a12; } .snd-now.off { color: #c9443f; }
 .snd-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; } .snd-m span { font-size: .85rem; color: var(--muted); } .snd-m b { display: block; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; } .snd-m b i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 5px; transition: width .15s; }
@@ -983,7 +986,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-07 · examples to follow</p>
+  <p class="fine build" id="buildTag">Build 2026-11-07 · see how to make each sound</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -7071,7 +7074,7 @@ function sndCapture(tr, g) {
       if (!recOn) { recOn = true; sndRecStart(); }
       const f = sndFeatures(), m = S.rawM;
       sm.push({ t: s, m, rms: S.rms || 0, pur: m != null ? S.purity : null, share: m != null ? S.share : null, ...f });
-      sndLive(tr, sm, s);
+      sndLive(tr, sm, s); vtLive(tr);
       if (tr.safety && SND.base && S.rms > 4 * SND.base.rms) live.textContent = '🔥 Easy — quieter. Grit is a small sound.';
       else live.textContent = '🎤 ' + tr.how.split(/[.:]/)[0] + ' · ' + Math.max(0, Math.ceil(tr.secs - s)) + ' s';
       if (s >= tr.secs) { clearInterval(iv); sndRecStop(tr.id); res(sm); }
@@ -7267,6 +7270,107 @@ function sndRealLinks(tr) {
   return box;
 }
 
+// ---------- The voice, drawn: how to make each sound, and a live mirror of yours ----------
+// A side view of the head (our own drawing): jaw, lips, tongue, hard and soft palate, nasal cavity, throat, voice box and
+// vocal folds. Each sound has its shape (jaw open, tongue forward and high, soft palate lifted, voice box low or high,
+// lips rounded, the folds thick, thin, apart or pressed) and two or three pointers saying what to do. While you sing, the
+// app estimates your own jaw and tongue from your sound: every vowel has two resonances (formants); the first rises as the
+// jaw opens, the second as the tongue moves forward. Found by linear prediction on the last 40 ms of your voice. An
+// estimate from the sound, not an X-ray, and most reliable on low and middle notes.
+const VT_REST = { jaw: 0.25, front: 0.45, high: 0.45, palate: 0.4, larynx: 0.5, lips: 0.2, folds: 'thick', air: 0, rasp: 0 };
+const SND_SHAPE = {
+  base: { s: { jaw: 0.6, front: 0.4, high: 0.25, palate: 0.6, larynx: 0.5, lips: 0.25 }, tips: [['jaw', 'jaw easy and open: “ah”'], ['palate', 'soft palate up a little'], ['folds', 'relaxed breath, no push']] },
+  low: { s: { jaw: 0.55, front: 0.35, high: 0.25, palate: 0.6, larynx: 0.15, lips: 0.6 }, tips: [['larynx', 'let the voice box sit low and loose'], ['jaw', 'jaw relaxed, mouth like “oh”'], ['throat', 'lots of space in the throat']] },
+  climb: { s: { jaw: 0.3, front: 0.85, high: 0.85, palate: 0.85, larynx: 0.45, lips: 0.1 }, tips: [['tongue', 'tongue high and forward: “ee”'], ['palate', 'lift the soft palate as you go up'], ['larynx', 'keep the voice box from climbing with the pitch']] },
+  falsetto: { s: { jaw: 0.35, front: 0.25, high: 0.6, palate: 0.95, larynx: 0.4, lips: 0.95, folds: 'thin' }, tips: [['palate', 'lift the soft palate: the start of a yawn'], ['lips', 'round lips: “ooh”'], ['folds', 'folds thin and light: little breath pressure']] },
+  belt: { s: { jaw: 0.75, front: 0.65, high: 0.45, palate: 0.75, larynx: 0.65, lips: 0.05, folds: 'pressed' }, tips: [['jaw', 'mouth wide: a bright “eh”, like calling'], ['folds', 'folds firm, breath pushing from the belly'], ['larynx', 'voice box a little higher, but never squeezed']] },
+  howl: { s: { jaw: 0.95, front: 0.35, high: 0.2, palate: 0.9, larynx: 0.55, lips: 0.55, folds: 'thick', rasp: 0.5 }, tips: [['jaw', 'drop the jaw: a tall, open “oh”'], ['palate', 'lift the soft palate: the start of a yawn'], ['folds', 'folds firm, a little rough on top: lots of breath from below']] },
+  twang: { s: { jaw: 0.4, front: 0.85, high: 0.75, palate: 0.35, larynx: 0.7, lips: 0.05, twang: 1 }, tips: [['tongue', 'tongue high and forward: “nyah”'], ['throat', 'narrow just above the voice box: the bright ring'], ['lips', 'lips spread, a little smile']] },
+  breathy: { s: { jaw: 0.5, front: 0.4, high: 0.3, palate: 0.5, larynx: 0.45, lips: 0.3, folds: 'gap', air: 1 }, tips: [['folds', 'folds a little apart: let air through with the note'], ['jaw', 'soft and easy, like a sigh']] },
+  vibrato: { s: { jaw: 0.6, front: 0.4, high: 0.25, palate: 0.7, larynx: 0.45, lips: 0.3 }, tips: [['larynx', 'a relaxed, free voice box: the wave comes by itself'], ['folds', 'steady breath, no squeeze'], ['jaw', 'jaw loose']] },
+  deadpan: { s: { jaw: 0.3, front: 0.5, high: 0.45, palate: 0.45, larynx: 0.5, lips: 0.2 }, tips: [['jaw', 'jaw small, like talking'], ['folds', 'even breath, one note']] },
+  grit: { s: { jaw: 0.6, front: 0.45, high: 0.35, palate: 0.6, larynx: 0.55, lips: 0.2, rasp: 1 }, tips: [['throat', 'the rasp comes from above the folds: let them rattle gently'], ['folds', 'quiet: never push or squeeze'], ['jaw', 'jaw open, throat open']] },
+};
+const vtShape = id => Object.assign({}, VT_REST, (SND_SHAPE[id] || SND_SHAPE.base).s);
+const vtMix = (a, b, f) => { const o = {}; for (const k of Object.keys(b)) o[k] = typeof b[k] === 'number' ? (a[k] ?? b[k]) + (b[k] - (a[k] ?? b[k])) * f : (f < 0.5 ? a[k] : b[k]); return o; };
+// the drawing: one shape solid, an optional target as a dashed ghost, pointers
+function vtSVG(sh, o = {}) {
+  const L = (a, b, f) => a + (b - a) * f;
+  const P = s => { const j = s.jaw, f = s.front, h = s.high, lr = s.lips;
+    const ly = L(290, 236, s.larynx), lipX = 286 + lr * 10, upY = 144, lowY = 152 + j * 50 * (1 - lr * 0.35), chinY = 205 + j * 46;
+    const hx = 158 + f * 78, hy = 206 - h * 74 + j * 34, tipX = 252 - lr * 6, tipY = 172 + j * 40;
+    const vEnd = [L(146, 122, s.palate), L(168, 122, s.palate)], vCtl = [L(160, 150, s.palate), L(150, 120, s.palate)];
+    return { j, ly, lipX, lowY, chinY, hx, hy,
+      tongue: `M146 ${ly - 20} C140 ${hy + 30} ${hx - 50} ${hy} ${hx} ${hy} C${hx + 42} ${hy} ${tipX - 8} ${tipY - 16} ${tipX} ${tipY} L${tipX - 14} ${tipY + 20} Q${200} ${tipY + 40 + j * 10} 156 ${ly - 8} Z`,
+      velum: `M172 128 Q${vCtl[0]} ${vCtl[1]} ${vEnd[0]} ${vEnd[1]}`, vEnd,
+      lower: `M${lipX - 2} ${lowY} Q${lipX + 4} ${lowY + 14} ${lipX - 8} ${lowY + 30} Q${lipX - 14} ${chinY} 262 ${chinY + 10} Q236 ${chinY + 26} 236 ${Math.max(chinY + 40, 290)} L236 320`,
+      jawLine: `M196 ${200 + j * 30} Q232 ${chinY + 6} ${lipX - 10} ${lowY + 26}` }; };
+  const a = P(sh), t = o.target ? P(o.target) : null, col = '#c2185b';
+  const folds = (s, x, y) => { const g = s.folds === 'thin' ? 1.5 : 4, w = s.folds === 'gap' ? 7 : s.folds === 'pressed' ? 0 : 2;
+    return `<line x1="${x - 15}" y1="${y}" x2="${x - w / 2}" y2="${y}" stroke="#7a1f3d" stroke-width="${g}"/><line x1="${x + w / 2}" y1="${y}" x2="${x + 15}" y2="${y}" stroke="#7a1f3d" stroke-width="${g}"/>` +
+      (s.rasp > 0.3 ? `<path d="M${x - 15} ${y - 8} l5 -4 l5 4 l5 -4 l5 4 l5 -4 l5 4" stroke="#e0962a" fill="none" stroke-width="2"/>` : '') + (s.folds === 'pressed' ? `<path d="M${x} ${y + 36} l0 -16" stroke="#4b4fd8" stroke-width="3" marker-end="url(#vtA)"/>` : ''); };
+  const air = sh.air ? Array.from({ length: 8 }, (_, k) => `<circle cx="${140 + (k % 3) * 7}" cy="${a.ly - 14 - k * 16}" r="2.5" fill="#5aa0e0"/>`).join('') : '';
+  const twang = sh.twang ? `<path d="M128 ${a.ly - 28} q10 7 0 14 M164 ${a.ly - 28} q-10 7 0 14" stroke="#e0962a" stroke-width="3.5" fill="none"/>` : '';
+  const ghost = t ? `<g fill="none" stroke="${col}" stroke-width="2.2" stroke-dasharray="6 5"><path d="${t.tongue}"/><path d="${t.velum}"/><path d="${t.lower}"/></g>` : '';
+  const spot = { jaw: [a.lipX - 6, a.lowY + 16], palate: a.vEnd, larynx: [176, a.ly], folds: [146, a.ly], tongue: [190, 200 + a.j * 30], lips: [a.lipX + 2, (144 + a.lowY) / 2], throat: [120, 210] };
+  const marks = (o.tips || []).map(([part], k) => { const [x, y] = spot[part] || [200, 160]; return `<circle cx="${x}" cy="${y}" r="10" fill="${col}"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">${k + 1}</text>`; }).join('');
+  return `<svg viewBox="30 10 290 310" class="vt-svg" role="img" aria-label="${o.label || 'The voice from the side'}"><defs><marker id="vtA" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#4b4fd8"/></marker></defs>
+  <path d="M40 66 Q110 12 222 30 Q264 50 270 100 L292 122 L276 132 Q282 138 ${a.lipX} 144 Q${a.lipX - 6} 147 266 147" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M120 98 Q180 74 262 104 L258 120 Q210 114 172 124 L120 116 Z" fill="#f6c9d6" stroke="${col}" stroke-width="1.2"/><text x="176" y="108" font-size="11" fill="#9b1c48">nose</text>
+  <path d="M172 127 L256 127" stroke="${col}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M116 102 Q110 200 122 320" fill="none" stroke="${col}" stroke-width="3"/><path d="M170 ${a.ly + 12} L170 320" stroke="${col}" stroke-width="3"/>
+  <path d="${a.tongue}" fill="#e8738f" stroke="#a2163f" stroke-width="1.5"/>
+  <path d="${a.velum}" stroke="${col}" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="${a.lower}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="${a.jawLine}" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/>
+  <rect x="124" y="${a.ly - 13}" width="44" height="26" rx="7" fill="#fde3ea" stroke="${col}"/>${folds(sh, 146, a.ly)}
+  <text x="34" y="${a.ly + 4}" font-size="11" fill="#9b1c48">voice box</text><text x="40" y="220" font-size="11" fill="#9b1c48">throat</text><text x="38" y="${Math.min(a.vEnd[1], 160) + 4}" font-size="11" fill="#9b1c48">soft palate</text><text x="${a.hx - 22}" y="${a.hy + 22}" font-size="11" fill="#fff" font-weight="700">tongue</text>
+  ${air}${twang}${ghost}${marks}</svg>`;
+}
+// formants from the last 40 ms of voice: linear prediction (order 10) on the sound slowed to about 11 kHz
+function vtFormants() {
+  if (!ac || !timeBuf || S.rawM == null) return null; const D = Math.max(1, Math.round(ac.sampleRate / 11025)), fs = ac.sampleRate / D, N = 448;
+  const x = new Float64Array(N); const src = timeBuf, off = src.length - N * D; if (off < 0) return null;
+  for (let i = 0; i < N; i++) { let s = 0; for (let k = 0; k < D; k++) s += src[off + i * D + k]; x[i] = s / D; }
+  for (let i = N - 1; i > 0; i--) x[i] -= 0.97 * x[i - 1]; for (let i = 0; i < N; i++) x[i] *= 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (N - 1));
+  const p = 10, r = new Float64Array(p + 1); for (let k = 0; k <= p; k++) { let s = 0; for (let i = k; i < N; i++) s += x[i] * x[i - k]; r[k] = s; } if (r[0] <= 0) return null;
+  let a = new Float64Array(p + 1); a[0] = 1; let e = r[0];
+  for (let i = 1; i <= p; i++) { let acc = r[i]; for (let j = 1; j < i; j++) acc += a[j] * r[i - j]; const k = -acc / e, na = a.slice(); for (let j = 1; j < i; j++) na[j] = a[j] + k * a[i - j]; na[i] = k; a = na; e *= 1 - k * k; if (e <= 0) return null; }
+  const pk = []; let prev = 0, prev2 = 0;
+  for (let q = 0; q <= 220; q++) { const f = q / 220 * Math.min(4000, fs / 2), w = 2 * Math.PI * f / fs; let re = 0, im = 0; for (let j = 0; j <= p; j++) { re += a[j] * Math.cos(j * w); im -= a[j] * Math.sin(j * w); }
+    const v = 1 / (re * re + im * im); if (q >= 2 && prev > prev2 && prev > v) pk.push((q - 1) / 220 * Math.min(4000, fs / 2)); prev2 = prev; prev = v; }
+  const f1 = pk.find(f => f >= 220 && f <= 1100); if (f1 == null) return null; const f2 = pk.find(f => f > f1 + 250 && f <= 3000); if (f2 == null) return null;
+  return { f1, f2 };
+}
+// your mouth, estimated: jaw from F1, tongue forward from F2 (and higher when the jaw is closed)
+function vtFromVoice(fm, prev) { const j = clamp((fm.f1 - 280) / 560), fr = clamp((fm.f2 - 800) / 1500), s = Object.assign({}, prev || VT_REST, { jaw: j, front: fr, high: clamp(1 - j * 1.1) });
+  if (prev) for (const k of ['jaw', 'front', 'high']) s[k] = prev[k] + (s[k] - prev[k]) * 0.3; return s; }
+function vtCue(you, tgt) {
+  if (!you) return ''; const dj = tgt.jaw - you.jaw, df = tgt.front - you.front;
+  if (Math.abs(dj) >= Math.abs(df) && Math.abs(dj) > 0.22) return dj > 0 ? '⬇ Open your jaw more' : '⬆ Close the jaw a little';
+  if (Math.abs(df) > 0.28) return df > 0 ? '➡ Tongue further forward (toward “ee”)' : '⬅ Tongue further back (toward “oo”)';
+  return '✓ Your mouth shape matches';
+}
+// the panel in each sound: the shape to make, ▶ Show me, and while you sing, the mirror
+function vtPanel(tr) {
+  const box = el('div', 'vt-box'); box.id = 'vtBox'; const tgt = vtShape(tr.id), tips = (SND_SHAPE[tr.id] || SND_SHAPE.base).tips;
+  const head = el('div', 'vt-head'); head.append(el('b', '', '🗣 How to make it')); const show = el('button', 'small', '▶ Show me'); show.dataset.act = 'vt-show'; head.appendChild(show);
+  const pic = el('div', 'vt-pic'); pic.id = 'vtPic'; pic.innerHTML = vtSVG(tgt, { tips }); const cue = el('p', 'vt-cue', ''); cue.id = 'vtCue';
+  const ol = el('ol', 'vt-tips'); tips.forEach(([, text]) => ol.appendChild(el('li', '', text)));
+  box.append(head, pic, ol, cue, el('p', 'muted vt-note', 'While you sing, the drawing follows your own jaw and tongue, estimated from your sound (the dashed outline is the shape to aim for). Most reliable on low and middle notes.'));
+  show.onclick = () => { const t0 = performance.now(); const step = () => { const f = clamp((performance.now() - t0) / 1200); pic.innerHTML = vtSVG(vtMix(VT_REST, tgt, f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2), { tips: f >= 1 ? tips : [] }); if (f < 1) requestAnimationFrame(step); }; step(); };
+  return box;
+}
+function vtLive(tr) {
+  const pic = $('#vtPic'); if (!pic) return; const now = performance.now(); if (now - (SND.vtAt || 0) < 90) return; SND.vtAt = now;
+  const fm = vtFormants(), tgt = vtShape(tr.id); if (fm) SND.vtYou = vtFromVoice(fm, SND.vtYou);
+  const you = SND.vtYou ? Object.assign({}, tgt, { jaw: SND.vtYou.jaw, front: SND.vtYou.front, high: SND.vtYou.high }) : tgt;
+  pic.innerHTML = vtSVG(you, { target: tgt, tips: (SND_SHAPE[tr.id] || SND_SHAPE.base).tips, label: 'Your mouth (solid) and the shape to aim for (dashed)' }); const c = $('#vtCue'); if (c && fm) c.textContent = vtCue(SND.vtYou, tgt);
+}
+// training: every attempt kept with its day; progress per sound
+function sndProgress(id) { const h = (((store.sound || {}).hist || {})[id]) || []; if (!h.length) return null; const first = h[0].score, best = Math.max(...h.map(x => x.score)), days = new Set(h.map(x => new Date(x.at).toDateString())).size; return { first, best, n: h.length, days, h }; }
+function sndSpark(h) { const w = 160, hh = 34, n = h.length; if (n < 2) return ''; const pts = h.map((x, i) => (i / (n - 1) * w).toFixed(1) + ',' + (hh - 2 - x.score / 100 * (hh - 4)).toFixed(1)).join(' ');
+  return `<svg class="snd-spark" viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}" aria-label="Your scores over time"><polyline points="${pts}" fill="none" stroke="#4b4fd8" stroke-width="2"/></svg>`; }
+
 function soundStart() {
   woStop(); SND.gen++; const box = $('#woBox'); box.textContent = ''; const c = el('div', 'wo-card snd-card'); box.appendChild(c);
   c.append(el('h3', '', '🎨 Find your sound'), el('p', '', 'Every great voice has something of its own: Barry Gibb’s falsetto, Springsteen’s howl, Chris Cornell’s low verses that soar. Try these sounds one by one. For each you’ll see the note to sing, hear it first, and watch your voice on the screen. Every attempt gets a grade: on the note, pure and natural, steady, and the sound itself. Your best grades show your gifts; then songs that suit them, and a new song written for them.'),
@@ -7298,6 +7402,7 @@ function sndTry(i) {
   const ex = el('button', 'small', '▶ Hear an example'); ex.dataset.act = 'snd-example'; ex.title = 'The app’s example voice sings the sound on your notes'; ex.onclick = () => sndExample(tr); aim.appendChild(ex);
   if (tr.kind !== 'climb') { const mv = (d, t) => { const b = el('button', 'small', t); b.dataset.act = d < 0 ? 'snd-lower' : 'snd-higher'; b.title = d < 0 ? 'Move the note down' : 'Move the note up'; b.onclick = () => { const S3 = (store.sound.adj ||= {}); S3[tr.id] = (S3[tr.id] || 0) + d; dirty = true; save(); sndTry(i); }; return b; }; aim.append(mv(-2, '⬇ Lower'), mv(2, '⬆ Higher')); }
   st.appendChild(aim);
+  st.appendChild(vtPanel(tr)); SND.vtYou = null;
   st.appendChild(el('p', 'muted snd-ex-note', '▶ Hear an example: the app’s example voice sketches the sound on your notes, so you can hear the shape to copy. It isn’t a real singer: for that, see below.'));
   // stepping stones up to the harder sounds, each with its own example
   if (SND_STEPS[tr.id]) { const ol = el('ol', 'snd-steps'); SND_STEPS[tr.id].forEach(([name, how, key], k) => { const li = el('li', ''); li.append(el('b', '', name + ': '), document.createTextNode(how + ' '));
@@ -7323,6 +7428,7 @@ function sndTry(i) {
 function sndShowGrade(tr, i, out) {
   const r = store.sound.tries, res = $('#sndGrade'); res.textContent = ''; const go = document.querySelector('[data-act="snd-start"]');
   ((store.sound.attempts ||= {})[tr.id] ||= []).push(out.heard ? out.score : 0); if (store.sound.attempts[tr.id].length > 8) store.sound.attempts[tr.id].shift();
+  if (out.heard && tr.id !== 'base') { const H = ((store.sound.hist ||= {})[tr.id] ||= []); H.push({ at: Date.now(), score: out.score }); if (H.length > 60) H.shift(); }
   if (out.heard) { if (tr.id === 'base') { r.base = out; SND.base = out; } else if (!r[tr.id] || out.score >= r[tr.id].score) r[tr.id] = { score: out.score, parts: out.parts, facts: out.facts, top: out.top, low: out.low, bottom: out.bottom, at: Date.now() }; }
   dirty = true; save(); sndList();
   if (!out.heard) { res.appendChild(el('p', 'snd-facts', '🤔 ' + out.facts)); if (go) go.textContent = '🎤 Try again'; return; }
@@ -7342,6 +7448,8 @@ function sndShowGrade(tr, i, out) {
 function sndAttempts(tr) {
   const a = ((store.sound || {}).attempts || {})[tr.id] || [], st = $('#sndStage'); let e = $('#sndAtt'); if (!st) return; if (!e) { e = el('p', 'muted snd-att'); e.id = 'sndAtt'; st.appendChild(e); }
   e.textContent = a.length ? 'Your attempts: ' + a.map(x => sndGrade(x) + ' ' + x).join(' · ') + ' (your best counts)' : '';
+  const pg = sndProgress(tr.id); let pe = $('#sndProg'); if (!pe) { pe = el('div', 'snd-prog'); pe.id = 'sndProg'; st.appendChild(pe); }
+  pe.innerHTML = pg && pg.n >= 2 ? '<b>📈 Your training</b> <span>first ' + pg.first + ' → best ' + pg.best + (pg.best > pg.first ? ' (+' + (pg.best - pg.first) + ')' : '') + ' · ' + pg.n + ' attempts over ' + pg.days + ' day' + (pg.days > 1 ? 's' : '') + '</span>' + sndSpark(pg.h) : '';
 }
 function sndGifts() {
   const r = (store.sound || {}).tries || {}; return Object.keys(GIFT).filter(k => r[k] && r[k].score >= 60).sort((a, b) => r[b].score - r[a].score).slice(0, 3);
@@ -7362,6 +7470,8 @@ function sndResult() {
     card.append(el('div', 'snd-gift-h', (n === 0 ? '🌟 ' : '⭐ ') + G2.name + ' · ' + sndGrade(r[k].score) + ' ' + r[k].score), el('p', '', G2.what + ' ' + r[k].facts), el('p', 'muted', 'Like: ' + tr.like + '. (Find these on your music app and listen for it.)'));
     const [song, how] = GIFT_SONGS[k], row = el('div', 'row'); const sb = el('button', 'small', '🎵 Use it in “' + song + '”'); sb.dataset.act = 'gift-song'; sb.onclick = () => { openLab('pro'); setTimeout(() => { const s = SONG_LIB.find(x => x.title === song); if (s) proLoadLib(s); }, 50); };
     const hb = el('button', 'small', '▶ Hear yours'); hb.onclick = () => sndHear(k); hb.hidden = !SND.clips[k];
+    const pg = sndProgress(k); if (pg && pg.n >= 2) card.appendChild(el('p', 'muted', '📈 Training: first ' + pg.first + ' → best ' + pg.best + ' over ' + pg.days + ' day' + (pg.days > 1 ? 's' : '') + '.'));
+    const tb = el('button', 'primary small', '🏋️ Train it'); tb.dataset.act = 'gift-train'; tb.onclick = () => sndTry(SOUND_TRIES.findIndex(t => t.id === k)); row.prepend(tb);
     row.append(sb, hb); card.append(el('p', 'snd-how', '🎵 ' + how), row); res.appendChild(card); });
   if (lowTop) res.appendChild(el('p', 'snd-gift-x', '✨ And together: rich lows and a strong top. That low-to-high contrast is what makes “Black Hole Sun” and “Bohemian Rhapsody” so striking.'));
   if (gifts.length) { const w = el('button', 'primary', '✍️ Write a song for my voice'); w.dataset.act = 'write'; w.onclick = () => songWriter(); res.appendChild(w); }
