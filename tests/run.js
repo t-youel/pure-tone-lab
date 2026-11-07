@@ -567,10 +567,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await voice(page); await setLevel(page, 10);
     await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 61 }; openLab('swell'); });
     await page.click('#dBtns >> text=▶ Start');
-    await page.evaluate(() => { setInterval(() => { V.on = ['wait', 'hold'].includes(D.phase); V.m = D.target; const e = D.phase === 'hold' ? now() - D.t0 : 0; V.vol = 0.08 + 0.92 * Math.max(0, 1 - Math.abs(e - 4) / 4); }, 20); });
+    await page.evaluate(() => { window.swIv = setInterval(() => { V.on = ['wait', 'hold'].includes(D.phase); V.m = D.target; const e = D.phase === 'hold' ? now() - D.t0 : 0; V.vol = 0.08 + 0.92 * Math.max(0, 1 - Math.abs(e - 4) / 4); }, 20); });
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 25000 });
     const sw = await page.evaluate(() => labRec('swell').last);
-    await page.evaluate(() => { closeLab(); V.vol = 1; openLab('exhale'); });
+    await page.evaluate(() => { clearInterval(window.swIv); closeLab(); V.vol = 1; openLab('exhale'); });   // stop the swell singer, or it keeps silencing the hiss
     await page.click('#dBtns >> text=▶ Start');
     await page.evaluate(() => { V.osc = false; V.noise = 0.2; setInterval(() => { V.on = D.phase === 'out' && D.on < 15; }, 20); });
     await page.waitForFunction(() => D.phase === 'done', null, { timeout: 120000 });
