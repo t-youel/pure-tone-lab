@@ -539,6 +539,7 @@ html.ez-lock, html.ez-lock body { overscroll-behavior: none; overflow: hidden; t
 .vt-box { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 8px 0; } .vt-head { display: flex; justify-content: space-between; align-items: center; }
 .vt-pic { max-width: 340px; margin: 0 auto; } .vt-svg { width: 100%; height: auto; color: var(--ink); } .vt-tips { margin: 4px 0 4px 1.4em; padding: 0; } .vt-tips li { margin: 2px 0; } .vt-tips li::marker { color: #c2185b; font-weight: 700; } .vt-cue { font-weight: 700; min-height: 1.3em; margin: 2px 0; } .vt-note { font-size: .8rem; margin: 0; }
 .snd-prog { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0; } .snd-spark { display: block; }
+.snd-grp { grid-column: 1 / -1; font-weight: 700; margin: 6px 0 0; } .snd-try.coach { border-color: #e0962a; }
 .snd-aim { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; } .snd-aim-l { color: var(--muted); } .snd-aim-n { font-size: 1.8rem; }
 .snd-now { font-size: 1.5rem; font-weight: 700; min-height: 1.6em; } .snd-now.on { color: #2e9d5b; } .snd-now.near { color: #c07a12; } .snd-now.off { color: #c9443f; }
 .snd-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 8px 0; } .snd-m span { font-size: .85rem; color: var(--muted); } .snd-m b { display: block; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; } .snd-m b i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 5px; transition: width .15s; }
@@ -986,7 +987,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-07 · see how to make each sound</p>
+  <p class="fine build" id="buildTag">Build 2026-11-08 · a vocal coach’s 3 exercises</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -7016,6 +7017,10 @@ const woSpeak = () => (store.home && store.home.speak) ?? (store.profile && stor
 // hear it. Your gifts are the tries you did best; then: songs here that suit them, and a song written for them.
 const SOUND_TRIES = [
   { id: 'base', ic: '🙂', name: 'Your easy voice', how: 'Sing a relaxed “ahh” on the note shown, the way you’d hum in the shower. Every other sound is measured against this one.', secs: 4, off: 0, kind: 'hold', colour: null },
+  // ⭐ a vocal coach's three daily exercises: first, because they build the control every sound needs
+  { id: 'siren', ic: '🚨', name: 'Sirens on “ooo”', coach: true, how: 'On a light, rounded “ooo”, slide from low up as high as is easy and back down, like an ambulance. Smooth all the way: no flips, no pushing.', secs: 7, off: -5, kind: 'climb', colour: 'Smooth siren', like: 'Vocal coaches’ daily warm-up (Nick Merico, and most coaches start here)' },
+  { id: 'onset', ic: '🎯', name: 'Clean starts (coup de glotte)', coach: true, how: 'Four short “ah!”s on the note, one in each green box. Each starts cleanly, right on the note: no breath or “h” before it, no hard bang, no sliding up into it.', secs: 5.2, off: 0, kind: 'onsets', colour: 'Clean starts', like: 'Vocal coaches’ onset exercise (Nick Merico’s “coup de glotte”)' },
+  { id: 'messa', ic: '🌊', name: 'Messa di voce (the swell)', coach: true, how: 'One note on “ah”: start soft, grow slowly to strong, then back to soft, like a wave. The note must not move while the loudness does.', secs: 7, off: 2, kind: 'swell', colour: 'Swell', like: 'Vocal coaches’ classic control exercise (Nick Merico’s “messa di voce”)' },
   { id: 'low', ic: '🐻', name: 'Low and warm', how: 'Start on the note shown and slide down on “oh” to the lowest note that still feels easy and rich. Hold it there. No pushing.', secs: 6, off: -2, kind: 'low', colour: 'Depth', like: 'Chris Cornell’s verses (“Black Hole Sun”), Don Henley’s verses (“Hotel California”)' },
   { id: 'climb', ic: '🚀', name: 'The big climb', how: 'On “wee”, slide from your lowest note all the way up as high as you can go smoothly, then back down. Like a siren.', secs: 7, off: -5, kind: 'climb', colour: 'Range', like: 'Freddie Mercury (“Bohemian Rhapsody”), Steve Perry (“Don’t Stop Believin’”), Robert Plant (“Immigrant Song”)' },
   { id: 'falsetto', ic: '🕊', name: 'Falsetto', how: 'A light, airy “ooh” on the high note shown, soft as a bird call. Let it float; don’t push it.', secs: 5, off: 12, kind: 'hold', colour: 'Lightness', like: 'Barry Gibb (“Stayin’ Alive”), MGMT (“Time to Pretend”)' },
@@ -7048,6 +7053,9 @@ function sndColour(tr, v, base) {
   switch (tr.id) {
     case 'low': return cl((home - pct(ms, 0.1)) / 9) * 0.8 + cl((1 - sndRel('bright', avg('bright'), base)) * 3 + 0.5) * 0.2;
     case 'climb': return cl((pct(ms, 0.95) - pct(ms, 0.05)) / 22);
+    case 'siren': return 0.5 * cl((pct(ms, 0.95) - pct(ms, 0.05)) / 18) + 0.5 * cl(1 - sndJumps(v) / 3);
+    case 'onset': { const os = sndOnsets(tr, v, base); return os.length ? mean(os.map(o => o.q)) : 0; }
+    case 'messa': return sndSwell(tr, v).colour;
     case 'falsetto': return cl((avg('share') - 0.25) / 0.4);
     case 'belt': return base ? cl(20 * Math.log10(avg('rms') / base.rms) / 8) * 0.6 + cl((sndRel('bright', avg('bright'), base) - 1) * 2.5) * 0.4 : 0.5;
     case 'howl': { const a = sndTarget(tr), b = sndTo(tr), rise = cl((pct(ms, 0.9) - a) / Math.max(1, b - a)), loud = base ? cl(20 * Math.log10(avg('rms') / base.rms) / 6) : 0.5, jit = v.length > 2 ? medArr(v.slice(1).map((x, i) => Math.abs(x.m - v[i].m) * 100)) : 0; return 0.5 * rise + 0.3 * loud + 0.2 * cl((jit - 5) / 20); }
@@ -7060,7 +7068,8 @@ function sndColour(tr, v, base) {
   return 0;
 }
 // the target for a moment of the try: the note shown (the howl: the first note, then the second after its slide)
-function sndAim(tr, t) { const a = sndTarget(tr); if (tr.kind === 'howl') return t < 1.2 ? a : sndTo(tr); return tr.kind === 'hold' ? a : null; }
+const ONSET_AT = [[0.3, 0.9], [1.5, 2.1], [2.7, 3.3], [3.9, 4.5]];
+function sndAim(tr, t) { const a = sndTarget(tr); if (tr.kind === 'onsets') return ONSET_AT.some(([x, y]) => t >= x - 0.1 && t <= y + 0.15) ? a : null; if (tr.kind === 'swell') return a; if (tr.kind === 'howl') return t < 1.2 ? a : sndTo(tr); return tr.kind === 'hold' ? a : null; }
 // listen to one try: the note twice, 3-2-1, then capture with live feedback
 function sndCapture(tr, g) {
   return new Promise(res => {
@@ -7105,7 +7114,12 @@ function sndDraw(tr, sm) {
     if (nat && y(m) - lastY >= 30 && (row >= 30 || pc === 0 || pc === 4 || pc === 7 || pc === 9 || pc === 2)) { c.fillStyle = 'rgba(128,128,128,.9)'; c.fillText(nameOf(m), 4, y(m)); lastY = y(m); } }
   // the target band(s)
   const band = (m, t0, t1) => { c.fillStyle = 'rgba(58,167,109,.22)'; c.fillRect(x(t0), y(m + 0.25), x(t1) - x(t0), y(m - 0.25) - y(m + 0.25)); c.strokeStyle = 'rgba(58,167,109,.9)'; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(x(t0), y(m)); c.lineTo(x(t1), y(m)); c.stroke(); c.setLineDash([]); c.fillStyle = '#2e8a57'; c.font = 'bold 24px sans-serif'; c.fillText(nameOf(m), x(t1) - 60, y(m) - 20); };
-  if (tr.kind === 'hold') band(a, 0, tr.secs); else if (tr.kind === 'howl') { band(a, 0, 1.2); band(b, 1.2, tr.secs); } else if (tr.kind === 'low') band(a, 0, 1);
+  if (tr.kind === 'hold' || tr.kind === 'swell') band(a, 0, tr.secs); else if (tr.kind === 'howl') { band(a, 0, 1.2); band(b, 1.2, tr.secs); } else if (tr.kind === 'low') band(a, 0, 1);
+  else if (tr.kind === 'onsets') ONSET_AT.forEach(([x0, x1]) => band(a, x0, x1));
+  if (tr.kind === 'swell') { // loudness along the bottom: the wave to follow (dashed) and yours
+    const by = H - 10, bh = 70; c.strokeStyle = 'rgba(194,24,91,.8)'; c.setLineDash([8, 6]); c.lineWidth = 3; c.beginPath(); c.moveTo(x(0), by); c.lineTo(x(tr.secs / 2), by - bh); c.lineTo(x(tr.secs), by); c.stroke(); c.setLineDash([]);
+    const db = sm.map(p => 20 * Math.log10(Math.max(1e-6, p.rms))), mx = Math.max(-20, ...db), mn = mx - 24; c.strokeStyle = '#4b4fd8'; c.lineWidth = 4; c.beginPath(); sm.forEach((p, i) => { const yy = by - clamp((db[i] - mn) / 24) * bh; i ? c.lineTo(x(p.t), yy) : c.moveTo(x(p.t), yy); }); c.stroke();
+    c.fillStyle = '#9b1c48'; c.font = '20px sans-serif'; c.fillText('loudness', L + 4, by - bh - 8); }
   // your voice
   c.lineWidth = 6; c.lineCap = 'round'; let prev = null;
   for (const p of sm) { if (p.m == null) { prev = null; continue; } const aim = sndAim(tr, p.t), d = aim == null ? 0 : Math.abs(p.m - aim);
@@ -7117,24 +7131,48 @@ function sndRecStop(id) { const r = SND.rec; SND.rec = null; if (!r) return; r.m
 function sndHear(id) { const b = SND.clips[id]; if (!b) return; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = b; g.gain.value = 1.5; s.connect(g); g.connect(ac.destination); s.start(); }
 // the grade for one attempt: on the note, pure and natural, steady, and the sound's own colour, each 0–100; then overall
 function sndScore(tr, sm, base) {
-  const v = sm.filter(x => x.m != null && x.t > 0.4), all = sm.filter(x => x.t > 0.4), home = sndHome();
+  const skip = tr.kind === 'onsets' ? 0 : 0.4, v = sm.filter(x => x.m != null && x.t > skip), all = sm.filter(x => x.t > skip), home = sndHome();   // the starts exercise is all about its first moments
   if (v.length < 15) return { score: 0, heard: false, parts: {}, facts: 'I couldn’t hear a clear note. Sing a little louder or closer to the mic, and start when the countdown ends.' };
   const ms = v.map(x => x.m), tail = v.filter(x => x.t > tr.secs - 2.5).map(x => x.m), med = medArr(ms);
-  const note = tr.kind === 'hold' || tr.kind === 'howl' ? v.filter(x => Math.abs(x.m - sndAim(tr, x.t)) <= 0.5).length / v.length : v.length / Math.max(1, all.length);
+  const note = tr.kind === 'hold' || tr.kind === 'howl' || tr.kind === 'swell' ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : tr.kind === 'onsets' ? (v.length ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : 0) : v.length / Math.max(1, all.length);
   const pure = clamp((mean(v.map(x => x.pur || 0)) - 30) / 60), steady = clamp(1 - (sndSd(tail) * 100 - 10) / 50), colour = tr.colour ? sndColour(tr, v, base) : null;
-  const P = { note: Math.round(100 * note), pure: Math.round(100 * pure), steady: Math.round(100 * (tr.kind === 'climb' ? clamp(1 - sndJumps(v) / 4) : steady)) }; if (colour != null) P.colour = Math.round(100 * colour);
-  const score = tr.id === 'base' ? Math.round(0.35 * P.note + 0.35 * P.pure + 0.3 * P.steady) : Math.round(0.25 * P.note + 0.25 * P.pure + 0.2 * P.steady + 0.3 * (P.colour || 0));
+  const P = { note: Math.round(100 * note), pure: Math.round(100 * pure), steady: Math.round(100 * (tr.kind === 'climb' ? clamp(1 - sndJumps(v) / 4) : tr.kind === 'swell' ? clamp(1 - sndSwell(tr, v).drift / 60) : tr.kind === 'onsets' ? clamp(1 - sndSd(v.map(x => x.m)) * 100 / 60) : steady)) }; if (colour != null) P.colour = Math.round(100 * colour);
+  // the coach's exercises are graded mostly on the exercise itself (clean starts, a smooth siren, a steady swell)
+  const score = tr.id === 'base' ? Math.round(0.35 * P.note + 0.35 * P.pure + 0.3 * P.steady) : tr.coach ? Math.round(0.15 * P.note + 0.15 * P.pure + 0.15 * P.steady + 0.55 * (P.colour || 0)) : Math.round(0.25 * P.note + 0.25 * P.pure + 0.2 * P.steady + 0.3 * (P.colour || 0));
   const f = sndFacts(tr, v, ms, med, P, base, home);
   const out = { score, parts: P, facts: f, heard: true, med };
   if (tr.id === 'base') Object.assign(out, { med, rms: mean(v.map(x => x.rms)), bright: mean(v.map(x => x.bright)), twang: mean(v.map(x => x.twang)), air: mean(v.map(x => x.air)), share: mean(v.map(x => x.share || 0)) });
   if (tr.id === 'low') out.low = pct(ms, 0.1); if (tr.id === 'climb') { out.top = pct(ms, 0.95); out.bottom = pct(ms, 0.05); } if (tr.id === 'falsetto' || tr.id === 'belt' || tr.id === 'howl') out.top = med;
   return out;
 }
+// clean starts: each time the voice comes in after a gap, how quickly it's on the note (within 50¢), whether air comes
+// first (more air than your easy voice in the first 60 ms: an 'h'), and whether it bangs (much louder at first than after)
+function sndOnsets(tr, v, base) {
+  const a = sndTarget(tr), out = []; let lastT = -1;
+  for (let i = 0; i < v.length; i++) { if (v[i].t - lastT < 0.15 && i) { lastT = v[i].t; continue; } const t0 = v[i].t; lastT = t0;
+    const head = v.filter(x => x.t >= t0 && x.t < t0 + 0.12), body = v.filter(x => x.t >= t0 + 0.12 && x.t < t0 + 0.4); if (head.length < 2) continue;
+    const on = head.find(x => Math.abs(x.m - a) <= 0.5), toPitch = on ? on.t - t0 : 0.2, air = sndRel('air', mean(head.slice(0, 3).map(x => x.air || 0)), base), bang = body.length ? Math.max(...head.map(x => x.rms)) / Math.max(1e-6, medArr(body.map(x => x.rms))) : 1;
+    const why = toPitch > 0.07 ? 'slid' : air > 1.8 ? 'breathy' : bang > 2.4 ? 'hard' : 'clean';
+    out.push({ t: t0, q: clamp(1 - Math.max(0, toPitch - 0.04) / 0.12) * (air > 1.8 ? 0.55 : 1) * (bang > 2.4 ? 0.6 : 1), why }); }
+  return out.slice(0, 6);
+}
+// the swell: loudness against the wave (soft, strong in the middle, soft), how far it grows, and the pitch staying put
+function sndSwell(tr, v) {
+  if (v.length < 20) return { colour: 0, range: 0, drift: 0, corr: 0 }; const db = v.map(x => 20 * Math.log10(Math.max(1e-6, x.rms))), tri = v.map(x => 1 - Math.abs(x.t / tr.secs * 2 - 1));
+  const mu = mean(db), mt = mean(tri); let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < v.length; i++) { const a = db[i] - mu, b = tri[i] - mt; sxy += a * b; sxx += a * a; syy += b * b; }
+  const corr = sxx && syy ? sxy / Math.sqrt(sxx * syy) : 0, range = pct(db, 0.95) - pct(db, 0.1), loud = v.filter((x, i) => db[i] >= pct(db, 0.75)).map(x => x.m), soft = v.filter((x, i) => db[i] <= pct(db, 0.25)).map(x => x.m);
+  const drift = loud.length && soft.length ? Math.abs(medArr(loud) - medArr(soft)) * 100 : 0;
+  return { colour: 0.4 * clamp(range / 12) + 0.4 * clamp(corr) + 0.2 * clamp(1 - drift / 60), range, drift, corr };
+}
 function sndJumps(v) { let j = 0; for (let i = 1; i < v.length; i++) if (v[i].t - v[i - 1].t < 0.08 && Math.abs(v[i].m - v[i - 1].m) > 2.5) j++; return j; }
 function sndFacts(tr, v, ms, med, P, base, home) {
   const n = m => nameOf(Math.round(m));
   switch (tr.id) {
     case 'base': return 'Your easy note: ' + n(med) + '.';
+    case 'siren': { const j = sndJumps(v); return 'A siren of ' + Math.round(pct(ms, 0.95) - pct(ms, 0.05)) + ' semitones, ' + n(pct(ms, 0.05)) + ' to ' + n(pct(ms, 0.95)) + (j ? ', with ' + (j === 1 ? 'a flip' : j + ' flips') + ' at the break' : ', smooth through the break') + '.'; }
+    case 'onset': { const os = sndOnsets(tr, v, base), c = os.filter(o => o.why === 'clean').length, w = { slid: 'slid up into the note', breathy: 'breathy (an “h” before it)', hard: 'too hard a bang' }, bad = os.filter(o => o.why !== 'clean');
+      return os.length + ' start' + (os.length === 1 ? '' : 's') + ': ' + c + ' clean' + (bad.length ? ', ' + bad.map(o => w[o.why]).filter((x, i, a) => a.indexOf(x) === i).map(x => bad.filter(o => w[o.why] === x).length + ' ' + x).join(', ') : '') + '.'; }
+    case 'messa': { const sw = sndSwell(tr, v); return 'A swell of ' + Math.round(sw.range) + ' dB' + (sw.corr > 0.6 ? ', a good wave shape' : sw.corr > 0.3 ? ', a bit uneven' : ', not much of a wave yet') + '; the pitch moved ' + Math.round(sw.drift) + '¢ between soft and loud' + (sw.drift <= 20 ? ' (steady: well done)' : '') + '.'; }
     case 'low': return 'Down to ' + n(pct(ms, 0.1)) + (P.steady >= 70 ? ', held steady' : '') + '.';
     case 'climb': { const j = sndJumps(v); return 'You climbed ' + Math.round(pct(ms, 0.95) - pct(ms, 0.05)) + ' semitones, ' + n(pct(ms, 0.05)) + ' to ' + n(pct(ms, 0.95)) + (j ? ', with ' + (j === 1 ? 'a jump' : j + ' jumps') + ' where the voice flips (the break: normal, and it smooths with practice)' : ', smoothly all the way') + '.'; }
     case 'howl': return 'From ' + n(sndTarget(tr)) + ' up to ' + n(pct(ms, 0.9)) + (Math.abs(pct(ms, 0.9) - sndTo(tr)) <= 0.5 ? ', right on the top note' : ' (the top note is ' + n(sndTo(tr)) + ')') + (P.colour >= 60 ? ', with a real howl in it.' : '. Open it up more: a bigger “whoa”, a little rough.');
@@ -7147,7 +7185,7 @@ function sndTip(tr, P) {
   const parts = Object.entries(P).filter(([k]) => !(tr.kind === 'climb' && k === 'note')).sort((a, b) => a[1] - b[1]), [k, val] = parts[0] || [];
   if (val == null || val >= 75) return 'Lovely. That sound comes easily to you.';
   return { note: 'Hear the note first (▶ Hear the note), hum it, then open up into the sound on it. Watch the line turn green.', pure: 'Make it cleaner: less push, more breath flow, a relaxed jaw. A pure sound is an easy one.', steady: 'Hold it steadier: breathe low first, then let the air flow evenly to the end.',
-    colour: { low: 'Let the jaw drop and the sound fall into your chest. Lower, not louder.', climb: 'Go further: start lower, and keep sliding even when it flips. The flip is fine.', falsetto: 'Lighter: think of a soft “ooh” from the top of your head, like a yawn-sigh.', belt: 'More ring: smile a little, say “hey!” as if calling, and keep the throat open.', howl: 'Bigger “whoa”: drop the jaw, slide up boldly, and let a little roughness in on the top note.', twang: 'More twang: smile and aim the sound at your nose, like a duck.', breathy: 'More air: let a sigh carry the note.', vibrato: 'Relax the note and let it wave: think “ah-ah-ah” very gently.', deadpan: 'Flatter: say it like reading a list, all on one note.', grit: 'A tiny bit of rasp, quietly. If it doesn’t come easily, skip it: that’s fine.' }[tr.id] }[k] || '';
+    colour: { siren: 'Lighter and smoother: keep the “ooo” small and round, and let the voice flip without stopping; the flip smooths out with practice.', onset: 'Think the note first, then start it like a gentle “uh” in “uh-oh”: no breath before it, no push.', messa: 'Grow slowly: count 1-2-3 up and 3-2-1 down. Keep the note still by keeping the breath steady, not the throat.', low: 'Let the jaw drop and the sound fall into your chest. Lower, not louder.', climb: 'Go further: start lower, and keep sliding even when it flips. The flip is fine.', falsetto: 'Lighter: think of a soft “ooh” from the top of your head, like a yawn-sigh.', belt: 'More ring: smile a little, say “hey!” as if calling, and keep the throat open.', howl: 'Bigger “whoa”: drop the jaw, slide up boldly, and let a little roughness in on the top note.', twang: 'More twang: smile and aim the sound at your nose, like a duck.', breathy: 'More air: let a sigh carry the note.', vibrato: 'Relax the note and let it wave: think “ah-ah-ah” very gently.', deadpan: 'Flatter: say it like reading a list, all on one note.', grit: 'A tiny bit of rasp, quietly. If it doesn’t come easily, skip it: that’s fine.' }[tr.id] }[k] || '';
 }
 const GIFT = {
   low: { name: 'A low, warm voice', what: 'Rich low notes are rarer than high ones. Verses that sit low and dark are your home.' },
@@ -7181,6 +7219,9 @@ const GIFT_SONGS = {
 // half-pitch growl with jitter). Not a real voice, but the shape to copy.
 const SND_REAL = {
   base: [],
+  siren: [['Nick Merico', 'humming exercise', 'step 1: sirens on “ooo”'], ['Vocal coach', 'siren exercise for singers', 'any coach’s siren warm-up']],
+  onset: [['Nick Merico', 'humming exercise', 'step 2: coup de glotte, clean starts'], ['Vocal coach', 'coup de glotte onset exercise', 'clean, balanced onsets']],
+  messa: [['Nick Merico', 'humming exercise', 'step 3: messa di voce'], ['Vocal coach', 'messa di voce exercise', 'soft–loud–soft on one note']],
   low: [['Chris Cornell', 'Black Hole Sun', 'the low, dark verses'], ['Eagles', 'Hotel California', 'Don Henley’s low, steady verses']],
   climb: [['Queen', 'Bohemian Rhapsody', 'Freddie Mercury climbing from the ballad into the high “I don’t want to die”'], ['Journey', 'Don’t Stop Believin’', 'the chorus lifting high'], ['Led Zeppelin', 'Immigrant Song', 'the opening wail']],
   falsetto: [['Bee Gees', 'Stayin’ Alive', 'Barry Gibb’s falsetto, all through the verses'], ['MGMT', 'Time to Pretend', 'the light, floating chorus']],
@@ -7193,6 +7234,9 @@ const SND_REAL = {
   grit: [['Guns N’ Roses', 'Welcome to the Jungle', 'the growl (we only want a gentle bit of it)'], ['Bruce Springsteen', 'Born to Run', 'the rough edge on the big notes']],
 };
 const SND_STEPS = {
+  siren: [['Small siren', 'A gentle “ooo” slide, just a few notes up and down.', 'small'], ['Full siren', 'Now all the way up as high as is easy, and back down, without stopping at the flip.', 'full']],
+  onset: [['Uh-oh', 'Say “uh-oh” a few times. Feel the clean little start of each “uh”: that’s the closure.', 'uhoh'], ['Ah! Ah! Ah!', 'Now short “ah!”s on the note, each starting the same clean way.', 'full']],
+  messa: [['Soft start', 'Sing the note softly on “ah” and hold it, quiet but clear.', 'soft'], ['Grow and shrink', 'Now let it grow to strong and back to soft, slowly, the note staying put.', 'full']],
   howl: [['Call it', 'Call out “hey!” on the first note, like shouting to a friend across a street. Loud, but easy.', 'call'], ['Slide it', 'Now “whoa-oh”: “whoa” on the first note, then slide slowly up to the second on “oh” and hold it.', 'slide'], ['Howl it', 'The same, but bigger: drop the jaw, slide up boldly, hold the top note and let a little roughness in.', 'full']],
   falsetto: [['Owl hoot', 'A soft, high “hoo”, like an owl. Light, not loud.', 'hoot'], ['Yawn-sigh', 'Start high on “ooh” and sigh down, like a yawn. Feel how light the top is.', 'sigh'], ['Float it', 'Now hold that light “ooh” on the note shown.', 'full']],
   belt: [['Speak it', 'Say “hey!” in your talking voice, as if calling someone. Notice where it rings.', 'call'], ['Sing it', 'Now sing “hey!” on the note shown with that same ring. Strong, not shouting.', 'full']],
@@ -7238,6 +7282,12 @@ async function sndExample(tr, step) {
   await ensureAudio(); exampleStop(); const a = sndTarget(tr), b = sndTo(tr), h = sndHome();
   const S2 = (pts, o) => exampleVoice(pts, o);
   switch (tr.id + ':' + (step || 'full')) {
+    case 'siren:small': return S2([[0, a + 3], [1, a + 8], [2, a + 3]], { vowel: 'oo', pure: true, vol: 0.4 });
+    case 'siren:full': return S2([[0, a], [2.4, a + 15], [3.6, a]], { vowel: 'oo', pure: true, vol: 0.4 });
+    case 'onset:uhoh': return S2([[0, h + 1], [0.3, h + 1], [0.35, h - 2], [0.7, h - 2]], { vowel: 'ah', vol: 0.45, attack: 0.02, pulses: [0.33] });
+    case 'onset:full': return S2([[0, a], [4.6, a]], { vowel: 'ah', vol: 0.5, attack: 0.02, env: [[0.6, 1], [0.62, 0], [1.2, 0], [1.22, 1], [1.8, 1], [1.82, 0], [2.4, 0], [2.42, 1], [3, 1], [3.02, 0], [3.6, 0], [3.62, 1], [4.2, 1], [4.22, 0]] });
+    case 'messa:soft': return S2([[0, a], [2.2, a]], { vowel: 'ah', vol: 0.15 });
+    case 'messa:full': return S2([[0, a], [5, a]], { vowel: 'ah', vol: 0.6, attack: 0.3, env: [[0.3, 0.12], [2.5, 1], [4.8, 0.12]], vib: 12, vibFrom: 2 });
     case 'howl:call': return S2([[0, a], [0.7, a]], { vowel: 'eh', bright: true, vol: 0.6, attack: 0.03 });
     case 'howl:slide': return S2([[0, a], [0.6, a], [1.4, b], [2.6, b]], { vowel: 'oh', vol: 0.5 });
     case 'howl:full': return S2([[0, a], [0.45, a], [0.8, b], [2.6, b]], { vowel: 'oh', bright: true, vol: 0.62, rasp: 0.5, raspFrom: 0.7, vib: 30, vibFrom: 1.6 });
@@ -7261,10 +7311,11 @@ async function sndExample(tr, step) {
 }
 // links to real recordings: a search on each service (the app can't play them itself)
 function sndRealLinks(tr) {
-  const list = SND_REAL[tr.id] || []; if (!list.length) return null; const box = document.createElement('details'); box.className = 'snd-real'; const sm = document.createElement('summary'); sm.textContent = '🎧 Hear real singers do it (' + list.map(x => x[0]).filter((v, i, a) => a.indexOf(v) === i).join(', ') + ')'; box.appendChild(sm);
+  const list = SND_REAL[tr.id] || []; if (!list.length) return null; const box = document.createElement('details'); box.className = 'snd-real'; const sm = document.createElement('summary'); sm.textContent = tr.coach ? '🎧 Hear vocal coaches do it (Nick Merico and others)' : '🎧 Hear real singers do it (' + list.map(x => x[0]).filter((v, i, a) => a.indexOf(v) === i).join(', ') + ')'; box.appendChild(sm);
   list.forEach(([who, song, moment]) => { const q = encodeURIComponent(who + ' ' + song), row = el('div', 'snd-real-row');
     row.append(el('span', '', who + ' · “' + song + '”: ' + moment + '.'));
     const links = el('span', 'snd-real-links');
+    if (who === 'Vocal coach') row.firstChild.textContent = 'More coaches: search “' + song + '” (' + moment + ').';
     [['YouTube', 'https://www.youtube.com/results?search_query=' + q], ['Apple Music', 'https://music.apple.com/search?term=' + q], ['Spotify', 'https://open.spotify.com/search/' + q]].forEach(([n, u]) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.textContent = n; a.className = 'btn small'; links.appendChild(a); });
     row.appendChild(links); box.appendChild(row); });
   return box;
@@ -7279,6 +7330,9 @@ function sndRealLinks(tr) {
 // estimate from the sound, not an X-ray, and most reliable on low and middle notes.
 const VT_REST = { jaw: 0.25, front: 0.45, high: 0.45, palate: 0.4, larynx: 0.5, lips: 0.2, folds: 'thick', air: 0, rasp: 0 };
 const SND_SHAPE = {
+  siren: { s: { jaw: 0.3, front: 0.2, high: 0.65, palate: 0.9, larynx: 0.45, lips: 0.95 }, tips: [['lips', 'lips round and small: “ooo”'], ['palate', 'soft palate up, like the start of a yawn'], ['larynx', 'let the voice box stay easy as you go up']] },
+  onset: { s: { jaw: 0.55, front: 0.4, high: 0.25, palate: 0.65, larynx: 0.5, lips: 0.25 }, tips: [['folds', 'the folds meet cleanly just as the sound starts: no air before'], ['jaw', 'open “ah”, jaw easy'], ['throat', 'no push: like the “uh” in “uh-oh”']] },
+  messa: { s: { jaw: 0.6, front: 0.4, high: 0.25, palate: 0.75, larynx: 0.45, lips: 0.3 }, tips: [['folds', 'breath grows and shrinks; the throat stays the same'], ['larynx', 'voice box still: the note must not move'], ['jaw', 'open “ah”, steady']] },
   base: { s: { jaw: 0.6, front: 0.4, high: 0.25, palate: 0.6, larynx: 0.5, lips: 0.25 }, tips: [['jaw', 'jaw easy and open: “ah”'], ['palate', 'soft palate up a little'], ['folds', 'relaxed breath, no push']] },
   low: { s: { jaw: 0.55, front: 0.35, high: 0.25, palate: 0.6, larynx: 0.15, lips: 0.6 }, tips: [['larynx', 'let the voice box sit low and loose'], ['jaw', 'jaw relaxed, mouth like “oh”'], ['throat', 'lots of space in the throat']] },
   climb: { s: { jaw: 0.3, front: 0.85, high: 0.85, palate: 0.85, larynx: 0.45, lips: 0.1 }, tips: [['tongue', 'tongue high and forward: “ee”'], ['palate', 'lift the soft palate as you go up'], ['larynx', 'keep the voice box from climbing with the pitch']] },
@@ -7382,7 +7436,8 @@ function soundStart() {
 }
 function sndList() {
   const list = $('#sndList'); if (!list) return; list.textContent = ''; const r = (store.sound || {}).tries || {};
-  SOUND_TRIES.forEach((tr, i) => { const b = el('button', 'snd-try' + (r[tr.id] ? ' done' : '')); b.dataset.try = tr.id;
+  SOUND_TRIES.forEach((tr, i) => { if (i === 1) list.appendChild(el('div', 'snd-grp', '⭐ Start here: a vocal coach’s 3 daily exercises')); if (i === 1 + SOUND_TRIES.filter(t => t.coach).length) list.appendChild(el('div', 'snd-grp', '🎨 Then find your sound'));
+    const b = el('button', 'snd-try' + (r[tr.id] ? ' done' : '') + (tr.coach ? ' coach' : '')); b.dataset.try = tr.id;
     b.append(el('span', 'snd-ic', tr.ic), el('b', '', tr.name), el('span', 'snd-sc', r[tr.id] ? (tr.id === 'base' ? '✓' : sndGrade(r[tr.id].score) + ' ' + r[tr.id].score) : ''));
     b.onclick = () => sndTry(i); list.appendChild(b); });
   const go = el('button', 'primary', (store.sound && store.sound.tries && store.sound.tries.base) ? '▶ Carry on' : '▶ Start with your easy voice'); go.dataset.act = 'snd-go';
@@ -7461,6 +7516,8 @@ function sndResult() {
   if (done.length < 4) { res.appendChild(el('p', '', 'Try at least four sounds to find your gifts (' + done.length + ' so far).')); return; }
   // every sound you tried, by grade
   const table = el('div', 'snd-table'); done.sort((a, b) => r[b].score - r[a].score).forEach(k => { const t = SOUND_TRIES.find(x => x.id === k), row = el('div', 'snd-row'); row.append(el('span', '', t.ic + ' ' + t.name), el('b', 'snd-letter g' + sndGrade(r[k].score), sndGrade(r[k].score)), el('span', 'muted', String(r[k].score))); table.appendChild(row); }); res.appendChild(table);
+  // the coach's three exercises: their grades, every time
+  const cx = SOUND_TRIES.filter(t => t.coach && r[t.id]); if (cx.length) res.appendChild(el('p', 'snd-coach3', '⭐ Daily exercises: ' + cx.map(t => t.ic + ' ' + t.name.replace(/ \(.*\)/, '') + ' ' + sndGrade(r[t.id].score) + ' ' + r[t.id].score).join(' · ') + '. Do these three every day: they build the control every sound needs.'));
   // the natural sound: the one you make most purely and steadily
   const nat = done.filter(k => r[k].parts && r[k].score >= 55).sort((a, b) => (r[b].parts.pure + r[b].parts.steady) - (r[a].parts.pure + r[a].parts.steady))[0];
   res.appendChild(el('p', 'snd-nat', nat ? '🌱 Your most natural sound: ' + SOUND_TRIES.find(x => x.id === nat).ic + ' ' + GIFT[nat].name.replace(/^An? /, '').toLowerCase() + ' (pure ' + r[nat].parts.pure + ', steady ' + r[nat].parts.steady + '). That’s where your voice is most at ease.' : '🌱 No sound is fully natural for you yet: none scored above C. That’s normal at the start. Work on your easy voice and try again in a week; the grades will show the change.'));

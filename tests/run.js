@@ -1106,33 +1106,35 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       setInterval(() => { const id = SND.cur, t = (performance.now() - (SND.curAt || 0)) / 1000 - (id === 'climb' ? 1.6 : 3.4); V.noise = 0; V.vol = 1; V.wave = [1, .3, .15, .07];
         if (!id || t < 0) { V.on = false; return; } V.on = true;
         if (id === 'base') V.m = 50; else if (id === 'low') { V.m = 43; V.wave = [1, .15, .04]; } else if (id === 'climb') V.m = 43 + Math.min(1, t / 3.5) * 21 - Math.max(0, t - 3.5) * 5;
+        else if (id === 'siren') { V.m = 45 + Math.min(1, t / 3.5) * 17 - Math.max(0, t - 3.5) * 5; V.wave = [1, .1, .03]; } else if (id === 'onset') { V.on = ONSET_AT.some(([a, b]) => t >= a && t <= b); V.m = 50; } else if (id === 'messa') { V.m = 52; V.vol = 0.12 + 0.88 * (1 - Math.abs(t / 7 * 2 - 1)); }
         else if (id === 'falsetto') { V.m = 62; V.wave = [1, .06, .02]; } else if (id === 'belt') { V.m = 57; V.vol = 2.6; V.wave = [1, .9, .8, .7, .6, .5, .4, .3]; }
         else if (id === 'howl') { V.m = t < 1.1 ? 52 : t < 1.5 ? 52 + (t - 1.1) / 0.4 * 5 : 57 + (Math.random() - 0.5) * 0.25; V.vol = 2.2; V.wave = [1, .7, .6, .5, .4, .3]; }
         else if (id === 'twang') { V.m = 52; V.wave = [1, .3, .2, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .6, .8, .9, .9, .8, .8, .7, .6, .5]; } else if (id === 'breathy') { V.m = 50; V.noise = 0.12; V.vol = 0.5; }
         else if (id === 'vibrato') V.m = 54 + 0.45 * Math.sin(2 * Math.PI * 5.6 * t); else if (id === 'deadpan') V.m = 50; else if (id === 'grit') { V.m = 52 + (Math.random() - 0.5) * 0.9; } }, 20); });
     await page.evaluate(() => openLab('sound'));
-    const intro = await page.evaluate(() => ({ title: $('#lsTitle').textContent, tries: document.querySelectorAll('#sndList .snd-try').length, hp: /headphones/.test($('#woBox').textContent) }));
+    const intro = await page.evaluate(() => ({ title: $('#lsTitle').textContent, tries: document.querySelectorAll('#sndList .snd-try').length, hp: /headphones/.test($('#woBox').textContent), order: [...document.querySelectorAll('#sndList .snd-try')].slice(0, 4).map(b => b.dataset.try).join(), grp: [...document.querySelectorAll('#sndList .snd-grp')].map(g => g.textContent).join('|') }));
     await page.click('[data-act="snd-go"]');
     const seen = {}, grades = {};
-    for (let i = 0; i < 11; i++) {
+    const nT = await page.evaluate(() => SOUND_TRIES.length);
+    for (let i = 0; i < nT; i++) {
       await page.waitForSelector('#sndStage [data-act="snd-start"]');
       const show = await page.evaluate(() => ({ aim: $('.snd-aim-n').textContent, meters: [...document.querySelectorAll('#sndMeters .snd-m span')].map(x => x.textContent).join('|'), canvas: !!$('#sndCv') }));
       await page.click('#sndStage [data-act="snd-start"]');
       // mid-way: the live note and meters move
-      await page.waitForTimeout(i === 2 ? 3200 : 5000); const mid = await page.evaluate(() => ({ now: $('#sndNow').textContent, bars: [...document.querySelectorAll('#sndMeters .snd-m b i')].map(x => parseInt(x.style.width) || 0) }));
+      await page.waitForTimeout(['climb', 'siren'].includes(await page.evaluate(i => SOUND_TRIES[i].id, i)) ? 3200 : 5000); const mid = await page.evaluate(() => ({ now: $('#sndNow').textContent, bars: [...document.querySelectorAll('#sndMeters .snd-m b i')].map(x => parseInt(x.style.width) || 0) }));
       await page.waitForFunction(() => $('#sndGrade [data-act="snd-next"]'), null, { timeout: 30000 });
       const g = await page.evaluate(() => ({ id: SOUND_TRIES[SND.i].id, head: $('#sndGrade .snd-gh').textContent, parts: [...document.querySelectorAll('#sndGrade .snd-m span')].map(x => x.textContent), tip: $('#sndGrade .snd-tip').textContent, att: $('#sndAtt').textContent }));
       seen[g.id] = { show, mid }; grades[g.id] = g.head;
       await page.click('#sndGrade [data-act="snd-next"]');
     }
     await page.waitForFunction(() => /Your sound/.test($('#sndRes').textContent), null, { timeout: 10000 });
-    const res = await page.evaluate(() => ({ tries: Object.fromEntries(Object.entries(store.sound.tries).map(([k, v]) => [k, v.score])), gifts: store.sound.gifts, table: document.querySelectorAll('#sndRes .snd-row').length, nat: $('#sndRes .snd-nat').textContent, cards: [...document.querySelectorAll('#sndRes .snd-gift')].length }));
+    const res = await page.evaluate(() => ({ coach3: ($('#sndRes .snd-coach3') || {}).textContent || '', tries: Object.fromEntries(Object.entries(store.sound.tries).map(([k, v]) => [k, v.score])), gifts: store.sound.gifts, table: document.querySelectorAll('#sndRes .snd-row').length, nat: $('#sndRes .snd-nat').textContent, cards: [...document.querySelectorAll('#sndRes .snd-gift')].length }));
     await page.click('[data-act="write"]');
     const w = await page.evaluate(() => { const s = SND.written; return { n: s.notes.length, toks: s.words.split(/\s+/).filter(x => x !== '/').length, beats: s.notes.reduce((a, x) => a + x[1], 0) }; });
     await page.click('[data-act="write-sing"]'); await page.waitForTimeout(300);
     const sing = await page.evaluate(() => ({ mine: !!(G.song && G.song.mine), n: G.seq.length }));
     const T = res.tries;
-    expect(intro.tries === 11 && intro.hp && seen.falsetto.show.aim === 'D4' && /Lightness/.test(seen.falsetto.show.meters) && /On the note/.test(seen.base.show.meters) && /→/.test(seen.climb.show.aim) && /↗/.test(seen.howl.show.aim) && seen.base.show.canvas
+    expect(intro.tries === 14 && intro.hp && intro.order === 'base,siren,onset,messa' && /vocal coach’s 3/.test(intro.grp) && T.siren >= 60 && T.onset >= 60 && T.messa >= 55 && /4 starts: 4 clean/.test(grades.onset) && /swell of/.test(grades.messa) && /Daily exercises/.test(res.coach3) && seen.falsetto.show.aim === 'D4' && /Lightness/.test(seen.falsetto.show.meters) && /On the note/.test(seen.base.show.meters) && /→/.test(seen.climb.show.aim) && /↗/.test(seen.howl.show.aim) && seen.base.show.canvas
       && /on the note/.test(seen.falsetto.mid.now) && seen.falsetto.mid.bars[0] > 50 && Object.values(grades).every(h => /\d+ \/ 100/.test(h))
       && T.low >= 55 && T.climb >= 60 && T.falsetto >= 60 && T.belt >= 55 && T.howl >= 55 && T.twang >= 55 && T.vibrato >= 55 && T.deadpan >= 60
       && res.table >= 10 && /most natural sound/.test(res.nat) && res.gifts.length >= 2 && res.cards === res.gifts.length && w.n === w.toks && w.beats === 64 && sing.mine && sing.n === w.n,
@@ -1174,6 +1176,18 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     const prog = await page.evaluate(() => ({ text: $('#sndProg').textContent, spark: !!$('#sndProg svg') }));
     expect(ui.svg && ui.marks === 3 && ui.tips.length === 3 && /drop the jaw/.test(ui.tips[0]) && ui.show && ui.shapes.howl.jaw > 0.8 && ui.shapes.howl.palate > 0.8 && shown === 3
       && mirror.ah.n >= 5 && mirror.ee.n >= 5 && mirror.ah.jaw > mirror.ee.jaw + 0.15 && mirror.ee.front > mirror.ah.front + 0.15 && /first 42 → best 74 \(\+32\)/.test(prog.text) && /2 days/.test(prog.text) && prog.spark, JSON.stringify({ ui: { marks: ui.marks, tips: ui.tips }, shown, mirror, prog }));
+  });
+
+  await test('The coach’s exercises grade what matters: clean starts beat scooped, breathy and banged ones (and say which); a swell with the pitch held still beats one that goes sharp as it gets loud', async page => {
+    const r = await page.evaluate(() => {
+      store.profile = { natural: 50 }; store.home = null; const base = { rms: 0.05, air: 0.02, bright: 900, twang: 0.05, share: 0.3 }, on = SOUND_TRIES.find(t => t.id === 'onset'), me = SOUND_TRIES.find(t => t.id === 'messa'), a = sndTarget(on);
+      const onsets = kind => { const sm = []; for (let k = 0; k < 208; k++) { const t = k * 0.025, w = ONSET_AT.find(([x, y]) => t >= x && t <= y); if (!w) { sm.push({ t, m: null, rms: 0.001 }); continue; } const d = t - w[0];
+          const m = kind === 'slid' ? a - Math.max(0, 2 - d * 12) : a, air = kind === 'breathy' && d < 0.08 ? 0.2 : 0.02, rms = kind === 'hard' && d < 0.06 ? 0.4 : 0.06; sm.push({ t, m, rms, pur: 70, air, share: 0.3, bright: 900, twang: 0.05 }); } return sndScore(on, sm, base); };
+      const swell = drift => { const sm = []; for (let k = 0; k < 280; k++) { const t = k * 0.025, w = 1 - Math.abs(t / 7 * 2 - 1); sm.push({ t, m: sndTarget(me) + drift * w, rms: 0.01 + 0.15 * w, pur: 70, air: 0.02, share: 0.3, bright: 900, twang: 0.05 }); } return sndScore(me, sm, base); };
+      const c = onsets('clean'), sl = onsets('slid'), br = onsets('breathy'), hd = onsets('hard'), s0 = swell(0), s1 = swell(0.7);
+      return { clean: [c.score, c.facts], slid: [sl.score, sl.facts], breathy: [br.score, br.facts], hard: [hd.score, hd.facts], steady: [s0.score, s0.facts], drift: [s1.score, s1.facts] }; });
+    expect(/4 clean/.test(r.clean[1]) && r.clean[0] > r.slid[0] + 10 && /slid up/.test(r.slid[1]) && r.clean[0] > r.breathy[0] + 8 && /breathy/.test(r.breathy[1]) && r.clean[0] > r.hard[0] + 8 && /hard/.test(r.hard[1])
+      && r.steady[0] > r.drift[0] + 10 && /steady: well done/.test(r.steady[1]) && /moved [3-9]\d¢/.test(r.drift[1]) && /4 starts: 0 clean, 4 slid/.test(r.slid[1]), JSON.stringify(r));
   });
 
   await test('Speed: slower or faster in set steps only, with Normal one tap away; the slowed song keeps its notes (same pitch), the playhead and words move at that speed, and singing alone is expected at the same pace', async page => {
