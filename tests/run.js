@@ -1103,10 +1103,10 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
   await test('Find your sound: each sound shows the note to sing (and plays it), draws your voice against it live with meters (on the note, pure, steady, the sound itself), and grades every attempt; eleven sounds incl. the howl; your natural sound and gifts from the grades; a song written for them that opens on the Sing screen', async page => {
     await voice(page); await setLevel(page, 1);
     await page.evaluate(() => { store.profile = { low: 43, high: 64, natural: 50, type: 'Baritone', zlo: 45, zhi: 60 }; store.home = null; store.sound = null; save();
-      setInterval(() => { const id = SND.cur, t = (performance.now() - (SND.curAt || 0)) / 1000 - (id === 'climb' ? 1.6 : 3.4); V.noise = 0; V.vol = 1; V.wave = [1, .3, .15, .07];
+      setInterval(() => { const id = SND.cur, t = (performance.now() - (SND.curAt || 0)) / 1000 - 3.4, trc = SOUND_TRIES.find(x => x.id === id); V.noise = 0; V.vol = 1; V.wave = [1, .3, .15, .07];
         if (!id || t < 0) { V.on = false; return; } V.on = true;
-        if (id === 'base') V.m = 50; else if (id === 'low') { V.m = 43; V.wave = [1, .15, .04]; } else if (id === 'climb') V.m = 43 + Math.min(1, t / 3.5) * 21 - Math.max(0, t - 3.5) * 5;
-        else if (id === 'siren') { V.m = 45 + Math.min(1, t / 3.5) * 17 - Math.max(0, t - 3.5) * 5; V.wave = [1, .1, .03]; } else if (id === 'onset') { V.on = ONSET_AT.some(([a, b]) => t >= a && t <= b); V.m = 50; } else if (id === 'messa') { V.m = 52; V.vol = 0.12 + 0.88 * (1 - Math.abs(t / 7 * 2 - 1)); }
+        if (id === 'base') V.m = 50; else if (id === 'low') { V.m = sndPath(trc, t); V.wave = [1, .15, .04]; } else if (id === 'climb') V.m = sndPath(trc, t);
+        else if (id === 'siren') { V.m = sndPath(trc, t); V.wave = [1, .1, .03]; } else if (id === 'onset') { V.on = ONSET_AT.some(([a, b]) => t >= a && t <= b); V.m = 50; } else if (id === 'messa') { V.m = 52; V.vol = 0.12 + 0.88 * (1 - Math.abs(t / 7 * 2 - 1)); }
         else if (id === 'falsetto') { V.m = 62; V.wave = [1, .06, .02]; } else if (id === 'belt') { V.m = 57; V.vol = 2.6; V.wave = [1, .9, .8, .7, .6, .5, .4, .3]; }
         else if (id === 'howl') { V.m = t < 1.1 ? 52 : t < 1.5 ? 52 + (t - 1.1) / 0.4 * 5 : 57 + (Math.random() - 0.5) * 0.25; V.vol = 2.2; V.wave = [1, .7, .6, .5, .4, .3]; }
         else if (id === 'twang') { V.m = 52; V.wave = [1, .3, .2, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .6, .8, .9, .9, .8, .8, .7, .6, .5]; } else if (id === 'breathy') { V.m = 50; V.noise = 0.12; V.vol = 0.5; }
@@ -1121,7 +1121,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
       const show = await page.evaluate(() => ({ aim: $('.snd-aim-n').textContent, meters: [...document.querySelectorAll('#sndMeters .snd-m span')].map(x => x.textContent).join('|'), canvas: !!$('#sndCv') }));
       await page.click('#sndStage [data-act="snd-start"]');
       // mid-way: the live note and meters move
-      await page.waitForTimeout(['climb', 'siren'].includes(await page.evaluate(i => SOUND_TRIES[i].id, i)) ? 3200 : 5000); const mid = await page.evaluate(() => ({ now: $('#sndNow').textContent, bars: [...document.querySelectorAll('#sndMeters .snd-m b i')].map(x => parseInt(x.style.width) || 0) }));
+      await page.waitForTimeout(5000); const mid = await page.evaluate(() => ({ now: $('#sndNow').textContent, bars: [...document.querySelectorAll('#sndMeters .snd-m b i')].map(x => parseInt(x.style.width) || 0) }));
       await page.waitForFunction(() => $('#sndGrade [data-act="snd-next"]'), null, { timeout: 30000 });
       const g = await page.evaluate(() => ({ id: SOUND_TRIES[SND.i].id, head: $('#sndGrade .snd-gh').textContent, parts: [...document.querySelectorAll('#sndGrade .snd-m span')].map(x => x.textContent), tip: $('#sndGrade .snd-tip').textContent, att: $('#sndAtt').textContent }));
       seen[g.id] = { show, mid }; grades[g.id] = g.head;
@@ -1134,7 +1134,7 @@ function expect(cond, msg) { if (!cond) throw new Error(msg); }
     await page.click('[data-act="write-sing"]'); await page.waitForTimeout(300);
     const sing = await page.evaluate(() => ({ mine: !!(G.song && G.song.mine), n: G.seq.length }));
     const T = res.tries;
-    expect(intro.tries === 14 && intro.hp && intro.order === 'base,siren,onset,messa' && /vocal coach’s 3/.test(intro.grp) && T.siren >= 60 && T.onset >= 60 && T.messa >= 55 && /4 starts: 4 clean/.test(grades.onset) && /swell of/.test(grades.messa) && /Daily exercises/.test(res.coach3) && seen.falsetto.show.aim === 'D4' && /Lightness/.test(seen.falsetto.show.meters) && /On the note/.test(seen.base.show.meters) && /→/.test(seen.climb.show.aim) && /↗/.test(seen.howl.show.aim) && seen.base.show.canvas
+    expect(intro.tries === 14 && intro.hp && intro.order === 'base,siren,onset,messa' && /vocal coach’s 3/.test(intro.grp) && T.siren >= 60 && T.onset >= 60 && T.messa >= 55 && /4 starts: 4 clean/.test(grades.onset) && /swell of/.test(grades.messa) && /Daily exercises/.test(res.coach3) && seen.falsetto.show.aim === 'D4' && /Lightness/.test(seen.falsetto.show.meters) && /On the note/.test(seen.base.show.meters) && /↗/.test(seen.climb.show.aim) && /On the path/.test(seen.siren.show.meters) && /on the path/.test(seen.siren.mid.now) && seen.siren.mid.bars[0] > 60 && /↗/.test(seen.howl.show.aim) && seen.base.show.canvas
       && /on the note/.test(seen.falsetto.mid.now) && seen.falsetto.mid.bars[0] > 50 && Object.values(grades).every(h => /\d+ \/ 100/.test(h))
       && T.low >= 55 && T.climb >= 60 && T.falsetto >= 60 && T.belt >= 55 && T.howl >= 55 && T.twang >= 55 && T.vibrato >= 55 && T.deadpan >= 60
       && res.table >= 10 && /most natural sound/.test(res.nat) && res.gifts.length >= 2 && res.cards === res.gifts.length && w.n === w.toks && w.beats === 64 && sing.mine && sing.n === w.n,

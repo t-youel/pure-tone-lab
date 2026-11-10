@@ -987,7 +987,7 @@ body[data-screen="home"] .live, body[data-screen="voice"] .live, body[data-scree
   <div class="undo-bar" id="undoBar" hidden><span>Your progress was reset.</span><button id="btnUndo" class="primary small">Undo</button><button id="btnUndoOk" class="small">OK, keep it reset</button></div>
   <div class="home-cards" id="homeCards"></div>
   <div class="row home-foot"><button id="btnEasy" class="small" aria-pressed="false">👋 Easy mode</button><button id="btnStartOver" class="small">Start over (reset my progress)</button></div>
-  <p class="fine build" id="buildTag">Build 2026-11-08 · a vocal coach’s 3 exercises</p>
+  <p class="fine build" id="buildTag">Build 2026-11-10 · a path to follow on the slides</p>
 </section>
 
 <!-- YOUR PATH -->
@@ -7069,17 +7069,27 @@ function sndColour(tr, v, base) {
 }
 // the target for a moment of the try: the note shown (the howl: the first note, then the second after its slide)
 const ONSET_AT = [[0.3, 0.9], [1.5, 2.1], [2.7, 3.3], [3.9, 4.5]];
-function sndAim(tr, t) { const a = sndTarget(tr); if (tr.kind === 'onsets') return ONSET_AT.some(([x, y]) => t >= x - 0.1 && t <= y + 0.15) ? a : null; if (tr.kind === 'swell') return a; if (tr.kind === 'howl') return t < 1.2 ? a : sndTo(tr); return tr.kind === 'hold' ? a : null; }
+// The path to follow for the slides (a dot moves along it): the siren and the climb go up, linger at the top and come
+// back down; low and warm slides down and holds. The top stays within the range you've shown.
+const isPath = tr => tr.kind === 'climb' || tr.kind === 'low';
+function sndPathEnds(tr) { const a = sndTarget(tr), h = sndHome(), p = store.profile || {}, r = ((store.sound || {}).tries || {});
+  if (tr.kind === 'climb') { const want = a + (tr.id === 'siren' ? 14 : 17), cap = p.high ? p.high - 1 : r.climb && r.climb.top ? Math.round(r.climb.top) : want; return [a, Math.max(a + 7, Math.min(want, cap))]; }
+  return [a, Math.max(p.low ? p.low + 1 : a - 9, a - 9, Math.min(a - 4, h - 7))]; }
+function sndPath(tr, t) { const [a, b] = sndPathEnds(tr), T = tr.secs, f = clamp(t / T), e = x => 0.5 - 0.5 * Math.cos(Math.PI * clamp(x));
+  if (tr.kind === 'climb') return f <= 0.42 ? a + (b - a) * e(f / 0.42) : f <= 0.55 ? b : b - (b - a) * e((f - 0.55) / 0.4);
+  return t < 0.6 ? a : a + (b - a) * e((t - 0.6) / 1.8); }
+const sndTol = tr => isPath(tr) ? 1 : 0.5;   // a moving target: a semitone either side counts as on it
+function sndAim(tr, t) { if (isPath(tr)) return sndPath(tr, t); const a = sndTarget(tr); if (tr.kind === 'onsets') return ONSET_AT.some(([x, y]) => t >= x - 0.1 && t <= y + 0.15) ? a : null; if (tr.kind === 'swell') return a; if (tr.kind === 'howl') return t < 1.2 ? a : sndTo(tr); return tr.kind === 'hold' ? a : null; }
 // listen to one try: the note twice, 3-2-1, then capture with live feedback
 function sndCapture(tr, g) {
   return new Promise(res => {
-    const target = sndTarget(tr), live = $('#sndLive'), sm = []; let iv; const lead = tr.kind === 'climb' ? 1.6 : 3.4, t0 = performance.now() + lead * 1000;
-    if (tr.kind !== 'climb') { playTone(target, 1.0, PIPE); playTone(tr.kind === 'howl' ? sndTo(tr) : target, 1.0, PIPE, 1.2); }
+    const target = sndTarget(tr), live = $('#sndLive'), sm = []; let iv; const lead = 3.4, t0 = performance.now() + lead * 1000;
+    if (isPath(tr)) playTone(target, 1.6, PIPE); else { playTone(target, 1.0, PIPE); playTone(tr.kind === 'howl' ? sndTo(tr) : target, 1.0, PIPE, 1.2); }
     let recOn = false;
     iv = setInterval(() => {
       if (SND.gen !== g) { clearInterval(iv); sndRecStop(); return res(null); }
       const s = (performance.now() - t0) / 1000;
-      if (s < 0) { live.textContent = s < -1.6 && tr.kind !== 'climb' ? '🎵 Listen to the note…' : '🎤 Your turn in ' + Math.ceil(-s) + '…'; return; }
+      if (s < 0) { live.textContent = s < -1.6 ? (isPath(tr) ? '🎵 Your starting note… then follow the dot' : '🎵 Listen to the note…') : '🎤 Your turn in ' + Math.ceil(-s) + '…'; return; }
       if (!recOn) { recOn = true; sndRecStart(); }
       const f = sndFeatures(), m = S.rawM;
       sm.push({ t: s, m, rms: S.rms || 0, pur: m != null ? S.purity : null, share: m != null ? S.share : null, ...f });
@@ -7093,19 +7103,19 @@ function sndCapture(tr, g) {
 // the live picture: your note against the target (green on it, amber close, red off), and four meters
 function sndLive(tr, sm, s) {
   const now = sm.filter(x => x.t > s - 1), v = now.filter(x => x.m != null), cur = sm[sm.length - 1], aim = sndAim(tr, s), base = SND.base;
-  const big = $('#sndNow'); if (big) { if (cur && cur.m != null) { const c = aim != null ? Math.round((cur.m - aim) * 100) : null; big.textContent = '♪ ' + nameOf(Math.round(cur.m)) + (c == null ? '' : Math.abs(c) <= 25 ? ' · on the note ✓' : ' · ' + Math.abs(c) + '¢ ' + (c > 0 ? 'sharp' : 'flat')); big.className = 'snd-now ' + (c == null ? '' : Math.abs(c) <= 25 ? 'on' : Math.abs(c) <= 50 ? 'near' : 'off'); } else { big.textContent = '…'; big.className = 'snd-now'; } }
+  const big = $('#sndNow'); if (big) { if (cur && cur.m != null) { const c = aim != null ? Math.round((cur.m - aim) * 100) : null; big.textContent = '♪ ' + nameOf(Math.round(cur.m)) + (c == null ? '' : isPath(tr) ? (Math.abs(c) <= 100 ? ' · on the path ✓' : c > 0 ? ' · above the path: come down' : ' · below the path: go up') : Math.abs(c) <= 25 ? ' · on the note ✓' : ' · ' + Math.abs(c) + '¢ ' + (c > 0 ? 'sharp' : 'flat')); big.className = 'snd-now ' + (c == null ? '' : Math.abs(c) <= (isPath(tr) ? 100 : 25) ? 'on' : Math.abs(c) <= (isPath(tr) ? 200 : 50) ? 'near' : 'off'); } else { big.textContent = '…'; big.className = 'snd-now'; } }
   const set = (k, x) => { const b = document.querySelector('#sndMeters [data-m="' + k + '"] i'); if (b) b.style.width = Math.round(100 * clamp(x)) + '%'; };
-  if (aim != null) set('note', v.length ? v.filter(x => Math.abs(x.m - sndAim(tr, x.t)) <= 0.5).length / v.length : 0);
+  if (aim != null) set('note', v.length ? v.filter(x => sndAim(tr, x.t) != null && Math.abs(x.m - sndAim(tr, x.t)) <= sndTol(tr)).length / v.length : 0);
   else set('note', v.length / Math.max(1, now.length));
   set('pure', v.length ? clamp((mean(v.map(x => x.pur || 0)) - 30) / 60) : 0);
   set('steady', v.length > 5 ? clamp(1 - (sndSd(v.slice(-12).map(x => x.m)) * 100 - 8) / 45) : 0);
   if (tr.colour) set('colour', sndColour(tr, tr.kind === 'climb' || tr.id === 'low' ? sm.filter(x => x.m != null) : v, base));
-  sndDraw(tr, sm);
+  sndDraw(tr, sm, s);
 }
-function sndDraw(tr, sm) {
+function sndDraw(tr, sm, now) {
   const cv = $('#sndCv'); if (!cv) return; const c = cv.getContext('2d'), W = cv.width = cv.clientWidth * 2, H = cv.height = 360; c.clearRect(0, 0, W, H);
   const a = sndTarget(tr), b = sndTo(tr), ms = sm.filter(x => x.m != null).map(x => x.m), css = getComputedStyle(document.body);
-  let lo = Math.min(a, b ?? a) - 6, hi = Math.max(a, b ?? a) + 6; if (tr.kind === 'climb') { lo = a - 6; hi = a + 20; } if (tr.id === 'low') { lo = a - 12; hi = a + 4; }
+  let lo = Math.min(a, b ?? a) - 6, hi = Math.max(a, b ?? a) + 6; if (isPath(tr)) { const [p0, p1] = sndPathEnds(tr); lo = Math.min(p0, p1) - 3; hi = Math.max(p0, p1) + 3; }
   if (ms.length) { lo = Math.min(lo, Math.floor(Math.min(...ms)) - 1); hi = Math.max(hi, Math.ceil(Math.max(...ms)) + 1); }
   const L = 70, y = m => 12 + (hi - m) / (hi - lo) * (H - 24), x = t => L + clamp(t / tr.secs) * (W - L - 10);
   c.font = '22px ' + (css.getPropertyValue('--mono') || 'monospace'); c.textBaseline = 'middle';
@@ -7116,6 +7126,14 @@ function sndDraw(tr, sm) {
   const band = (m, t0, t1) => { c.fillStyle = 'rgba(58,167,109,.22)'; c.fillRect(x(t0), y(m + 0.25), x(t1) - x(t0), y(m - 0.25) - y(m + 0.25)); c.strokeStyle = 'rgba(58,167,109,.9)'; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(x(t0), y(m)); c.lineTo(x(t1), y(m)); c.stroke(); c.setLineDash([]); c.fillStyle = '#2e8a57'; c.font = 'bold 24px sans-serif'; c.fillText(nameOf(m), x(t1) - 60, y(m) - 20); };
   if (tr.kind === 'hold' || tr.kind === 'swell') band(a, 0, tr.secs); else if (tr.kind === 'howl') { band(a, 0, 1.2); band(b, 1.2, tr.secs); } else if (tr.kind === 'low') band(a, 0, 1);
   else if (tr.kind === 'onsets') ONSET_AT.forEach(([x0, x1]) => band(a, x0, x1));
+  if (isPath(tr)) { // the path: a green band a semitone wide each side, its centre dashed, the start note named
+    const N = 80, pts = Array.from({ length: N + 1 }, (_, k) => { const t = k / N * tr.secs; return [x(t), y(sndPath(tr, t))]; });
+    c.strokeStyle = 'rgba(58,167,109,.22)'; c.lineWidth = Math.max(10, 2 * (y(lo) - y(lo + 1))); c.lineJoin = 'round'; c.lineCap = 'round'; c.beginPath(); pts.forEach(([px, py], k) => k ? c.lineTo(px, py) : c.moveTo(px, py)); c.stroke();
+    c.strokeStyle = 'rgba(46,138,87,.9)'; c.lineWidth = 2.5; c.setLineDash([8, 6]); c.beginPath(); pts.forEach(([px, py], k) => k ? c.lineTo(px, py) : c.moveTo(px, py)); c.stroke(); c.setLineDash([]);
+    const [p0, p1] = sndPathEnds(tr); c.fillStyle = '#2e8a57'; c.font = 'bold 24px sans-serif'; c.fillText(nameOf(p0), x(0) + 6, y(p0) + (tr.kind === 'low' ? -22 : 22)); c.fillText(nameOf(p1), x(tr.kind === 'climb' ? tr.secs * 0.48 : tr.secs) - (tr.kind === 'climb' ? 20 : 60), y(p1) + (tr.kind === 'climb' ? -22 : 24));
+    if (now != null && now >= 0) { // the playhead, and the dot to follow
+      c.strokeStyle = 'rgba(75,79,216,.5)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x(now), 8); c.lineTo(x(now), H - 8); c.stroke();
+      c.fillStyle = '#2e8a57'; c.beginPath(); c.arc(x(now), y(sndPath(tr, now)), 11, 0, 2 * Math.PI); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); } }
   if (tr.kind === 'swell') { // loudness along the bottom: the wave to follow (dashed) and yours
     const by = H - 10, bh = 70; c.strokeStyle = 'rgba(194,24,91,.8)'; c.setLineDash([8, 6]); c.lineWidth = 3; c.beginPath(); c.moveTo(x(0), by); c.lineTo(x(tr.secs / 2), by - bh); c.lineTo(x(tr.secs), by); c.stroke(); c.setLineDash([]);
     const db = sm.map(p => 20 * Math.log10(Math.max(1e-6, p.rms))), mx = Math.max(-20, ...db), mn = mx - 24; c.strokeStyle = '#4b4fd8'; c.lineWidth = 4; c.beginPath(); sm.forEach((p, i) => { const yy = by - clamp((db[i] - mn) / 24) * bh; i ? c.lineTo(x(p.t), yy) : c.moveTo(x(p.t), yy); }); c.stroke();
@@ -7123,8 +7141,8 @@ function sndDraw(tr, sm) {
   // your voice
   c.lineWidth = 6; c.lineCap = 'round'; let prev = null;
   for (const p of sm) { if (p.m == null) { prev = null; continue; } const aim = sndAim(tr, p.t), d = aim == null ? 0 : Math.abs(p.m - aim);
-    if (prev) { c.strokeStyle = aim == null ? '#4b4fd8' : d <= 0.25 ? '#2e9d5b' : d <= 0.5 ? '#e0962a' : '#d9534f'; c.beginPath(); c.moveTo(x(prev.t), y(prev.m)); c.lineTo(x(p.t), y(p.m)); c.stroke(); } prev = p; }
-  if (tr.kind === 'climb' && ms.length) { c.fillStyle = '#4b4fd8'; c.font = 'bold 24px sans-serif'; c.fillText('▲ ' + nameOf(Math.round(Math.max(...ms))), W - 130, y(Math.max(...ms))); c.fillText('▼ ' + nameOf(Math.round(Math.min(...ms))), W - 130, y(Math.min(...ms))); }
+    const tl = sndTol(tr); if (prev) { c.strokeStyle = aim == null ? '#4b4fd8' : d <= tl / 2 ? '#2e9d5b' : d <= tl ? '#e0962a' : '#d9534f'; c.beginPath(); c.moveTo(x(prev.t), y(prev.m)); c.lineTo(x(p.t), y(p.m)); c.stroke(); } prev = p; }
+  if (tr.kind === 'climb' && ms.length && false) { c.fillStyle = '#4b4fd8'; c.font = 'bold 24px sans-serif'; c.fillText('▲ ' + nameOf(Math.round(Math.max(...ms))), W - 130, y(Math.max(...ms))); c.fillText('▼ ' + nameOf(Math.round(Math.min(...ms))), W - 130, y(Math.min(...ms))); }
 }
 function sndRecStart() { try { if (typeof MediaRecorder === 'undefined') return; if (!recDest) { recDest = ac.createMediaStreamDestination(); analyser.connect(recDest); } const mr = new MediaRecorder(recDest.stream), rec = { mr, parts: [] }; SND.rec = rec; mr.ondataavailable = e => { if (e.data && e.data.size) rec.parts.push(e.data); }; mr.start(250); } catch (e) { SND.rec = null; } }
 function sndRecStop(id) { const r = SND.rec; SND.rec = null; if (!r) return; r.mr.onstop = async () => { if (!id) return; try { const blob = new Blob(r.parts, { type: r.mr.mimeType || 'audio/webm' }); SND.clips[id] = await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) {} }; try { r.mr.stop(); } catch (e) {} }
@@ -7134,7 +7152,7 @@ function sndScore(tr, sm, base) {
   const skip = tr.kind === 'onsets' ? 0 : 0.4, v = sm.filter(x => x.m != null && x.t > skip), all = sm.filter(x => x.t > skip), home = sndHome();   // the starts exercise is all about its first moments
   if (v.length < 15) return { score: 0, heard: false, parts: {}, facts: 'I couldn’t hear a clear note. Sing a little louder or closer to the mic, and start when the countdown ends.' };
   const ms = v.map(x => x.m), tail = v.filter(x => x.t > tr.secs - 2.5).map(x => x.m), med = medArr(ms);
-  const note = tr.kind === 'hold' || tr.kind === 'howl' || tr.kind === 'swell' ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : tr.kind === 'onsets' ? (v.length ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : 0) : v.length / Math.max(1, all.length);
+  const note = isPath(tr) ? v.filter(x => Math.abs(x.m - sndPath(tr, x.t)) <= 1).length / v.length * clamp(v.length / Math.max(1, all.length) / 0.7) : tr.kind === 'hold' || tr.kind === 'howl' || tr.kind === 'swell' ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : tr.kind === 'onsets' ? (v.length ? v.filter(x => Math.abs(x.m - sndTarget(tr)) <= 0.5).length / v.length : 0) : v.length / Math.max(1, all.length);
   const pure = clamp((mean(v.map(x => x.pur || 0)) - 30) / 60), steady = clamp(1 - (sndSd(tail) * 100 - 10) / 50), colour = tr.colour ? sndColour(tr, v, base) : null;
   const P = { note: Math.round(100 * note), pure: Math.round(100 * pure), steady: Math.round(100 * (tr.kind === 'climb' ? clamp(1 - sndJumps(v) / 4) : tr.kind === 'swell' ? clamp(1 - sndSwell(tr, v).drift / 60) : tr.kind === 'onsets' ? clamp(1 - sndSd(v.map(x => x.m)) * 100 / 60) : steady)) }; if (colour != null) P.colour = Math.round(100 * colour);
   // the coach's exercises are graded mostly on the exercise itself (clean starts, a smooth siren, a steady swell)
@@ -7451,9 +7469,9 @@ function sndTry(i) {
   SND.base = r.base || null; SND.i = i;
   const target = sndTarget(tr), to = sndTo(tr);
   st.append(el('h4', '', tr.ic + ' ' + (tr.id === 'base' ? 'Start' : i + ' of ' + (SOUND_TRIES.length - 1)) + ' · ' + tr.name), el('p', '', tr.how));
-  const aim = el('div', 'snd-aim'); aim.append(el('span', 'snd-aim-l', tr.kind === 'climb' ? 'Slide from' : tr.kind === 'low' ? 'Start on' : 'Sing'),
-    el('b', 'snd-aim-n', tr.kind === 'climb' ? 'low → high' : tr.kind === 'howl' ? nameOf(target) + ' ↗ ' + nameOf(to) : nameOf(target) + (tr.kind === 'low' ? ' ↓' : '')));
-  const hear = el('button', 'small', '▶ Hear the note'); hear.dataset.act = 'snd-note'; hear.onclick = async () => { await ensureAudio(); playTone(target, 1.2, PIPE); if (to != null) playTone(to, 1.2, PIPE, 1.3); }; if (tr.kind === 'climb') hear.hidden = true; aim.appendChild(hear);
+  const aim = el('div', 'snd-aim'); aim.append(el('span', 'snd-aim-l', isPath(tr) ? 'Follow the path' : 'Sing'),
+    el('b', 'snd-aim-n', isPath(tr) ? nameOf(sndPathEnds(tr)[0]) + (tr.kind === 'climb' ? ' ↗ ' + nameOf(sndPathEnds(tr)[1]) + ' ↘' : ' ↘ ' + nameOf(sndPathEnds(tr)[1])) : tr.kind === 'climb' ? 'low → high' : tr.kind === 'howl' ? nameOf(target) + ' ↗ ' + nameOf(to) : nameOf(target) + (tr.kind === 'low' ? ' ↓' : '')));
+  const hear = el('button', 'small', '▶ Hear the note'); hear.dataset.act = 'snd-note'; hear.onclick = async () => { await ensureAudio(); playTone(target, 1.2, PIPE); if (to != null) playTone(to, 1.2, PIPE, 1.3); }; aim.appendChild(hear);
   const ex = el('button', 'small', '▶ Hear an example'); ex.dataset.act = 'snd-example'; ex.title = 'The app’s example voice sings the sound on your notes'; ex.onclick = () => sndExample(tr); aim.appendChild(ex);
   if (tr.kind !== 'climb') { const mv = (d, t) => { const b = el('button', 'small', t); b.dataset.act = d < 0 ? 'snd-lower' : 'snd-higher'; b.title = d < 0 ? 'Move the note down' : 'Move the note up'; b.onclick = () => { const S3 = (store.sound.adj ||= {}); S3[tr.id] = (S3[tr.id] || 0) + d; dirty = true; save(); sndTry(i); }; return b; }; aim.append(mv(-2, '⬇ Lower'), mv(2, '⬆ Higher')); }
   st.appendChild(aim);
@@ -7467,7 +7485,7 @@ function sndTry(i) {
   const cv = el('canvas', 'snd-cv'); cv.id = 'sndCv'; const now = el('div', 'snd-now', ''); now.id = 'sndNow';
   const meters = el('div', 'snd-meters'); meters.id = 'sndMeters';
   const mt = (k, label) => { const m = el('div', 'snd-m'); m.dataset.m = k; m.append(el('span', '', label), el('b', '', '')); m.lastChild.appendChild(el('i')); meters.appendChild(m); };
-  mt('note', tr.kind === 'climb' || tr.kind === 'low' ? 'Heard' : 'On the note'); mt('pure', 'Pure tone'); mt('steady', tr.kind === 'climb' ? 'Smooth' : 'Steady'); if (tr.colour) mt('colour', tr.colour);
+  mt('note', isPath(tr) ? 'On the path' : 'On the note'); mt('pure', 'Pure tone'); mt('steady', tr.kind === 'climb' ? 'Smooth' : 'Steady'); if (tr.colour) mt('colour', tr.colour);
   const live = el('p', 'ls-live', ''); live.id = 'sndLive';
   st.append(now, cv, meters, live); sndDraw(tr, []);
   const row = el('div', 'row'); const go = el('button', 'primary', '🎤 Go'); go.dataset.act = 'snd-start'; const skip = el('button', 'small', 'Skip'); skip.onclick = () => sndTry(i + 1);
@@ -7488,7 +7506,7 @@ function sndShowGrade(tr, i, out) {
   dirty = true; save(); sndList();
   if (!out.heard) { res.appendChild(el('p', 'snd-facts', '🤔 ' + out.facts)); if (go) go.textContent = '🎤 Try again'; return; }
   const head = el('div', 'snd-gh'); head.append(el('b', 'snd-letter g' + sndGrade(out.score), sndGrade(out.score)), el('b', 'snd-score', String(out.score)), el('span', '', ' / 100 · ' + out.facts)); res.appendChild(head);
-  const bars = el('div', 'snd-meters done'); const L = { note: tr.kind === 'climb' || tr.kind === 'low' ? 'Heard' : 'On the note', pure: 'Pure tone', steady: tr.kind === 'climb' ? 'Smooth' : 'Steady', colour: tr.colour };
+  const bars = el('div', 'snd-meters done'); const L = { note: isPath(tr) ? 'On the path' : 'On the note', pure: 'Pure tone', steady: tr.kind === 'climb' ? 'Smooth' : 'Steady', colour: tr.colour };
   Object.entries(out.parts).forEach(([k, val]) => { const m = el('div', 'snd-m'); m.append(el('span', '', L[k] + ' ' + val), el('b', '', '')); const bar = el('i'); bar.style.width = val + '%'; m.lastChild.appendChild(bar); bars.appendChild(m); });
   res.appendChild(bars); res.appendChild(el('p', 'snd-tip', '💡 ' + sndTip(tr, out.parts)));
   if ((tr.kind === 'hold' || tr.kind === 'howl') && out.med != null && Math.abs(out.med - (tr.kind === 'howl' ? sndTo(tr) : sndTarget(tr))) >= 2.5) {
